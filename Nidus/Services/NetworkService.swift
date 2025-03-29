@@ -1,0 +1,232 @@
+// NetworkService.swift
+import Foundation
+
+enum APIError: Error, LocalizedError {
+    case invalidURL
+    case requestFailed(Error)
+    case invalidResponse
+    case decodingFailed(Error)
+    case unauthorized
+    case serverError(statusCode: Int, message: String?)
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "Недійсна URL-адреса"
+        case .requestFailed(let error):
+            return "Запит не вдалося виконати: \(error.localizedDescription)"
+        case .invalidResponse:
+            return "Отримана недійсна відповідь від сервера"
+        case .decodingFailed(let error):
+            return "Не вдалося декодувати відповідь: \(error.localizedDescription)"
+        case .unauthorized:
+            return "Необхідна авторизація для доступу до цього ресурсу"
+        case .serverError(let statusCode, let message):
+            return "Помилка сервера (\(statusCode)): \(message ?? "Невідома помилка")"
+        }
+    }
+}
+
+class NetworkService {
+    static let shared = NetworkService()
+    
+    private let baseURL = "https://nidus-845c224671ea.herokuapp.com/api"
+    private let userDefaults = UserDefaults.standard
+    
+    private init() {}
+    
+    // MARK: - Auth Token Management
+    
+    private var accessToken: String? {
+        get {
+            return userDefaults.string(forKey: "accessToken")
+        }
+        set {
+            if let newValue = newValue {
+                userDefaults.set(newValue, forKey: "accessToken")
+            } else {
+                userDefaults.removeObject(forKey: "accessToken")
+            }
+        }
+    }
+    
+    private var refreshToken: String? {
+        get {
+            return userDefaults.string(forKey: "refreshToken")
+        }
+        set {
+            if let newValue = newValue {
+                userDefaults.set(newValue, forKey: "refreshToken")
+            } else {
+                userDefaults.removeObject(forKey: "refreshToken")
+            }
+        }
+    }
+    
+    func saveTokens(accessToken: String, refreshToken: String) {
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+    }
+    
+    func clearTokens() {
+        accessToken = nil
+        refreshToken = nil
+    }
+    
+    // MARK: - API Methods
+    
+    func fetch<T: Decodable>(endpoint: String, requiresAuth: Bool = true) async throws -> T {
+        var urlRequest = try createRequest(for: endpoint, method: "GET", requiresAuth: requiresAuth)
+        return try await performRequest(urlRequest)
+    }
+    
+    func post<T: Encodable, U: Decodable>(endpoint: String, body: T, requiresAuth: Bool = true) async throws -> U {
+        var urlRequest = try createRequest(for: endpoint, method: "POST", requiresAuth: requiresAuth)
+        return try await performRequestWithBody(urlRequest, body: body)
+    }
+    
+    func patch<T: Encodable, U: Decodable>(endpoint: String, body: T, requiresAuth: Bool = true) async throws -> U {
+        var urlRequest = try createRequest(for: endpoint, method: "PATCH", requiresAuth: requiresAuth)
+        return try await performRequestWithBody(urlRequest, body: body)
+    }
+    
+    func put<T: Encodable, U: Decodable>(endpoint: String, body: T, requiresAuth: Bool = true) async throws -> U {
+        var urlRequest = try createRequest(for: endpoint, method: "PUT", requiresAuth: requiresAuth)
+        return try await performRequestWithBody(urlRequest, body: body)
+    }
+    
+    func delete<U: Decodable>(endpoint: String, requiresAuth: Bool = true) async throws -> U {
+        var urlRequest = try createRequest(for: endpoint, method: "DELETE", requiresAuth: requiresAuth)
+        return try await performRequest(urlRequest)
+    }
+    
+    func deleteWithoutResponse(endpoint: String, requiresAuth: Bool = true) async throws {
+        var urlRequest = try createRequest(for: endpoint, method: "DELETE", requiresAuth: requiresAuth)
+        _ = try await performRequestWithoutResponse(urlRequest)
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func createRequest(for endpoint: String, method: String, requiresAuth: Bool) throws -> URLRequest {
+        // Make sure URL starts with "/" if not provided
+        let formattedEndpoint = endpoint.hasPrefix("/") ? endpoint : "/\(endpoint)"
+        
+        guard let url = URL(string: baseURL + formattedEndpoint) else {
+            throw APIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if requiresAuth {
+            guard let token = accessToken else {
+                throw APIError.unauthorized
+            }
+            request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        return request
+    }
+    
+    private func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            return try handleResponse(data: data, response: response)
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.requestFailed(error)
+        }
+    }
+    
+    private func performRequestWithBody<T: Encodable, U: Decodable>(_ request: URLRequest, body: T) async throws -> U {
+        var request = request
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        
+        do {
+            request.httpBody = try encoder.encode(body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            return try handleResponse(data: data, response: response)
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.requestFailed(error)
+        }
+    }
+    
+    private func performRequestWithoutResponse(_ request: URLRequest) async throws {
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        
+        switch httpResponse.statusCode {
+        case 200...299:
+            return
+        case 401:
+            throw APIError.unauthorized
+        default:
+            throw APIError.serverError(statusCode: httpResponse.statusCode, message: nil)
+        }
+    }
+    
+    private func handleResponse<T: Decodable>(data: Data, response: URLResponse) throws -> T {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        
+        switch httpResponse.statusCode {
+        case 200...299:
+            do {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                
+                // Для відладки: виведемо текст JSON-відповіді
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("JSON відповідь: \(jsonString)")
+                }
+                
+                return try decoder.decode(T.self, from: data)
+            } catch {
+                print("Decoding error: \(error)")
+                throw APIError.decodingFailed(error)
+            }
+        case 401:
+            throw APIError.unauthorized
+        default:
+            // Спробуємо отримати повідомлення про помилку
+            let errorMessage = try? JSONDecoder().decode([String: String].self, from: data)["message"]
+            throw APIError.serverError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+    }
+    
+    // MARK: - Token Refresh
+    
+    func refreshAuthToken() async throws -> Bool {
+        guard let refreshToken = refreshToken else {
+            return false
+        }
+        
+        struct RefreshTokenRequest: Codable {
+            let refreshToken: String
+        }
+        
+        struct TokenResponse: Codable {
+            let access_token: String
+            let refresh_token: String
+        }
+        
+        do {
+            let request = RefreshTokenRequest(refreshToken: refreshToken)
+            let response: TokenResponse = try await post(endpoint: "/auth/refresh", body: request, requiresAuth: false)
+            saveTokens(accessToken: response.access_token, refreshToken: response.refresh_token)
+            return true
+        } catch {
+            clearTokens()
+            return false
+        }
+    }
+}
