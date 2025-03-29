@@ -1,0 +1,13 @@
+//
+//  .swiftlint.yml
+//  Nidus
+//
+//  Created by Andrii Liakhovych on 3/29/25.
+//
+
+disabled_rules:
+  - trailing_whitespace
+  - line_length
+excluded:
+  - Pods
+  - DerivedData

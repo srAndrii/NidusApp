@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B477F7B52D98981F00595037 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = B477F7B42D98981F00595037 /* Kingfisher */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		B477F7982D98942800595037 /* Nidus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nidus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B477F7B52D98981F00595037 /* Kingfisher in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -55,6 +60,7 @@
 				B477F7942D98942800595037 /* Sources */,
 				B477F7952D98942800595037 /* Frameworks */,
 				B477F7962D98942800595037 /* Resources */,
+				B477F7B92D989C6300595037 /* Run Script */,
 			);
 			buildRules = (
 			);
@@ -65,6 +71,7 @@
 			);
 			name = Nidus;
 			packageProductDependencies = (
+				B477F7B42D98981F00595037 /* Kingfisher */,
 			);
 			productName = Nidus;
 			productReference = B477F7982D98942800595037 /* Nidus.app */;
@@ -94,6 +101,9 @@
 			);
 			mainGroup = B477F78F2D98942800595037;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B477F7B32D98981F00595037 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B477F7992D98942800595037 /* Products */;
 			projectDirPath = "";
@@ -113,6 +123,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B477F7B92D989C6300595037 /* Run Script */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Run Script";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nif which swiftlint > /dev/null; then\n  swiftlint\nelse\n  echo \"warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		B477F7942D98942800595037 /* Sources */ = {
@@ -324,6 +355,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B477F7B32D98981F00595037 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.3.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B477F7B42D98981F00595037 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B477F7B32D98981F00595037 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B477F7902D98942800595037 /* Project object */;
 }

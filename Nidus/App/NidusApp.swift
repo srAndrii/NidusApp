@@ -5,6 +5,7 @@
 //  Created by Andrii Liakhovych on 3/29/25.
 //
 
+import Foundation
 import SwiftUI
 
 @main
