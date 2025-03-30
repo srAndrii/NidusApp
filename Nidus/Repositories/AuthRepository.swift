@@ -61,9 +61,15 @@ class AuthRepository: AuthRepositoryProtocol {
         return response.user
     }
     
+    
     func logout() async throws {
+        // Структура для відповіді
+        struct LogoutResponse: Codable {
+            let message: String
+        }
+        
         // Викликаємо endpoint для виходу з системи
-        try await networkService.post(endpoint: "/auth/logout", body: EmptyBody(), requiresAuth: true)
+        let _: LogoutResponse = try await networkService.post(endpoint: "/auth/logout", body: EmptyBody(), requiresAuth: true)
         
         // Очищаємо токени
         networkService.clearTokens()

@@ -33,6 +33,8 @@ struct Order: Identifiable, Codable {
         switch status {
         case .created:
             return "Створено"
+        case .pending:
+            return "В обробці"
         case .accepted:
             return "Прийнято"
         case .preparing:

@@ -75,6 +75,10 @@ class NetworkService {
     
     // MARK: - API Methods
     
+    func getBaseURL() -> String {
+        return baseURL
+    }
+    
     func fetch<T: Decodable>(endpoint: String, requiresAuth: Bool = true) async throws -> T {
         var urlRequest = try createRequest(for: endpoint, method: "GET", requiresAuth: requiresAuth)
         return try await performRequest(urlRequest)

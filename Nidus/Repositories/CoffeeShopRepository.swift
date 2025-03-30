@@ -70,7 +70,8 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
     }
     
     private func createRequest(for endpoint: String, method: String) throws -> URLRequest {
-        guard let url = URL(string: networkService.baseURL + endpoint) else {
+        let baseURL = networkService.getBaseURL()
+        guard let url = URL(string: baseURL + endpoint) else {
             throw APIError.invalidURL
         }
         
