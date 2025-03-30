@@ -48,6 +48,15 @@ class AuthenticationManager: ObservableObject {
             } else {
                 error = "Не вдалося авторизуватися. Спробуйте ще раз."
             }
+        } catch let apiError as APIError {
+            switch apiError {
+            case .serverError(_, let message):
+                print("Server error message: \(message ?? "none")") 
+                self.error = message ?? "Невідома помилка"
+            default:
+                self.error = apiError.localizedDescription
+            }
+            print("Login error: \(apiError)")
         } catch {
             self.error = error.localizedDescription
             print("Login error: \(error)")
@@ -68,9 +77,18 @@ class AuthenticationManager: ObservableObject {
             // Якщо реєстрація успішна, встановлюємо поточного користувача
             currentUser = user
             isAuthenticated = true
+        } catch let apiError as APIError {
+            switch apiError {
+            case .serverError(_, let message):
+                print("Server error message: \(message ?? "none")")
+                self.error = message ?? "Невідома помилка"
+            default:
+                self.error = apiError.localizedDescription
+            }
+            print("Login error: \(apiError)")
         } catch {
             self.error = error.localizedDescription
-            print("Registration error: \(error)")
+            print("Login error: \(error)")
         }
         
         isLoading = false
