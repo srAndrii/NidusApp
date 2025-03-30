@@ -1,4 +1,10 @@
-// Services/DependencyInjection.swift
+//
+//  DependencyInjection.swift
+//  Nidus
+//
+//  Created by Andrii Liakhovych on 3/30/25.
+//
+
 import Foundation
 
 class DIContainer {
@@ -31,5 +37,10 @@ class DIContainer {
     // Метод для отримання HomeViewModel
     func makeHomeViewModel() -> HomeViewModel {
         return HomeViewModel(coffeeShopRepository: coffeeShopRepository)
+    }
+    
+    // Метод для отримання AdminViewModel
+    func makeAdminViewModel() -> AdminViewModel {
+        return AdminViewModel(userRepository: userRepository)
     }
 }

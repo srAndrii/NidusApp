@@ -23,7 +23,7 @@ struct QRCodeView: View {
     
     var body: some View {
         ZStack {
-            Color.backGround
+            Color("backgroundColor")
                 .ignoresSafeArea()
             
             VStack(spacing: 30) {

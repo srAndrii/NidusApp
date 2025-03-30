@@ -22,7 +22,7 @@ struct AuthHeaderView: View {
 struct AuthHeaderView_Previews: PreviewProvider {
     static var previews: some View {
         AuthHeaderView()
-            .background(Color.backGround)
+            .background(Color("backgroundColor"))
             .previewLayout(.sizeThatFits)
     }
 }

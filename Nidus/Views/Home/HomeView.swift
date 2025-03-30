@@ -19,7 +19,7 @@ struct HomeView: View {
     var body: some View {
         ZStack {
             // Головний фон для всього екрану
-            Color.backGround
+            Color("backgroundColor")
                 .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 0) {
@@ -127,7 +127,7 @@ struct HomeView: View {
                         .listRowSeparator(.hidden)
                     }
                     .listStyle(.plain)
-                    .background(Color.backGround)
+                    .background(Color("backgroundColor"))
                 }
             }
         }

@@ -83,6 +83,6 @@ struct AuthFormView_Previews: PreviewProvider {
             isLoginMode: .constant(true)
         )
         .environmentObject(AuthenticationManager())
-        .background(Color.backGround)
+        .background(Color("backgroundColor"))
     }
 }

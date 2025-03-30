@@ -54,7 +54,7 @@ struct CustomTextField_Previews: PreviewProvider {
             CustomTextField(iconName: "lock", placeholder: "Пароль", text: .constant(""), isSecure: true)
         }
         .padding()
-        .background(Color.backGround)
+        .background(Color("backgroundColor"))
         .previewLayout(.sizeThatFits)
     }
 }

@@ -9,7 +9,7 @@ struct AuthView: View {
     var body: some View {
         ZStack {
             // Фон
-            Color.backGround
+            Color("backgroundColor")
                 .ignoresSafeArea()
             
             VStack(spacing: 25) {

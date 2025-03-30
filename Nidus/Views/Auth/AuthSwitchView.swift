@@ -74,7 +74,7 @@ struct AuthSwitchView: View {
 struct AuthSwitchView_Previews: PreviewProvider {
     static var previews: some View {
         AuthSwitchView(isLoginMode: .constant(true))
-            .background(Color.backGround)
+            .background(Color("backgroundColor"))
             .previewLayout(.sizeThatFits)
     }
 }
