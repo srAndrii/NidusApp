@@ -150,10 +150,15 @@ class AdminViewModel: ObservableObject {
         }
     }
     
+
     @MainActor
-    func updateUserProfile(userId: String, firstName: String?, lastName: String?, phone: String?) async throws {
+    func updateUserProfile(userId: String, firstName: String?, lastName: String?, phone: String?) async {
         isLoading = true
         error = nil
+        
+        // Додаємо відладку
+        print("Оновлення профілю користувача \(userId)")
+        print("firstName: \(firstName ?? "nil"), lastName: \(lastName ?? "nil"), phone: \(phone ?? "nil")")
         
         // Створюємо структуру запиту для оновлення профілю
         struct UpdateProfileRequest: Codable {
@@ -163,37 +168,150 @@ class AdminViewModel: ObservableObject {
         }
         
         do {
-            // Оскільки метод оновлення профілю через userRepository працює тільки
-            // для поточного користувача, створюємо прямий запит до API
+            // На основі файлів серверу, правильний ендпоінт - "/user/profile"
+            // Це оновлює профіль поточного автентифікованого користувача
             let updateRequest = UpdateProfileRequest(firstName: firstName, lastName: lastName, phone: phone)
-            let endpoint = "/user/\(userId)/profile"
+            let endpoint = "/user/profile"  // Змінений ендпоінт!
             
-            // Виконуємо запит
+            // Виводимо запит для відладки
+            let encoder = JSONEncoder()
+            if let requestData = try? encoder.encode(updateRequest),
+               let requestString = String(data: requestData, encoding: .utf8) {
+                print("Запит на оновлення профілю: \(requestString)")
+            }
+            
+            // Викликаємо метод patch
             let updated: User = try await networkService.patch(endpoint: endpoint, body: updateRequest)
             
-            // Зберігаємо поточні ролі
-            let userRoles = await getUserRoles(userId: updated.id)
+            // Виводимо відповідь для відладки
+            print("Успішно оновлено користувача: \(updated.email)")
+            print("Нові дані: firstName: \(updated.firstName ?? "nil"), lastName: \(updated.lastName ?? "nil"), phone: \(updated.phone ?? "nil")")
             
-            // Оновлюємо знайденого користувача з його ролями
-            var updatedWithRoles = updated
-            updatedWithRoles.roles = userRoles
-            searchedUser = updatedWithRoles
+            // Оновлюємо знайденого користувача
+            searchedUser = updated
             
             // Оновлюємо користувача в загальному списку, якщо він там є
             if let index = users.firstIndex(where: { $0.id == userId }) {
-                users[index] = updatedWithRoles
+                users[index] = updated
             }
         } catch let apiError as APIError {
             handleError(apiError)
-            throw apiError
+            print("API Error при оновленні профілю: \(apiError)")
         } catch {
             self.error = error.localizedDescription
-            throw error
+            print("Unknown error при оновленні профілю: \(error)")
         }
         
         isLoading = false
     }
     
+   
+
+    @MainActor
+    func updateUserProfileManually(userId: String, firstName: String?, lastName: String?, phone: String?) async {
+        isLoading = true
+        error = nil
+        
+        // Додаємо відладку
+        print("Ручне оновлення профілю користувача \(userId)")
+        print("firstName: \(firstName ?? "nil"), lastName: \(lastName ?? "nil"), phone: \(phone ?? "nil")")
+        
+        do {
+            // Створюємо структуру запиту
+            struct UpdateProfileRequest: Codable {
+                let firstName: String?
+                let lastName: String?
+                let phone: String?
+            }
+            
+            let updateRequest = UpdateProfileRequest(firstName: firstName, lastName: lastName, phone: phone)
+            
+            // Створюємо URL запиту
+            let endpoint = "/user/\(userId)/profile"
+            guard let url = URL(string: networkService.getBaseURL() + endpoint) else {
+                throw APIError.invalidURL
+            }
+            
+            // Створюємо запит
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"  // або "PUT", залежно від API
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            // Додаємо токен авторизації
+            if let token = UserDefaults.standard.string(forKey: "accessToken") {
+                request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            } else {
+                throw APIError.unauthorized
+            }
+            
+            // Кодуємо тіло запиту
+            let encoder = JSONEncoder()
+            let requestData = try encoder.encode(updateRequest)
+            request.httpBody = requestData
+            
+            // Виводимо тіло запиту для відладки
+            if let requestString = String(data: requestData, encoding: .utf8) {
+                print("Тіло запиту: \(requestString)")
+            }
+            
+            // Виконуємо запит
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            // Виводимо відповідь для відладки
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("Відповідь сервера: \(responseString)")
+            }
+            
+            // Перевіряємо код відповіді
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+            
+            print("Код відповіді: \(httpResponse.statusCode)")
+            
+            if (200...299).contains(httpResponse.statusCode) {
+                // Успішне оновлення
+                // Декодуємо відповідь
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                
+                do {
+                    let updatedUser = try decoder.decode(User.self, from: data)
+                    
+                    // Оновлюємо знайденого користувача
+                    searchedUser = updatedUser
+                    
+                    // Оновлюємо користувача в загальному списку, якщо він там є
+                    if let index = users.firstIndex(where: { $0.id == userId }) {
+                        users[index] = updatedUser
+                    }
+                    
+                    print("Успішно оновлено профіль користувача")
+                } catch {
+                    print("Помилка декодування відповіді: \(error)")
+                    
+                    // Якщо не вдалося декодувати відповідь, спробуємо оновити користувача через повторний пошук
+                    await searchUserByEmail(email: searchedUser?.email ?? "")
+                }
+            } else {
+                // Обробка помилки
+                if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let message = errorData["message"] as? String {
+                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
+                } else {
+                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка оновлення профілю")
+                }
+            }
+        } catch let apiError as APIError {
+            handleError(apiError)
+            print("API Error при оновленні профілю: \(apiError)")
+        } catch {
+            self.error = error.localizedDescription
+            print("Unknown error при оновленні профілю: \(error)")
+        }
+        
+        isLoading = false
+    }
     
     
     @MainActor

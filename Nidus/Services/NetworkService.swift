@@ -117,9 +117,81 @@ class NetworkService {
         return try await performRequestWithBody(urlRequest, body: body)
     }
     
+    // Додайте або оновіть цей метод в NetworkService.swift
+
     func patch<T: Encodable, U: Decodable>(endpoint: String, body: T, requiresAuth: Bool = true) async throws -> U {
         var urlRequest = try createRequest(for: endpoint, method: "PATCH", requiresAuth: requiresAuth)
-        return try await performRequestWithBody(urlRequest, body: body)
+        
+        // Додаємо відладковий вивід
+        print("PATCH запит на: \(endpoint)")
+        
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        
+        do {
+            let requestData = try encoder.encode(body)
+            urlRequest.httpBody = requestData
+            
+            // Виводимо тіло запиту для відладки
+            if let requestString = String(data: requestData, encoding: .utf8) {
+                print("Тіло запиту: \(requestString)")
+            }
+            
+            let (data, response) = try await URLSession.shared.data(for: urlRequest)
+            
+            // Виводимо відповідь для відладки
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("Відповідь сервера: \(responseString)")
+            }
+            
+            // Перевіряємо код відповіді
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+            
+            print("Код відповіді: \(httpResponse.statusCode)")
+            
+            if (200...299).contains(httpResponse.statusCode) {
+                do {
+                    let decoder = JSONDecoder()
+                    decoder.dateDecodingStrategy = .iso8601
+                    
+                    return try decoder.decode(U.self, from: data)
+                } catch {
+                    print("Помилка декодування: \(error)")
+                    
+                    // Додаткова інформація про помилку декодування
+                    if let decodingError = error as? DecodingError {
+                        switch decodingError {
+                        case .keyNotFound(let key, let context):
+                            print("Ключ не знайдено: \(key), шлях: \(context.codingPath), \(context.debugDescription)")
+                        case .valueNotFound(let type, let context):
+                            print("Значення не знайдено: \(type), шлях: \(context.codingPath), \(context.debugDescription)")
+                        case .typeMismatch(let type, let context):
+                            print("Невідповідність типу: \(type), шлях: \(context.codingPath), \(context.debugDescription)")
+                        case .dataCorrupted(let context):
+                            print("Дані пошкоджені: \(context.debugDescription), шлях: \(context.codingPath)")
+                        @unknown default:
+                            print("Невідома помилка декодування")
+                        }
+                    }
+                    
+                    throw APIError.decodingFailed(error)
+                }
+            } else {
+                // Спробуємо декодувати помилку
+                do {
+                    let errorResponse = try JSONDecoder().decode(ErrorResponse.self, from: data)
+                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: errorResponse.message)
+                } catch {
+                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка оновлення профілю")
+                }
+            }
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.requestFailed(error)
+        }
     }
     
     func put<T: Encodable, U: Decodable>(endpoint: String, body: T, requiresAuth: Bool = true) async throws -> U {

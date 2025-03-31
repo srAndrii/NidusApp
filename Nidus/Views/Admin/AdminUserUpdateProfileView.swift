@@ -15,6 +15,9 @@ struct AdminUserUpdateProfileView: View {
     @State private var phone = ""
     @State private var isUserFound = false
     @State private var showSuccessAlert = false
+    @State private var isUpdating = false
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
     
     var body: some View {
         ScrollView {
@@ -37,15 +40,25 @@ struct AdminUserUpdateProfileView: View {
                         Button(action: {
                             if !searchEmail.isEmpty {
                                 Task {
-                                    await viewModel.searchUserByEmail(email: searchEmail)
-                                    
-                                    if let user = viewModel.searchedUser {
-                                        firstName = user.firstName ?? ""
-                                        lastName = user.lastName ?? ""
-                                        phone = user.phone ?? ""
-                                        isUserFound = true
-                                    } else {
-                                        isUserFound = false
+                                    do {
+                                        print("Пошук користувача: \(searchEmail)")
+                                        await viewModel.searchUserByEmail(email: searchEmail)
+                                        
+                                        if let user = viewModel.searchedUser {
+                                            firstName = user.firstName ?? ""
+                                            lastName = user.lastName ?? ""
+                                            phone = user.phone ?? ""
+                                            isUserFound = true
+                                            
+                                            // Відладка - виводимо знайдені дані
+                                            print("Знайдено користувача: \(user.email)")
+                                            print("firstName: \(user.firstName ?? "nil"), lastName: \(user.lastName ?? "nil"), phone: \(user.phone ?? "nil")")
+                                        } else {
+                                            isUserFound = false
+                                            print("Користувача не знайдено")
+                                        }
+                                    } catch {
+                                        print("Помилка при пошуку: \(error)")
                                     }
                                 }
                             }
@@ -63,7 +76,7 @@ struct AdminUserUpdateProfileView: View {
                 .padding(.vertical, 10)
                 
                 if viewModel.isLoading {
-                    ProgressView("Пошук користувача...")
+                    ProgressView("Завантаження...")
                         .padding()
                 } else if let error = viewModel.error {
                     Text(error)
@@ -89,6 +102,27 @@ struct AdminUserUpdateProfileView: View {
                                 Text("ID: \(user.id)")
                                     .font(.caption)
                                     .foregroundColor(Color("secondaryText"))
+                                
+                                // Поточні дані користувача
+                                Group {
+                                    if let firstName = user.firstName {
+                                        Text("Ім'я: \(firstName)")
+                                            .font(.caption)
+                                            .foregroundColor(Color("secondaryText"))
+                                    }
+                                    
+                                    if let lastName = user.lastName {
+                                        Text("Прізвище: \(lastName)")
+                                            .font(.caption)
+                                            .foregroundColor(Color("secondaryText"))
+                                    }
+                                    
+                                    if let phone = user.phone {
+                                        Text("Телефон: \(phone)")
+                                            .font(.caption)
+                                            .foregroundColor(Color("secondaryText"))
+                                    }
+                                }
                             }
                             
                             Spacer()
@@ -124,30 +158,63 @@ struct AdminUserUpdateProfileView: View {
                         // Кнопка оновлення
                         Button(action: {
                             Task {
-                                // Викликаємо оновлення профілю через модель
+                                isUpdating = true
                                 do {
-                                    try await viewModel.updateUserProfile(
+                                    // Виводимо дані перед оновленням
+                                    print("Дані для оновлення:")
+                                    print("firstName: \(firstName.isEmpty ? "nil" : firstName)")
+                                    print("lastName: \(lastName.isEmpty ? "nil" : lastName)")
+                                    print("phone: \(phone.isEmpty ? "nil" : phone)")
+                                    
+                                    // Викликаємо метод оновлення профілю, тепер з правильним endpoint
+                                    await viewModel.updateUserProfile(
                                         userId: user.id,
                                         firstName: firstName.isEmpty ? nil : firstName,
                                         lastName: lastName.isEmpty ? nil : lastName,
                                         phone: phone.isEmpty ? nil : phone
                                     )
-                                    showSuccessAlert = true
+                                    
+                                    // Перевіряємо наявність помилки
+                                    if let error = viewModel.error {
+                                        errorMessage = error
+                                        showErrorAlert = true
+                                    } else {
+                                        // Оновлюємо дані на формі
+                                        if let updatedUser = viewModel.searchedUser {
+                                            // Оновлення полів форми
+                                            firstName = updatedUser.firstName ?? ""
+                                            lastName = updatedUser.lastName ?? ""
+                                            phone = updatedUser.phone ?? ""
+                                        }
+                                        showSuccessAlert = true
+                                    }
                                 } catch {
-                                    // Помилка обробляється у viewModel і потрапляє в viewModel.error
+                                    print("Помилка оновлення профілю: \(error)")
+                                    errorMessage = error.localizedDescription
+                                    showErrorAlert = true
                                 }
+                                isUpdating = false
                             }
                         }) {
-                            Text("Оновити профіль")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(Color("primary"))
-                                .cornerRadius(12)
+                            if isUpdating {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(Color("primary"))
+                                    .cornerRadius(12)
+                            } else {
+                                Text("Оновити профіль")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(Color("primary"))
+                                    .cornerRadius(12)
+                            }
                         }
                         .padding()
-                        .disabled(viewModel.isLoading)
+                        .disabled(viewModel.isLoading || isUpdating)
                     }
                 } else if !searchEmail.isEmpty && !viewModel.isLoading {
                     Text("Користувача не знайдено")
@@ -163,18 +230,21 @@ struct AdminUserUpdateProfileView: View {
         .navigationTitle("Оновлення профілю")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Успішно оновлено", isPresented: $showSuccessAlert) {
-            Button("OK", role: .cancel) { }
+            Button("OK", role: .cancel) {
+                // Повторно оновимо дані після успішного оновлення
+                if !searchEmail.isEmpty {
+                    Task {
+                        await viewModel.searchUserByEmail(email: searchEmail)
+                    }
+                }
+            }
         } message: {
             Text("Профіль користувача успішно оновлено")
         }
-    }
-}
-
-struct AdminUserUpdateProfileView_Previews: PreviewProvider {
-    static var previews: some View {
-        NavigationView {
-            AdminUserUpdateProfileView()
+        .alert("Помилка оновлення", isPresented: $showErrorAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage.isEmpty ? "Невідома помилка при оновленні профілю" : errorMessage)
         }
-        .preferredColorScheme(.dark)
     }
 }
