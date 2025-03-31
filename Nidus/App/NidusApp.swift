@@ -4,7 +4,7 @@
 //
 //  Created by Andrii Liakhovych on 3/29/25.
 //
-
+// App/NidusApp.swift
 import SwiftUI
 
 @main

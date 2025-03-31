@@ -36,6 +36,12 @@ class AdminViewModel: ObservableObject {
         
         do {
             users = try await userRepository.getUsers()
+            
+            // Завантажуємо ролі для кожного користувача
+            for i in 0..<users.count {
+                let userRoles = await getUserRoles(userId: users[i].id)
+                users[i].roles = userRoles
+            }
         } catch let apiError as APIError {
             handleError(apiError)
         } catch {
@@ -45,6 +51,8 @@ class AdminViewModel: ObservableObject {
         isLoading = false
     }
     
+    // Додайте або оновіть цей метод в AdminViewModel
+
     @MainActor
     func searchUserByEmail(email: String) async {
         isLoading = true
@@ -52,14 +60,94 @@ class AdminViewModel: ObservableObject {
         searchedUser = nil
         
         do {
+            print("Пошук користувача за email: \(email)")
             searchedUser = try await userRepository.searchUsers(email: email)
+            
+            if let user = searchedUser {
+                print("Знайдено користувача: \(user.email)")
+                print("Ролі користувача: \(user.roles?.map { $0.name } ?? ["Не призначено"])")
+            } else {
+                print("Користувача не знайдено")
+            }
         } catch let apiError as APIError {
             handleError(apiError)
+            print("API Error: \(apiError)")
         } catch {
             self.error = error.localizedDescription
+            print("Unknown error: \(error)")
         }
         
         isLoading = false
+    }
+
+    // Також оновіть метод оновлення ролей
+    @MainActor
+    func updateUserRoles(userId: String, roles: [String]) async {
+        isLoading = true
+        error = nil
+        
+        // Створюємо структуру запиту для оновлення ролей
+        struct UpdateRolesRequest: Codable {
+            let roles: [String]
+        }
+        
+        print("Оновлення ролей для користувача \(userId): \(roles)")
+        
+        do {
+            // Оновлюємо ролі через API
+            let updateRequest = UpdateRolesRequest(roles: roles)
+            let endpoint = "/user/\(userId)/role"
+            
+            // Виводимо запит для відладки
+            let encoder = JSONEncoder()
+            if let requestData = try? encoder.encode(updateRequest),
+               let requestString = String(data: requestData, encoding: .utf8) {
+                print("Запит на оновлення ролей: \(requestString)")
+            }
+            
+            // Запит повертає оновленого користувача
+            let updated: User = try await networkService.patch(endpoint: endpoint, body: updateRequest)
+            
+            // Виводимо відповідь для відладки
+            print("Оновлено користувача: \(updated.email)")
+            print("Нові ролі: \(updated.roles?.map { $0.name } ?? ["Не призначено"])")
+            
+            // Оновлюємо знайденого користувача
+            searchedUser = updated
+            
+            // Оновлюємо користувача в загальному списку, якщо він там є
+            if let index = users.firstIndex(where: { $0.id == userId }) {
+                users[index] = updated
+            }
+        } catch let apiError as APIError {
+            handleError(apiError)
+            print("API Error при оновленні ролей: \(apiError)")
+        } catch {
+            self.error = error.localizedDescription
+            print("Unknown error при оновленні ролей: \(error)")
+        }
+        
+        isLoading = false
+    }
+    // Метод для отримання ролей користувача
+    func getUserRoles(userId: String) async -> [Role]? {
+        do {
+            // Структура для отримання відповіді з API
+            struct UserWithRolesResponse: Codable {
+                let id: String
+                let email: String
+                let roles: [Role]
+            }
+            
+            // Виконуємо запит до API для отримання ролей
+            let endpoint = "/user/\(userId)/role"
+            let userWithRoles: UserWithRolesResponse = try await networkService.fetch(endpoint: endpoint)
+            
+            return userWithRoles.roles
+        } catch {
+            print("Error fetching user roles: \(error)")
+            return nil
+        }
     }
     
     @MainActor
@@ -83,12 +171,17 @@ class AdminViewModel: ObservableObject {
             // Виконуємо запит
             let updated: User = try await networkService.patch(endpoint: endpoint, body: updateRequest)
             
-            // Оновлюємо знайденого користувача
-            searchedUser = updated
+            // Зберігаємо поточні ролі
+            let userRoles = await getUserRoles(userId: updated.id)
+            
+            // Оновлюємо знайденого користувача з його ролями
+            var updatedWithRoles = updated
+            updatedWithRoles.roles = userRoles
+            searchedUser = updatedWithRoles
             
             // Оновлюємо користувача в загальному списку, якщо він там є
             if let index = users.firstIndex(where: { $0.id == userId }) {
-                users[index] = updated
+                users[index] = updatedWithRoles
             }
         } catch let apiError as APIError {
             handleError(apiError)
@@ -101,39 +194,7 @@ class AdminViewModel: ObservableObject {
         isLoading = false
     }
     
-    @MainActor
-    func updateUserRoles(userId: String, roles: [String]) async {
-        isLoading = true
-        error = nil
-        
-        // Створюємо структуру запиту для оновлення ролей
-        struct UpdateRolesRequest: Codable {
-            let roles: [String]
-        }
-        
-        do {
-            // Оновлюємо ролі через API
-            let updateRequest = UpdateRolesRequest(roles: roles)
-            let endpoint = "/user/\(userId)/role"
-            
-            // Запит повертає оновленого користувача
-            let updated: User = try await networkService.patch(endpoint: endpoint, body: updateRequest)
-            
-            // Оновлюємо знайденого користувача
-            searchedUser = updated
-            
-            // Оновлюємо користувача в загальному списку, якщо він там є
-            if let index = users.firstIndex(where: { $0.id == userId }) {
-                users[index] = updated
-            }
-        } catch let apiError as APIError {
-            handleError(apiError)
-        } catch {
-            self.error = error.localizedDescription
-        }
-        
-        isLoading = false
-    }
+    
     
     @MainActor
     func deleteUser(userId: String) async {

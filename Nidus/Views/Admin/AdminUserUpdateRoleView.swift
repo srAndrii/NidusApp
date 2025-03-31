@@ -43,16 +43,27 @@ struct AdminUserUpdateRoleView: View {
                         Button(action: {
                             if !searchEmail.isEmpty {
                                 Task {
-                                    await viewModel.searchUserByEmail(email: searchEmail)
-                                    
-                                    if viewModel.searchedUser != nil {
-                                        // Тут мали б завантажуватись поточні ролі користувача,
-                                        // але в моделі User нема поля roles.
-                                        // Для прикладу встановлюємо buyer
-                                        selectedRoles = ["buyer"]
-                                        isUserFound = true
-                                    } else {
-                                        isUserFound = false
+                                    do {
+                                        await viewModel.searchUserByEmail(email: searchEmail)
+                                        
+                                        if let user = viewModel.searchedUser {
+                                            print("Користувача знайдено: \(user.email)")
+                                            print("Ролі: \(user.roles?.map { $0.name } ?? [])")
+                                            
+                                            // Завантажуємо поточні ролі користувача
+                                            if let userRoles = user.roles {
+                                                selectedRoles = userRoles.map { $0.name }
+                                            } else {
+                                                // Якщо ролей немає, встановлюємо порожній масив
+                                                selectedRoles = []
+                                            }
+                                            isUserFound = true
+                                        } else {
+                                            isUserFound = false
+                                            print("Користувача не знайдено")
+                                        }
+                                    } catch {
+                                        print("Помилка пошуку користувача: \(error)")
                                     }
                                 }
                             }
@@ -96,6 +107,13 @@ struct AdminUserUpdateRoleView: View {
                                 Text("ID: \(user.id)")
                                     .font(.caption)
                                     .foregroundColor(Color("secondaryText"))
+                                
+                                // Додаємо відображення поточних ролей
+                                Text("Поточні ролі: \(user.rolesString)")
+                                    .font(.caption)
+                                    .foregroundColor(Color("secondaryText"))
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             
                             Spacer()
@@ -141,12 +159,20 @@ struct AdminUserUpdateRoleView: View {
                         // Кнопка оновлення
                         Button(action: {
                             Task {
-                                // Викликаємо оновлення ролей через модель
-                                await viewModel.updateUserRoles(
-                                    userId: user.id,
-                                    roles: selectedRoles
-                                )
-                                showSuccessAlert = true
+                                do {
+                                    // Викликаємо оновлення ролей через модель
+                                    await viewModel.updateUserRoles(
+                                        userId: user.id,
+                                        roles: selectedRoles
+                                    )
+                                    
+                                    // Оновлюємо інформацію про користувача після оновлення ролей
+                                    await viewModel.searchUserByEmail(email: searchEmail)
+                                    
+                                    showSuccessAlert = true
+                                } catch {
+                                    print("Помилка оновлення ролей: \(error)")
+                                }
                             }
                         }) {
                             Text("Оновити ролі")

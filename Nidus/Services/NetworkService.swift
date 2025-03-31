@@ -207,6 +207,9 @@ class NetworkService {
     
     
     
+    // Додайте цей код до вашого NetworkService.swift
+    // Змініть метод для обробки відповіді
+
     private func handleResponse<T: Decodable>(data: Data, response: URLResponse) throws -> T {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -215,17 +218,66 @@ class NetworkService {
         switch httpResponse.statusCode {
         case 200...299:
             do {
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                
                 // Для відладки: виведемо текст JSON-відповіді
                 if let jsonString = String(data: data, encoding: .utf8) {
                     print("JSON відповідь: \(jsonString)")
                 }
                 
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                decoder.keyDecodingStrategy = .useDefaultKeys
+                
+                // Додамо обробку дат у різних форматах
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+                
+                decoder.dateDecodingStrategy = .custom { decoder in
+                    let container = try decoder.singleValueContainer()
+                    let dateStr = try container.decode(String.self)
+                    
+                    // Спробуємо кілька форматів дати
+                    let formatters = [
+                        "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+                        "yyyy-MM-dd'T'HH:mm:ssZ",
+                        "yyyy-MM-dd'T'HH:mm:ss"
+                    ].map { format -> DateFormatter in
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = format
+                        formatter.locale = Locale(identifier: "en_US_POSIX")
+                        return formatter
+                    }
+                    
+                    for formatter in formatters {
+                        if let date = formatter.date(from: dateStr) {
+                            return date
+                        }
+                    }
+                    
+                    throw DecodingError.dataCorruptedError(
+                        in: container,
+                        debugDescription: "Не вдається розпізнати дату: \(dateStr)"
+                    )
+                }
+                
                 return try decoder.decode(T.self, from: data)
             } catch {
-                print("Decoding error: \(error)")
+                // Більш детальна інформація про помилку декодування
+                print("Помилка декодування: \(error)")
+                if let decodingError = error as? DecodingError {
+                    switch decodingError {
+                    case .keyNotFound(let key, let context):
+                        print("Ключ не знайдено: \(key), шлях: \(context.codingPath), \(context.debugDescription)")
+                    case .valueNotFound(let type, let context):
+                        print("Значення не знайдено: \(type), шлях: \(context.codingPath), \(context.debugDescription)")
+                    case .typeMismatch(let type, let context):
+                        print("Невідповідність типу: \(type), шлях: \(context.codingPath), \(context.debugDescription)")
+                    case .dataCorrupted(let context):
+                        print("Дані пошкоджені: \(context.debugDescription), шлях: \(context.codingPath)")
+                    @unknown default:
+                        print("Невідома помилка декодування")
+                    }
+                }
                 throw APIError.decodingFailed(error)
             }
         case 401:
