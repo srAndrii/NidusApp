@@ -12,9 +12,10 @@ struct CoffeeShop: Identifiable, Codable {
     var minPreorderTimeMinutes: Int
     var maxPreorderTimeMinutes: Int
     var workingHours: [String: WorkingHoursPeriod]?
+    var metadata: String?
     var createdAt: Date
     var updatedAt: Date
-    
+    var menuGroups: [MenuGroup]?
     
     // Додаткові властивості, які не передаються з сервера
     var distance: Double?
@@ -26,8 +27,6 @@ struct CoffeeShop: Identifiable, Codable {
         return nil
     }
     
-    // Оновіть метод у CoffeeShop.swift
-
     // Удосконалена властивість для перевірки поточного статусу закладу
     var isOpen: Bool {
         // Отримуємо поточний день тижня (0 - неділя, 1 - понеділок і т.д.)
@@ -68,7 +67,7 @@ struct CoffeeShop: Identifiable, Codable {
     enum CodingKeys: String, CodingKey {
         case id, name, address, logoUrl, ownerId, owner
         case allowScheduledOrders, minPreorderTimeMinutes, maxPreorderTimeMinutes
-        case workingHours, createdAt, updatedAt
+        case workingHours, metadata, createdAt, updatedAt, menuGroups
     }
     
     // Ініціалізатор за замовчуванням
@@ -76,7 +75,8 @@ struct CoffeeShop: Identifiable, Codable {
          ownerId: String? = nil, owner: User? = nil,
          allowScheduledOrders: Bool = false, minPreorderTimeMinutes: Int = 15,
          maxPreorderTimeMinutes: Int = 1440, workingHours: [String: WorkingHoursPeriod]? = nil,
-         createdAt: Date = Date(), updatedAt: Date = Date(), distance: Double? = nil) {
+         metadata: String? = nil, createdAt: Date = Date(), updatedAt: Date = Date(),
+         menuGroups: [MenuGroup]? = nil, distance: Double? = nil) {
         self.id = id
         self.name = name
         self.address = address
@@ -87,8 +87,10 @@ struct CoffeeShop: Identifiable, Codable {
         self.minPreorderTimeMinutes = minPreorderTimeMinutes
         self.maxPreorderTimeMinutes = maxPreorderTimeMinutes
         self.workingHours = workingHours
+        self.metadata = metadata
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.menuGroups = menuGroups
         self.distance = distance
     }
     
@@ -107,17 +109,65 @@ struct CoffeeShop: Identifiable, Codable {
         minPreorderTimeMinutes = try container.decodeIfPresent(Int.self, forKey: .minPreorderTimeMinutes) ?? 15
         maxPreorderTimeMinutes = try container.decodeIfPresent(Int.self, forKey: .maxPreorderTimeMinutes) ?? 1440
         
-        // Декодування workingHours
-        if let workingHoursData = try container.decodeIfPresent(Data.self, forKey: .workingHours) {
-            // Якщо workingHours приходить як Data, перетворюємо його в словник
-            let decoder = JSONDecoder()
-            workingHours = try decoder.decode([String: WorkingHoursPeriod].self, from: workingHoursData)
-        } else if let workingHoursDict = try container.decodeIfPresent([String: WorkingHoursPeriod].self, forKey: .workingHours) {
-            // Якщо workingHours приходить як словник, використовуємо його напряму
-            workingHours = workingHoursDict
-        } else {
-            workingHours = nil
+        // Покращене декодування workingHours
+        do {
+            // Спочатку спробуємо як звичайний словник WorkingHoursPeriod
+            workingHours = try container.decodeIfPresent([String: WorkingHoursPeriod].self, forKey: .workingHours)
+        } catch {
+            // Якщо стандартне декодування не працює, спробуємо спеціальний підхід
+            print("Стандартне декодування workingHours не вдалося, використовуємо альтернативний метод")
+            
+            // Отримуємо значення як [String: Any]
+            if let workingHoursJSON = try? container.decodeIfPresent(String.self, forKey: .workingHours),
+               let data = workingHoursJSON.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: [String: Any]] {
+                
+                var periods = [String: WorkingHoursPeriod]()
+                
+                for (day, data) in json {
+                    if let open = data["open"] as? String,
+                       let close = data["close"] as? String,
+                       let isClosed = data["isClosed"] as? Bool {
+                        periods[day] = WorkingHoursPeriod(
+                            open: open,
+                            close: close,
+                            isClosed: isClosed
+                        )
+                    }
+                }
+                
+                self.workingHours = periods.isEmpty ? nil : periods
+            } else {
+                // Спробуйте отримати його як сирий словник
+                let workingHoursContainer = try? container.nestedContainer(keyedBy: DynamicCodingKeys.self, forKey: .workingHours)
+                
+                if let container = workingHoursContainer {
+                    var periods = [String: WorkingHoursPeriod]()
+                    
+                    // Ітеруємося по всіх ключах у контейнері
+                    for key in container.allKeys {
+                        if let dayContainer = try? container.nestedContainer(keyedBy: WorkingHoursCodingKeys.self, forKey: key) {
+                            let open = try dayContainer.decodeIfPresent(String.self, forKey: .open) ?? "09:00"
+                            let close = try dayContainer.decodeIfPresent(String.self, forKey: .close) ?? "21:00"
+                            let isClosed = try dayContainer.decodeIfPresent(Bool.self, forKey: .isClosed) ?? false
+                            
+                            periods[key.stringValue] = WorkingHoursPeriod(
+                                open: open,
+                                close: close,
+                                isClosed: isClosed
+                            )
+                        }
+                    }
+                    
+                    self.workingHours = periods.isEmpty ? nil : periods
+                } else {
+                    self.workingHours = nil
+                }
+            }
         }
+        
+        // Спрощене декодування метаданих
+        metadata = try container.decodeIfPresent(String.self, forKey: .metadata)
         
         // Декодування дат
         let dateFormatter = ISO8601DateFormatter()
@@ -136,9 +186,31 @@ struct CoffeeShop: Identifiable, Codable {
             updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
         }
         
+        // Декодування menuGroups
+        menuGroups = try container.decodeIfPresent([MenuGroup].self, forKey: .menuGroups)
+        
         // Властивість, яка не передається з сервера
         distance = nil
     }
+}
+
+// Допоміжний тип для динамічних ключів
+struct DynamicCodingKeys: CodingKey {
+    var stringValue: String
+    var intValue: Int?
     
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+        self.intValue = nil
+    }
     
+    init?(intValue: Int) {
+        self.stringValue = "\(intValue)"
+        self.intValue = intValue
+    }
+}
+
+// Ключі для структури робочих годин
+enum WorkingHoursCodingKeys: String, CodingKey {
+    case open, close, isClosed
 }

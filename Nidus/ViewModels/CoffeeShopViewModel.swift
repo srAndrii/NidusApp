@@ -299,18 +299,34 @@ class CoffeeShopViewModel: ObservableObject {
                 throw NSError(domain: "CoffeeShopViewModel", code: 2, userInfo: [NSLocalizedDescriptionKey: errorMsg])
             }
         } catch let apiError as APIError {
-            let errorMessage = "Помилка завантаження: \(apiError.localizedDescription)"
-            print(errorMessage)
-            handleError(apiError)
-            isLoading = false
-            throw apiError
-        } catch {
-            let errorMessage = "Невідома помилка: \(error.localizedDescription)"
-            print(errorMessage)
-            self.error = error.localizedDescription
-            isLoading = false
-            throw error
-        }
+                // Якщо помилка пов'язана з декодуванням, але файл завантажився успішно
+                if case .decodingFailed = apiError {
+                    // Перевіримо, чи є URL логотипу у кав'ярні
+                    do {
+                        let updatedCoffeeShop = try await coffeeShopRepository.getCoffeeShopById(id: coffeeShopId)
+                        if let logoUrl = updatedCoffeeShop.logoUrl {
+                            showSuccessMessage("Логотип успішно завантажено!")
+                            isLoading = false
+                            return logoUrl
+                        }
+                    } catch {
+                        // Ігноруємо додаткову помилку при отриманні кав'ярні
+                    }
+                }
+                
+                let errorMessage = "Помилка завантаження: \(apiError.localizedDescription)"
+                print(errorMessage)
+                handleError(apiError)
+                isLoading = false
+                throw apiError
+            } catch {
+                // Інші помилки обробляємо як раніше
+                let errorMessage = "Невідома помилка: \(error.localizedDescription)"
+                print(errorMessage)
+                self.error = error.localizedDescription
+                isLoading = false
+                throw error
+            }
     }
     
     @MainActor
@@ -343,14 +359,34 @@ class CoffeeShopViewModel: ObservableObject {
             isLoading = false
             return logoUrl
         } catch let apiError as APIError {
-            handleError(apiError)
-            isLoading = false
-            throw apiError
-        } catch {
-            self.error = error.localizedDescription
-            isLoading = false
-            throw error
-        }
+                // Якщо помилка пов'язана з декодуванням, але файл завантажився успішно
+                if case .decodingFailed = apiError {
+                    // Перевіримо, чи є URL логотипу у кав'ярні
+                    do {
+                        let updatedCoffeeShop = try await coffeeShopRepository.getCoffeeShopById(id: coffeeShopId)
+                        if let logoUrl = updatedCoffeeShop.logoUrl {
+                            showSuccessMessage("Логотип успішно завантажено!")
+                            isLoading = false
+                            return logoUrl
+                        }
+                    } catch {
+                        // Ігноруємо додаткову помилку при отриманні кав'ярні
+                    }
+                }
+                
+                let errorMessage = "Помилка завантаження: \(apiError.localizedDescription)"
+                print(errorMessage)
+                handleError(apiError)
+                isLoading = false
+                throw apiError
+            } catch {
+                // Інші помилки обробляємо як раніше
+                let errorMessage = "Невідома помилка: \(error.localizedDescription)"
+                print(errorMessage)
+                self.error = error.localizedDescription
+                isLoading = false
+                throw error
+            }
     }
     
   
@@ -371,6 +407,30 @@ class CoffeeShopViewModel: ObservableObject {
         // використанням UIImage.jpegData або UIImage.pngData
         
         return (true, nil)
+    }
+    
+    
+    @MainActor
+    func refreshCoffeeShopData(id: String) async {
+        do {
+            let updatedCoffeeShop = try await coffeeShopRepository.getCoffeeShopById(id: id)
+            
+            // Оновлюємо кав'ярню в списках
+            if let index = coffeeShops.firstIndex(where: { $0.id == id }) {
+                coffeeShops[index] = updatedCoffeeShop
+            }
+            
+            if let index = myCoffeeShops.firstIndex(where: { $0.id == id }) {
+                myCoffeeShops[index] = updatedCoffeeShop
+            }
+            
+            // Оновлюємо вибрану кав'ярню, якщо вона відповідає оновленій
+            if selectedCoffeeShop?.id == id {
+                selectedCoffeeShop = updatedCoffeeShop
+            }
+        } catch {
+            print("Помилка оновлення даних кав'ярні: \(error)")
+        }
     }
     
     // MARK: - Робочі години

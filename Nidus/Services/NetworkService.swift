@@ -386,6 +386,23 @@ class NetworkService {
         }
     }
     
+
+    func createUploadRequest(
+        endpoint: String,
+        data: Data,
+        fieldName: String,
+        fileName: String,
+        mimeType: String
+    ) async throws -> (Data, URLResponse) {
+        let request = try createMultipartRequest(for: endpoint, data: data, fieldName: fieldName, fileName: fileName, mimeType: mimeType)
+        return try await URLSession.shared.data(for: request)
+    }
+
+    func createDeleteRequest(endpoint: String) async throws -> (Data, URLResponse) {
+        let request = try createRequest(for: endpoint, method: "DELETE", requiresAuth: true)
+        return try await URLSession.shared.data(for: request)
+    }
+    
     // MARK: - Token Refresh
     
     func refreshAuthToken() async throws -> Bool {
