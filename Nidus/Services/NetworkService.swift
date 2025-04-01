@@ -1,4 +1,3 @@
-// NetworkService.swift
 import UIKit
 import Foundation
 
@@ -118,8 +117,6 @@ class NetworkService {
         return try await performRequestWithBody(urlRequest, body: body)
     }
     
-    // Додайте або оновіть цей метод в NetworkService.swift
-
     func patch<T: Encodable, U: Decodable>(endpoint: String, body: T, requiresAuth: Bool = true) async throws -> U {
         var urlRequest = try createRequest(for: endpoint, method: "PATCH", requiresAuth: requiresAuth)
         
@@ -278,11 +275,6 @@ class NetworkService {
         }
     }
     
-    
-    
-    // Додайте цей код до вашого NetworkService.swift
-    // Змініть метод для обробки відповіді
-
     private func handleResponse<T: Decodable>(data: Data, response: URLResponse) throws -> T {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -368,19 +360,28 @@ class NetworkService {
             } catch let apiError as APIError {
                 throw apiError
             } catch {
-                print("Error parsing JSON: \(error)")
+                print("Error parsing error response: \(error)")
                 
-                // Запасний варіант - використовуємо JSONSerialization
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    if let messageArray = json["message"] as? [String], !messageArray.isEmpty {
-                        let message = messageArray.joined(separator: ", ")
-                        throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
-                    } else if let message = json["message"] as? String {
-                        throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
+                // Безпечна обробка помилок для ErrorResponse
+                do {
+                    // Спробуємо проаналізувати JSON вручну
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        if let messageArray = json["message"] as? [String], !messageArray.isEmpty {
+                            let message = messageArray.joined(separator: ", ")
+                            throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
+                        } else if let message = json["message"] as? String {
+                            throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
+                        } else {
+                            throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Невідома помилка сервера")
+                        }
+                    } else {
+                        throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка обробки відповіді")
                     }
+                } catch let jsonError as APIError {
+                    throw jsonError
+                } catch {
+                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка обробки відповіді сервера")
                 }
-                
-                throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка обробки відповіді")
             }
         }
     }
@@ -412,7 +413,6 @@ class NetworkService {
         }
     }
     
-
     // MARK: - File Upload Helper Methods
 
     /// Створює multipart/form-data запит для завантаження файлу
@@ -472,17 +472,53 @@ class NetworkService {
             
             // Перевіряємо статус код
             if !(200...299).contains(httpResponse.statusCode) {
-                // Спробуємо декодувати повідомлення про помилку
-                if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                // Безпечно обробляємо помилку серверу
+                do {
+                    // Спробуємо спочатку стандартний формат помилки
+                    let errorResponse = try JSONDecoder().decode(ErrorResponse.self, from: data)
                     throw APIError.serverError(statusCode: httpResponse.statusCode, message: errorResponse.message)
-                } else {
+                } catch DecodingError.dataCorrupted(let context),
+                       DecodingError.keyNotFound(_, let context),
+                       DecodingError.typeMismatch(_, let context),
+                       DecodingError.valueNotFound(_, let context) {
+                    print("Помилка декодування відповіді: \(context.debugDescription)")
+                    
+                    // Якщо не вдалося декодувати стандартний формат, спробуємо вручну дістати повідомлення
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let message = json["message"] as? String {
+                        throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
+                    } else {
+                        throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка завантаження файлу")
+                    }
+                } catch let apiError as APIError {
+                    throw apiError
+                } catch {
                     throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка завантаження файлу")
                 }
             }
             
             // Декодуємо відповідь
-            let decoder = JSONDecoder()
-            return try decoder.decode(T.self, from: data)
+            do {
+                let decoder = JSONDecoder()
+                return try decoder.decode(T.self, from: data)
+            } catch {
+                print("Помилка декодування відповіді при завантаженні файлу: \(error)")
+                
+                // Якщо сервер повернув успішний статус але некоректний формат даних
+                if let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let url = dict["url"] as? String,
+                   let success = dict["success"] as? Bool {
+                    
+                    // Створюємо JSON з очікуваним форматом
+                    let fixedDict = ["success": success, "url": url] as [String: Any]
+                    let fixedData = try JSONSerialization.data(withJSONObject: fixedDict)
+                    
+                    // Повторно пробуємо декодувати
+                    return try JSONDecoder().decode(T.self, from: fixedData)
+                }
+                
+                throw APIError.decodingFailed(error)
+            }
         } catch let error as APIError {
             throw error
         } catch {
@@ -519,34 +555,5 @@ class NetworkService {
     enum ImageFormat {
         case jpeg
         case png
-    }
-
-    // Структура для відповіді про помилку
-    struct ErrorResponse: Decodable {
-        let message: String
-        let error: String?
-        let statusCode: Int?
-        
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            error = try container.decodeIfPresent(String.self, forKey: .error)
-            statusCode = try container.decodeIfPresent(Int.self, forKey: .statusCode)
-            
-            // Декодуємо "message" залежно від типу даних
-            if let messageArray = try? container.decode([String].self, forKey: .message) {
-                // Якщо це масив, об'єднуємо елементи в один рядок
-                message = messageArray.joined(separator: ", ")
-            } else if let messageString = try? container.decode(String.self, forKey: .message) {
-                // Якщо це рядок, використовуємо його
-                message = messageString
-            } else {
-                // Якщо поле відсутнє або має невідомий формат
-                message = "Невідома помилка"
-            }
-        }
-        
-        enum CodingKeys: String, CodingKey {
-            case message, error, statusCode
-        }
     }
 }

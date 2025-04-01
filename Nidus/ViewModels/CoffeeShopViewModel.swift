@@ -13,6 +13,7 @@ class CoffeeShopViewModel: ObservableObject {
     
     
     private let coffeeShopRepository: CoffeeShopRepositoryProtocol
+    private let networkService = NetworkService.shared // Додаємо посилання на NetworkService
     var authManager: AuthenticationManager
     
     // Константи для ролей
@@ -245,39 +246,67 @@ class CoffeeShopViewModel: ObservableObject {
             }
             
             // Стиснемо зображення перед завантаженням
-            guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            guard let imageData = image.jpegData(compressionQuality: 0.7) else {
                 throw NSError(domain: "CoffeeShopViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Не вдалося підготувати зображення для завантаження"])
             }
             
+            // Показуємо розмір зображення для відладки
+            print("Розмір зображення для завантаження: \(imageData.count) байт")
+            
             // Завантажуємо логотип
-            let logoUrl = try await coffeeShopRepository.uploadLogo(coffeeShopId: coffeeShopId, imageData: imageData)
-            
-            // Оновлюємо URL логотипу в кав'ярні
-            let params: [String: Any] = ["logoUrl": logoUrl]
-            let updatedCoffeeShop = try await coffeeShopRepository.updateCoffeeShop(id: coffeeShopId, params: params)
-            
-            // Оновлюємо кав'ярню в списках
-            if let index = coffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
-                coffeeShops[index] = updatedCoffeeShop
+            struct UploadResponse: Decodable {
+                let success: Bool
+                let url: String
             }
             
-            if let index = myCoffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
-                myCoffeeShops[index] = updatedCoffeeShop
-            }
+            let response: UploadResponse = try await networkService.uploadFile(
+                endpoint: "/upload/coffee-shop/\(coffeeShopId)/logo",
+                data: imageData,
+                fieldName: "file",
+                fileName: "logo.jpg",
+                mimeType: "image/jpeg"
+            )
             
-            // Оновлюємо вибрану кав'ярню, якщо вона відповідає оновленій
-            if selectedCoffeeShop?.id == coffeeShopId {
-                selectedCoffeeShop = updatedCoffeeShop
+            if response.success {
+                // Додаткова перевірка для відладки
+                print("Логотип успішно завантажено, отриманий URL: \(response.url)")
+                
+                // Оновлюємо URL логотипу в кав'ярні
+                let params: [String: Any] = ["logoUrl": response.url]
+                let updatedCoffeeShop = try await coffeeShopRepository.updateCoffeeShop(id: coffeeShopId, params: params)
+                
+                // Оновлюємо кав'ярню в списках
+                if let index = coffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
+                    coffeeShops[index] = updatedCoffeeShop
+                }
+                
+                if let index = myCoffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
+                    myCoffeeShops[index] = updatedCoffeeShop
+                }
+                
+                // Оновлюємо вибрану кав'ярню, якщо вона відповідає оновленій
+                if selectedCoffeeShop?.id == coffeeShopId {
+                    selectedCoffeeShop = updatedCoffeeShop
+                }
+                
+                showSuccessMessage("Логотип успішно завантажено!")
+                isLoading = false
+                return response.url
+            } else {
+                let errorMsg = "Не вдалося завантажити логотип на сервер"
+                self.error = errorMsg
+                isLoading = false
+                throw NSError(domain: "CoffeeShopViewModel", code: 2, userInfo: [NSLocalizedDescriptionKey: errorMsg])
             }
-            
-            showSuccessMessage("Логотип успішно завантажено!")
-            isLoading = false
-            return logoUrl
         } catch let apiError as APIError {
+            let errorMessage = "Помилка завантаження: \(apiError.localizedDescription)"
+            print(errorMessage)
             handleError(apiError)
             isLoading = false
             throw apiError
         } catch {
+            let errorMessage = "Невідома помилка: \(error.localizedDescription)"
+            print(errorMessage)
             self.error = error.localizedDescription
             isLoading = false
             throw error
