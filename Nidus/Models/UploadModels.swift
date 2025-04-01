@@ -5,7 +5,7 @@
 //
 //  Created by Andrii Liakhovych
 //
-
+import UIKit
 import Foundation
 
 /// Модель відповіді при завантаженні файлів

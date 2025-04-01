@@ -1,4 +1,5 @@
 // NetworkService.swift
+import UIKit
 import Foundation
 
 enum APIError: Error, LocalizedError {

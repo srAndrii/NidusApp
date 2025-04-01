@@ -145,62 +145,7 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
     }
     
     struct EmptyBody: Codable {}
-}
 
-// MARK: - Розширення для роботи з робочими годинами
 
-extension CoffeeShop {
-    // Перевіряє, чи відкрита кав'ярня зараз
-    var isOpen: Bool {
-        // Отримуємо поточний день тижня (0 - неділя, 1 - понеділок і т.д.)
-        let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: Date()) - 1 // -1 щоб перейти до 0-based індексації
-        let weekdayString = String(weekday)
-        
-        guard let workingHours = self.workingHours,
-              let todayHours = workingHours[weekdayString] else {
-            return false // Якщо немає інформації про години роботи, вважаємо закритим
-        }
-        
-        if todayHours.isClosed {
-            return false // Якщо сьогодні вихідний
-        }
-        
-        // Перетворюємо рядки часів у дати для порівняння
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        
-        guard let openTime = formatter.date(from: todayHours.open),
-              let closeTime = formatter.date(from: todayHours.close) else {
-            return false // Якщо не можемо розпарсити час
-        }
-        
-        // Отримуємо поточний час (години:хвилини)
-        let now = Date()
-        let nowString = formatter.string(from: now)
-        guard let nowTime = formatter.date(from: nowString) else {
-            return false
-        }
-        
-        // Порівнюємо, чи поточний час знаходиться між часом відкриття і закриття
-        return nowTime >= openTime && nowTime <= closeTime
-    }
-    
-    // Отримує рядкове представлення робочих годин на сьогодні
-    func getWorkingHoursForToday() -> String {
-        let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: Date()) - 1
-        let weekdayString = String(weekday)
-        
-        guard let workingHours = self.workingHours,
-              let todayHours = workingHours[weekdayString] else {
-            return "Немає інформації"
-        }
-        
-        if todayHours.isClosed {
-            return "Зачинено сьогодні"
-        }
-        
-        return "\(todayHours.open) - \(todayHours.close)"
-    }
+
 }

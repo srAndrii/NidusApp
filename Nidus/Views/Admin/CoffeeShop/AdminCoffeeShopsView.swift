@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 struct AdminCoffeeShopsView: View {
@@ -9,7 +8,9 @@ struct AdminCoffeeShopsView: View {
     @State private var showingAssignOwnerSheet = false
     @State private var showingDeleteAlert = false
     @State private var selectedCoffeeShop: CoffeeShop?
-    
+    @State private var showToast = false
+    @State private var toastMessage = ""
+     
     init() {
         // Створюємо тимчасовий AuthManager для ініціалізації, який буде замінений на @EnvironmentObject
         let authManager = AuthenticationManager()
@@ -45,7 +46,7 @@ struct AdminCoffeeShopsView: View {
                             
                             // Список кав'ярень
                             ForEach(coffeeShopsToShow) { coffeeShop in
-                                CoffeeShopAdminRow(
+                                CoffeeShopRow(
                                     coffeeShop: coffeeShop,
                                     canManage: viewModel.canManageCoffeeShop(coffeeShop),
                                     isSuperAdmin: viewModel.isSuperAdmin(),
@@ -117,6 +118,9 @@ struct AdminCoffeeShopsView: View {
                     .padding(.bottom, 20)
                 }
             }
+            
+            // Додаємо тост внизу екрану
+            Toast(message: viewModel.successMessage, isShowing: $viewModel.showSuccess)
         }
         .onAppear {
             // Оновлюємо ViewModel щоб використати @EnvironmentObject
@@ -156,13 +160,6 @@ struct AdminCoffeeShopsView: View {
                 Text("Ви впевнені, що хочете видалити цю кав'ярню? Ця дія незворотна.")
             }
         }
-        .alert(isPresented: $viewModel.showSuccess) {
-            Alert(
-                title: Text("Успіх"),
-                message: Text(viewModel.successMessage),
-                dismissButton: .default(Text("OK"))
-            )
-        }
         .navigationTitle("Кав'ярні")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -177,8 +174,8 @@ struct AdminCoffeeShopsView: View {
     }
 }
 
-// Компонент для відображення кав'ярні в списку
-struct CoffeeShopAdminRow: View {
+// Перейменовуємо структуру, щоб уникнути конфлікту
+struct CoffeeShopRow: View {
     let coffeeShop: CoffeeShop
     let canManage: Bool
     let isSuperAdmin: Bool

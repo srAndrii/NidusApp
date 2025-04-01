@@ -71,8 +71,16 @@ struct WorkingHoursModel {
         return nowTime >= openTime && nowTime <= closeTime
     }
     
-    // Валідація всіх робочих годин
+    // Додайте цей метод до WorkingHoursModel.swift
+
     func validate() -> (Bool, String?) {
+        // Перевірка на наявність хоча б одного робочого дня
+        let hasWorkingDays = hours.values.contains { !$0.isClosed }
+        if !hasWorkingDays {
+            return (false, "Кав'ярня повинна мати хоча б один робочий день")
+        }
+        
+        // Перевірка часу відкриття і закриття
         for (day, period) in hours {
             if !period.isClosed {
                 if let openDate = period.openDate(),
@@ -81,10 +89,22 @@ struct WorkingHoursModel {
                     let dayName = WorkingHoursModel.weekDays[day] ?? day
                     return (false, "Помилка: В \(dayName) час відкриття має бути раніше часу закриття.")
                 }
+                
+                // Перевірка формату часу
+                let timeRegex = try? NSRegularExpression(pattern: "^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+                if timeRegex?.firstMatch(in: period.open, range: NSRange(location: 0, length: period.open.count)) == nil ||
+                   timeRegex?.firstMatch(in: period.close, range: NSRange(location: 0, length: period.close.count)) == nil {
+                    let dayName = WorkingHoursModel.weekDays[day] ?? day
+                    return (false, "Помилка: В \(dayName) неправильний формат часу. Використовуйте формат ГГ:ХХ.")
+                }
             }
         }
+        
         return (true, nil)
     }
+    
+    
+
     
     // Конвертація для API
     func toApiModel() -> [String: [String: Any]] {
@@ -152,6 +172,29 @@ extension CoffeeShop {
         }
         
         return "\(todayHours.open) - \(todayHours.close)"
+    }
+    
+    private func validateWorkingHours() {
+        let model = WorkingHoursModel(hours: workingHours)
+        let (isValid, errorMessage) = model.validate()
+        
+        showValidationError = !isValid
+        if let message = errorMessage {
+            validationErrorMessage = message
+        }
+    }
+    
+    private func applyStandardTemplate() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            for day in 0...6 {
+                workingHours["\(day)"] = WorkingHoursPeriod(
+                    open: "09:00",
+                    close: "21:00",
+                    isClosed: day == 0 // За замовчуванням неділя - вихідний
+                )
+            }
+        }
+        validateWorkingHours()
     }
     
     // Отримує назву дня для конкретного дня тижня

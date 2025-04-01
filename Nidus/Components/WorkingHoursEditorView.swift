@@ -120,12 +120,14 @@ struct WorkingHoursEditorView: View {
     
     // Застосування стандартного шаблону (9-21, неділя вихідний)
     private func applyStandardTemplate() {
-        for day in 0...6 {
-            workingHours["\(day)"] = WorkingHoursPeriod(
-                open: "09:00",
-                close: "21:00",
-                isClosed: day == 0
-            )
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            for day in 0...6 {
+                workingHours["\(day)"] = WorkingHoursPeriod(
+                    open: "09:00",
+                    close: "21:00",
+                    isClosed: day == 0
+                )
+            }
         }
         validateWorkingHours()
     }

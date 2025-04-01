@@ -213,15 +213,24 @@ struct EditCoffeeShopView: View {
             
             HStack(spacing: 12) {
                 Button(action: { showImagePicker = true }) {
-                    HStack {
-                        Image(systemName: "photo.on.rectangle.angled")
-                        Text("Вибрати зображення")
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 16)
+                            .background(Color("primary"))
+                            .cornerRadius(8)
+                    } else {
+                        HStack {
+                            Image(systemName: "photo.on.rectangle.angled")
+                            Text("Вибрати зображення")
+                        }
+                        .foregroundColor(.white)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 16)
+                        .background(Color("primary"))
+                        .cornerRadius(8)
                     }
-                    .foregroundColor(.white)
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 16)
-                    .background(Color("primary"))
-                    .cornerRadius(8)
                 }
                 
                 Button(action: { resetLogo() }) {
@@ -259,7 +268,7 @@ struct EditCoffeeShopView: View {
     
     // Збереження змін
     private func saveChanges() {
-        isSubmitting = true
+        isSubmitting =
         
         Task {
             // Завантажуємо логотип, якщо він був вибраний

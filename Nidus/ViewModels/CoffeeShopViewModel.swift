@@ -11,6 +11,7 @@ class CoffeeShopViewModel: ObservableObject {
     @Published var showSuccess: Bool = false
     @Published var successMessage: String = ""
     
+    
     private let coffeeShopRepository: CoffeeShopRepositoryProtocol
     var authManager: AuthenticationManager
     
@@ -235,6 +236,14 @@ class CoffeeShopViewModel: ObservableObject {
         error = nil
         
         do {
+            // Валідація зображення
+            let (isValid, errorMessage) = validateImage(image)
+            if !isValid {
+                error = errorMessage
+                isLoading = false
+                throw NSError(domain: "CoffeeShopViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: errorMessage ?? "Невірний формат зображення"])
+            }
+            
             // Стиснемо зображення перед завантаженням
             guard let imageData = image.jpegData(compressionQuality: 0.8) else {
                 throw NSError(domain: "CoffeeShopViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Не вдалося підготувати зображення для завантаження"])
@@ -261,6 +270,7 @@ class CoffeeShopViewModel: ObservableObject {
                 selectedCoffeeShop = updatedCoffeeShop
             }
             
+            showSuccessMessage("Логотип успішно завантажено!")
             isLoading = false
             return logoUrl
         } catch let apiError as APIError {
@@ -312,6 +322,26 @@ class CoffeeShopViewModel: ObservableObject {
             isLoading = false
             throw error
         }
+    }
+    
+  
+    
+    func validateImage(_ image: UIImage) -> (isValid: Bool, error: String?) {
+        // Перевірка розміру зображення (не більше 5 МБ)
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            return (false, "Не вдалося обробити зображення")
+        }
+        
+        // Перевірка розміру (5 МБ = 5 * 1024 * 1024 байт)
+        let maxSize = 5 * 1024 * 1024
+        if imageData.count > maxSize {
+            return (false, "Розмір зображення не може перевищувати 5 МБ")
+        }
+        
+        // Тут можна додати перевірку на формат, але JPEG/PNG вже забезпечується
+        // використанням UIImage.jpegData або UIImage.pngData
+        
+        return (true, nil)
     }
     
     // MARK: - Робочі години
@@ -418,6 +448,11 @@ class CoffeeShopViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+    
+    func showSuccessMessage(_ message: String) {
+        self.successMessage = message
+        self.showSuccess = true
     }
     
     // MARK: - Обробка помилок
