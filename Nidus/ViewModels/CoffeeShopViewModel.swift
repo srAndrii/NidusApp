@@ -1,6 +1,6 @@
-// ViewModels/CoffeeShopViewModel.swift
 import Foundation
 import Combine
+import UIKit
 
 class CoffeeShopViewModel: ObservableObject {
     @Published var coffeeShops: [CoffeeShop] = []
@@ -218,6 +218,156 @@ class CoffeeShopViewModel: ObservableObject {
             showSuccess = true
             successMessage = "\(coffeeShopName) успішно видалено!"
             
+        } catch let apiError as APIError {
+            handleError(apiError)
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
+    // MARK: - Завантаження логотипу
+    
+    @MainActor
+    func uploadLogo(for coffeeShopId: String, image: UIImage) async throws -> String {
+        isLoading = true
+        error = nil
+        
+        do {
+            // Стиснемо зображення перед завантаженням
+            guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+                throw NSError(domain: "CoffeeShopViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Не вдалося підготувати зображення для завантаження"])
+            }
+            
+            // Завантажуємо логотип
+            let logoUrl = try await coffeeShopRepository.uploadLogo(coffeeShopId: coffeeShopId, imageData: imageData)
+            
+            // Оновлюємо URL логотипу в кав'ярні
+            let params: [String: Any] = ["logoUrl": logoUrl]
+            let updatedCoffeeShop = try await coffeeShopRepository.updateCoffeeShop(id: coffeeShopId, params: params)
+            
+            // Оновлюємо кав'ярню в списках
+            if let index = coffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
+                coffeeShops[index] = updatedCoffeeShop
+            }
+            
+            if let index = myCoffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
+                myCoffeeShops[index] = updatedCoffeeShop
+            }
+            
+            // Оновлюємо вибрану кав'ярню, якщо вона відповідає оновленій
+            if selectedCoffeeShop?.id == coffeeShopId {
+                selectedCoffeeShop = updatedCoffeeShop
+            }
+            
+            isLoading = false
+            return logoUrl
+        } catch let apiError as APIError {
+            handleError(apiError)
+            isLoading = false
+            throw apiError
+        } catch {
+            self.error = error.localizedDescription
+            isLoading = false
+            throw error
+        }
+    }
+    
+    @MainActor
+    func resetLogo(for coffeeShopId: String) async throws -> String {
+        isLoading = true
+        error = nil
+        
+        do {
+            // Скидаємо логотип до дефолтного
+            let logoUrl = try await coffeeShopRepository.resetLogo(coffeeShopId: coffeeShopId)
+            
+            // Оновлюємо URL логотипу в кав'ярні
+            let params: [String: Any] = ["logoUrl": logoUrl]
+            let updatedCoffeeShop = try await coffeeShopRepository.updateCoffeeShop(id: coffeeShopId, params: params)
+            
+            // Оновлюємо кав'ярню в списках
+            if let index = coffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
+                coffeeShops[index] = updatedCoffeeShop
+            }
+            
+            if let index = myCoffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
+                myCoffeeShops[index] = updatedCoffeeShop
+            }
+            
+            // Оновлюємо вибрану кав'ярню, якщо вона відповідає оновленій
+            if selectedCoffeeShop?.id == coffeeShopId {
+                selectedCoffeeShop = updatedCoffeeShop
+            }
+            
+            isLoading = false
+            return logoUrl
+        } catch let apiError as APIError {
+            handleError(apiError)
+            isLoading = false
+            throw apiError
+        } catch {
+            self.error = error.localizedDescription
+            isLoading = false
+            throw error
+        }
+    }
+    
+    // MARK: - Робочі години
+    
+    @MainActor
+    func updateWorkingHours(coffeeShopId: String, workingHours: [String: WorkingHoursPeriod]) async {
+        isLoading = true
+        error = nil
+        
+        do {
+            // Валідуємо години роботи перед відправкою
+            let model = WorkingHoursModel(hours: workingHours)
+            let (isValid, errorMessage) = model.validate()
+            
+            if !isValid {
+                error = errorMessage ?? "Невірний формат робочих годин"
+                isLoading = false
+                return
+            }
+            
+            // Оновлюємо робочі години кав'ярні
+            let params: [String: Any] = ["workingHours": workingHours]
+            await updateCoffeeShop(id: coffeeShopId, params: params)
+            
+            showSuccess = true
+            successMessage = "Робочі години успішно оновлено!"
+        } catch let apiError as APIError {
+            handleError(apiError)
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
+    // Допоміжний метод для швидкого копіювання робочих годин з іншої кав'ярні
+    @MainActor
+    func copyWorkingHours(from sourceCoffeeShopId: String, to targetCoffeeShopId: String) async {
+        isLoading = true
+        error = nil
+        
+        do {
+            // Отримуємо вихідну кав'ярню
+            let sourceCoffeeShop = try await coffeeShopRepository.getCoffeeShopById(id: sourceCoffeeShopId)
+            
+            // Перевіряємо, чи є робочі години у вихідної кав'ярні
+            if let workingHours = sourceCoffeeShop.workingHours, !workingHours.isEmpty {
+                // Оновлюємо цільову кав'ярню з робочими годинами вихідної
+                let params: [String: Any] = ["workingHours": workingHours]
+                await updateCoffeeShop(id: targetCoffeeShopId, params: params)
+                
+                showSuccess = true
+                successMessage = "Робочі години успішно скопійовано!"
+            } else {
+                error = "У вихідній кав'ярні немає робочих годин для копіювання"
+            }
         } catch let apiError as APIError {
             handleError(apiError)
         } catch {

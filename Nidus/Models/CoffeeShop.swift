@@ -1,202 +1,103 @@
-// CoffeeShopRepository.swift
 import Foundation
-import UIKit
+import CoreLocation
 
-protocol CoffeeShopRepositoryProtocol {
-    func getAllCoffeeShops() async throws -> [CoffeeShop]
-    func getCoffeeShopById(id: String) async throws -> CoffeeShop
-    func getMyCoffeeShops() async throws -> [CoffeeShop]
-    func getCoffeeShopMenu(id: String) async throws -> [MenuGroup]
-    func createCoffeeShop(name: String, address: String?) async throws -> CoffeeShop
-    func updateCoffeeShop(id: String, params: [String: Any]) async throws -> CoffeeShop
-    func searchCoffeeShops(address: String) async throws -> [CoffeeShop]
-    func deleteCoffeeShop(id: String) async throws
-    func assignOwner(coffeeShopId: String, userId: String) async throws -> CoffeeShop
-    // Новий метод для завантаження логотипу
-    func uploadLogo(coffeeShopId: String, imageData: Data) async throws -> String
-    // Новий метод для видалення логотипу
-    func resetLogo(coffeeShopId: String) async throws -> String
-}
-
-class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
-    private let networkService: NetworkService
+struct CoffeeShop: Identifiable, Codable {
+    let id: String
+    let name: String
+    var address: String?
+    var logoUrl: String?
+    var ownerId: String?
+    var owner: User?
+    var allowScheduledOrders: Bool
+    var minPreorderTimeMinutes: Int
+    var maxPreorderTimeMinutes: Int
+    var workingHours: [String: WorkingHoursPeriod]?
+    var createdAt: Date
+    var updatedAt: Date
     
-    init(networkService: NetworkService = NetworkService.shared) {
-        self.networkService = networkService
+    // Додаткові властивості, які не передаються з сервера
+    var distance: Double?
+    
+    // Обчислюване властивість для відображення координат
+    var coordinate: CLLocationCoordinate2D? {
+        // Тут можна реалізувати геокодинг адреси,
+        // або якщо координати приходять з сервера, зчитувати їх
+        return nil
     }
     
-    func getAllCoffeeShops() async throws -> [CoffeeShop] {
-        return try await networkService.fetch(endpoint: "/coffee-shops/find-all")
+    // CodingKeys для Codable
+    enum CodingKeys: String, CodingKey {
+        case id, name, address, logoUrl, ownerId, owner
+        case allowScheduledOrders, minPreorderTimeMinutes, maxPreorderTimeMinutes
+        case workingHours, createdAt, updatedAt
     }
     
-    func getCoffeeShopById(id: String) async throws -> CoffeeShop {
-        return try await networkService.fetch(endpoint: "/coffee-shops/\(id)")
+    // Ініціалізатор за замовчуванням
+    init(id: String, name: String, address: String? = nil, logoUrl: String? = nil,
+         ownerId: String? = nil, owner: User? = nil,
+         allowScheduledOrders: Bool = false, minPreorderTimeMinutes: Int = 15,
+         maxPreorderTimeMinutes: Int = 1440, workingHours: [String: WorkingHoursPeriod]? = nil,
+         createdAt: Date = Date(), updatedAt: Date = Date(), distance: Double? = nil) {
+        self.id = id
+        self.name = name
+        self.address = address
+        self.logoUrl = logoUrl
+        self.ownerId = ownerId
+        self.owner = owner
+        self.allowScheduledOrders = allowScheduledOrders
+        self.minPreorderTimeMinutes = minPreorderTimeMinutes
+        self.maxPreorderTimeMinutes = maxPreorderTimeMinutes
+        self.workingHours = workingHours
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.distance = distance
     }
     
-    func getMyCoffeeShops() async throws -> [CoffeeShop] {
-        return try await networkService.fetch(endpoint: "/coffee-shops/my-shops")
-    }
-    
-    func getCoffeeShopMenu(id: String) async throws -> [MenuGroup] {
-        return try await networkService.fetch(endpoint: "/coffee-shops/\(id)/menu")
-    }
-    
-    struct CreateCoffeeShopRequest: Codable {
-        let name: String
-        let address: String?
-    }
-    
-    func createCoffeeShop(name: String, address: String?) async throws -> CoffeeShop {
-        let createRequest = CreateCoffeeShopRequest(name: name, address: address)
-        return try await networkService.post(endpoint: "/coffee-shops/create", body: createRequest)
-    }
-    
-    // Використовуємо Dictionary для гнучкого оновлення полів
-    func updateCoffeeShop(id: String, params: [String: Any]) async throws -> CoffeeShop {
-        // Перетворення Dictionary на JSON data
-        let jsonData = try JSONSerialization.data(withJSONObject: params)
+    // Спеціальний ініціалізатор для декодування з JSON
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Використовуємо raw Data для уникнення проблем з типами
-        struct UpdateResponse: Decodable {
-            let coffeeShop: CoffeeShop
-        }
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        address = try container.decodeIfPresent(String.self, forKey: .address)
+        logoUrl = try container.decodeIfPresent(String.self, forKey: .logoUrl)
+        ownerId = try container.decodeIfPresent(String.self, forKey: .ownerId)
+        owner = try container.decodeIfPresent(User.self, forKey: .owner)
         
-        // Створюємо запит напряму
-        var urlRequest = try createRequest(for: "/coffee-shops/\(id)", method: "PATCH")
-        urlRequest.httpBody = jsonData
+        allowScheduledOrders = try container.decodeIfPresent(Bool.self, forKey: .allowScheduledOrders) ?? false
+        minPreorderTimeMinutes = try container.decodeIfPresent(Int.self, forKey: .minPreorderTimeMinutes) ?? 15
+        maxPreorderTimeMinutes = try container.decodeIfPresent(Int.self, forKey: .maxPreorderTimeMinutes) ?? 1440
         
-        let (data, response) = try await URLSession.shared.data(for: urlRequest)
-        
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.invalidResponse
-        }
-        
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(CoffeeShop.self, from: data)
-    }
-    
-    private func createRequest(for endpoint: String, method: String) throws -> URLRequest {
-        let baseURL = networkService.getBaseURL()
-        guard let url = URL(string: baseURL + endpoint) else {
-            throw APIError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        guard let token = UserDefaults.standard.string(forKey: "accessToken") else {
-            throw APIError.unauthorized
-        }
-        
-        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        return request
-    }
-    
-    func searchCoffeeShops(address: String) async throws -> [CoffeeShop] {
-        let encodedAddress = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        return try await networkService.fetch(endpoint: "/coffee-shops/search?address=\(encodedAddress)")
-    }
-    
-    func deleteCoffeeShop(id: String) async throws {
-        try await networkService.deleteWithoutResponse(endpoint: "/coffee-shops/\(id)")
-    }
-    
-    func assignOwner(coffeeShopId: String, userId: String) async throws -> CoffeeShop {
-        return try await networkService.patch(endpoint: "/coffee-shops/\(coffeeShopId)/assign-owner/\(userId)", body: EmptyBody())
-    }
-    
-    // MARK: - Завантаження файлів
-    
-    // Метод для завантаження логотипу кав'ярні
-    func uploadLogo(coffeeShopId: String, imageData: Data) async throws -> String {
-        // Використовуємо multipart/form-data для завантаження файлу
-        let endpoint = "/upload/coffee-shop/\(coffeeShopId)/logo"
-        
-        struct UploadResponse: Decodable {
-            let success: Bool
-            let url: String
-        }
-        
-        // Створюємо multipart запит
-        let boundary = UUID().uuidString
-        let baseURL = networkService.getBaseURL()
-        
-        guard let url = URL(string: baseURL + endpoint) else {
-            throw APIError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        
-        guard let token = UserDefaults.standard.string(forKey: "accessToken") else {
-            throw APIError.unauthorized
-        }
-        
-        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        // Будуємо multipart/form-data тіло запиту
-        var body = Data()
-        
-        // Додаємо заголовок для файлу
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"logo.jpg\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-        
-        // Додаємо дані зображення
-        body.append(imageData)
-        body.append("\r\n".data(using: .utf8)!)
-        
-        // Додаємо закриваючу частину
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        
-        // Встановлюємо тіло запиту
-        request.httpBody = body
-        
-        // Виконуємо запит
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            // Спробуємо отримати повідомлення про помилку
-            if let errorMessage = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                throw APIError.serverError(statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500,
-                                           message: errorMessage.message)
-            }
-            throw APIError.invalidResponse
-        }
-        
-        let uploadResponse = try JSONDecoder().decode(UploadResponse.self, from: data)
-        
-        if uploadResponse.success {
-            return uploadResponse.url
+        // Декодування workingHours
+        if let workingHoursData = try container.decodeIfPresent(Data.self, forKey: .workingHours) {
+            // Якщо workingHours приходить як Data, перетворюємо його в словник
+            let decoder = JSONDecoder()
+            workingHours = try decoder.decode([String: WorkingHoursPeriod].self, from: workingHoursData)
+        } else if let workingHoursDict = try container.decodeIfPresent([String: WorkingHoursPeriod].self, forKey: .workingHours) {
+            // Якщо workingHours приходить як словник, використовуємо його напряму
+            workingHours = workingHoursDict
         } else {
-            throw APIError.serverError(statusCode: 500, message: "Не вдалося завантажити логотип")
-        }
-    }
-    
-    // Метод для скидання логотипу до дефолтного
-    func resetLogo(coffeeShopId: String) async throws -> String {
-        struct ResetLogoResponse: Decodable {
-            let success: Bool
-            let url: String
+            workingHours = nil
         }
         
-        let response: ResetLogoResponse = try await networkService.delete(endpoint: "/upload/coffee-shop/\(coffeeShopId)/logo")
+        // Декодування дат
+        let dateFormatter = ISO8601DateFormatter()
         
-        if response.success {
-            return response.url
+        if let createdAtString = try container.decodeIfPresent(String.self, forKey: .createdAt),
+           let date = dateFormatter.date(from: createdAtString) {
+            createdAt = date
         } else {
-            throw APIError.serverError(statusCode: 500, message: "Не вдалося скинути логотип")
+            createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         }
-    }
-    
-    struct EmptyBody: Codable {}
-    
-    struct ErrorResponse: Decodable {
-        let message: String
-        let error: String?
-        let statusCode: Int?
+        
+        if let updatedAtString = try container.decodeIfPresent(String.self, forKey: .updatedAt),
+           let date = dateFormatter.date(from: updatedAtString) {
+            updatedAt = date
+        } else {
+            updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+        }
+        
+        // Властивість, яка не передається з сервера
+        distance = nil
     }
 }

@@ -1,5 +1,5 @@
-// CoffeeShopRepository.swift
 import Foundation
+import UIKit
 
 protocol CoffeeShopRepositoryProtocol {
     func getAllCoffeeShops() async throws -> [CoffeeShop]
@@ -9,9 +9,12 @@ protocol CoffeeShopRepositoryProtocol {
     func createCoffeeShop(name: String, address: String?) async throws -> CoffeeShop
     func updateCoffeeShop(id: String, params: [String: Any]) async throws -> CoffeeShop
     func searchCoffeeShops(address: String) async throws -> [CoffeeShop]
-    // Нові методи
     func deleteCoffeeShop(id: String) async throws
     func assignOwner(coffeeShopId: String, userId: String) async throws -> CoffeeShop
+    
+    // Нові методи для завантаження та скидання логотипу
+    func uploadLogo(coffeeShopId: String, imageData: Data) async throws -> String
+    func resetLogo(coffeeShopId: String) async throws -> String
 }
 
 class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
@@ -52,11 +55,6 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
         // Перетворення Dictionary на JSON data
         let jsonData = try JSONSerialization.data(withJSONObject: params)
         
-        // Використовуємо raw Data для уникнення проблем з типами
-        struct UpdateResponse: Decodable {
-            let coffeeShop: CoffeeShop
-        }
-        
         // Створюємо запит напряму
         var urlRequest = try createRequest(for: "/coffee-shops/\(id)", method: "PATCH")
         urlRequest.httpBody = jsonData
@@ -95,8 +93,6 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
         return try await networkService.fetch(endpoint: "/coffee-shops/search?address=\(encodedAddress)")
     }
     
-    // MARK: - Нові методи для видалення кав'ярні та призначення власника
-    
     func deleteCoffeeShop(id: String) async throws {
         try await networkService.deleteWithoutResponse(endpoint: "/coffee-shops/\(id)")
     }
@@ -105,5 +101,106 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
         return try await networkService.patch(endpoint: "/coffee-shops/\(coffeeShopId)/assign-owner/\(userId)", body: EmptyBody())
     }
     
+    // MARK: - Завантаження файлів
+    
+    // Метод для завантаження логотипу кав'ярні
+    func uploadLogo(coffeeShopId: String, imageData: Data) async throws -> String {
+        // Використовуємо multipart/form-data для завантаження файлу
+        let endpoint = "/upload/coffee-shop/\(coffeeShopId)/logo"
+        
+        struct UploadResponse: Decodable {
+            let success: Bool
+            let url: String
+        }
+        
+        let response: UploadResponse = try await networkService.uploadFile(
+            endpoint: endpoint,
+            data: imageData,
+            fieldName: "file",
+            fileName: "logo.jpg",
+            mimeType: "image/jpeg"
+        )
+        
+        if response.success {
+            return response.url
+        } else {
+            throw APIError.serverError(statusCode: 500, message: "Не вдалося завантажити логотип")
+        }
+    }
+    
+    // Метод для скидання логотипу до дефолтного
+    func resetLogo(coffeeShopId: String) async throws -> String {
+        struct ResetLogoResponse: Decodable {
+            let success: Bool
+            let url: String
+        }
+        
+        let response: ResetLogoResponse = try await networkService.delete(endpoint: "/upload/coffee-shop/\(coffeeShopId)/logo")
+        
+        if response.success {
+            return response.url
+        } else {
+            throw APIError.serverError(statusCode: 500, message: "Не вдалося скинути логотип")
+        }
+    }
+    
     struct EmptyBody: Codable {}
+}
+
+// MARK: - Розширення для роботи з робочими годинами
+
+extension CoffeeShop {
+    // Перевіряє, чи відкрита кав'ярня зараз
+    var isOpen: Bool {
+        // Отримуємо поточний день тижня (0 - неділя, 1 - понеділок і т.д.)
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: Date()) - 1 // -1 щоб перейти до 0-based індексації
+        let weekdayString = String(weekday)
+        
+        guard let workingHours = self.workingHours,
+              let todayHours = workingHours[weekdayString] else {
+            return false // Якщо немає інформації про години роботи, вважаємо закритим
+        }
+        
+        if todayHours.isClosed {
+            return false // Якщо сьогодні вихідний
+        }
+        
+        // Перетворюємо рядки часів у дати для порівняння
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        
+        guard let openTime = formatter.date(from: todayHours.open),
+              let closeTime = formatter.date(from: todayHours.close) else {
+            return false // Якщо не можемо розпарсити час
+        }
+        
+        // Отримуємо поточний час (години:хвилини)
+        let now = Date()
+        let nowString = formatter.string(from: now)
+        guard let nowTime = formatter.date(from: nowString) else {
+            return false
+        }
+        
+        // Порівнюємо, чи поточний час знаходиться між часом відкриття і закриття
+        return nowTime >= openTime && nowTime <= closeTime
+    }
+    
+    // Отримує рядкове представлення робочих годин на сьогодні
+    func getWorkingHoursForToday() -> String {
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: Date()) - 1
+        let weekdayString = String(weekday)
+        
+        guard let workingHours = self.workingHours,
+              let todayHours = workingHours[weekdayString] else {
+            return "Немає інформації"
+        }
+        
+        if todayHours.isClosed {
+            return "Зачинено сьогодні"
+        }
+        
+        return "\(todayHours.open) - \(todayHours.close)"
+    }
 }
