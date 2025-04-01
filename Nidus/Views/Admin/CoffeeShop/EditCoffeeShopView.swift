@@ -267,10 +267,21 @@ struct EditCoffeeShopView: View {
     // MARK: - Actions
     
     // Збереження змін
+    // Збереження змін
     private func saveChanges() {
         isSubmitting = true
         
         Task {
+            // Валідація робочих годин перед збереженням
+            let model = WorkingHoursModel(hours: workingHours)
+            let (isValid, errorMessage) = model.validate()
+            
+            if !isValid {
+                viewModel.error = errorMessage ?? "Невірний формат робочих годин"
+                isSubmitting = false
+                return
+            }
+            
             // Завантажуємо логотип, якщо він був вибраний
             if let selectedImage = selectedImage {
                 do {
