@@ -410,4 +410,142 @@ class NetworkService {
             return false
         }
     }
+    
+
+    // MARK: - File Upload Helper Methods
+
+    /// Створює multipart/form-data запит для завантаження файлу
+    private func createMultipartRequest(for endpoint: String, data: Data, fieldName: String, fileName: String, mimeType: String) throws -> URLRequest {
+        // Формуємо URL
+        guard let url = URL(string: baseURL + endpoint) else {
+            throw APIError.invalidURL
+        }
+        
+        // Створюємо boundary - унікальний розділювач для частин multipart запиту
+        let boundary = "Boundary-\(UUID().uuidString)"
+        
+        // Створюємо запит
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        // Додаємо токен, якщо потрібна авторизація
+        if let token = accessToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        // Створюємо тіло запиту
+        var body = Data()
+        
+        // Додаємо файл
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n".data(using: .utf8)!)
+        
+        // Додаємо закриваючий boundary
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        // Встановлюємо тіло запиту
+        request.httpBody = body
+        
+        return request
+    }
+
+    /// Завантажує файл на сервер і повертає результат
+    func uploadFile<T: Decodable>(endpoint: String, data: Data, fieldName: String = "file", fileName: String, mimeType: String) async throws -> T {
+        do {
+            let request = try createMultipartRequest(for: endpoint, data: data, fieldName: fieldName, fileName: fileName, mimeType: mimeType)
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            // Для відладки, виводимо отриманий JSON
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("Відповідь сервера при завантаженні файлу: \(responseString)")
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+            
+            // Перевіряємо статус код
+            if !(200...299).contains(httpResponse.statusCode) {
+                // Спробуємо декодувати повідомлення про помилку
+                if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: errorResponse.message)
+                } else {
+                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка завантаження файлу")
+                }
+            }
+            
+            // Декодуємо відповідь
+            let decoder = JSONDecoder()
+            return try decoder.decode(T.self, from: data)
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.requestFailed(error)
+        }
+    }
+
+    /// Визначає MIME-тип за розширенням файлу
+    func mimeType(for extension: String) -> String {
+        switch `extension`.lowercased() {
+        case "jpg", "jpeg":
+            return "image/jpeg"
+        case "png":
+            return "image/png"
+        case "gif":
+            return "image/gif"
+        case "pdf":
+            return "application/pdf"
+        default:
+            return "application/octet-stream"
+        }
+    }
+
+    /// Конвертує UIImage в Data з визначеним форматом і якістю
+    func compressImage(_ image: UIImage, format: ImageFormat = .jpeg, compressionQuality: CGFloat = 0.8) -> Data? {
+        switch format {
+        case .jpeg:
+            return image.jpegData(compressionQuality: compressionQuality)
+        case .png:
+            return image.pngData()
+        }
+    }
+
+    enum ImageFormat {
+        case jpeg
+        case png
+    }
+
+    // Структура для відповіді про помилку
+    struct ErrorResponse: Decodable {
+        let message: String
+        let error: String?
+        let statusCode: Int?
+        
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            error = try container.decodeIfPresent(String.self, forKey: .error)
+            statusCode = try container.decodeIfPresent(Int.self, forKey: .statusCode)
+            
+            // Декодуємо "message" залежно від типу даних
+            if let messageArray = try? container.decode([String].self, forKey: .message) {
+                // Якщо це масив, об'єднуємо елементи в один рядок
+                message = messageArray.joined(separator: ", ")
+            } else if let messageString = try? container.decode(String.self, forKey: .message) {
+                // Якщо це рядок, використовуємо його
+                message = messageString
+            } else {
+                // Якщо поле відсутнє або має невідомий формат
+                message = "Невідома помилка"
+            }
+        }
+        
+        enum CodingKeys: String, CodingKey {
+            case message, error, statusCode
+        }
+    }
 }

@@ -79,8 +79,8 @@ struct AdminPanelView: View {
                             .background(Color("secondaryText").opacity(0.2))
                             .padding(.leading, 56)
                         
-                        // Кав'ярні
-                        NavigationLink(destination: Text("Управління кав'ярнями")) {
+                        // Кав'ярні - оновлений блок
+                        NavigationLink(destination: AdminCoffeeShopsMenuView()) {
                             HStack {
                                 Image(systemName: "cup.and.saucer.fill")
                                     .font(.system(size: 20))

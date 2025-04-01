@@ -5,7 +5,6 @@
 //  Created by Andrii Liakhovych on 3/29/25.
 //
 
-
 import SwiftUI
 import Kingfisher
 
@@ -72,7 +71,7 @@ struct CoffeeShopRow: View {
                                 .foregroundColor(Color("secondaryText"))
                         }
                         
-                        // Статус (відкрито/закрито)
+                        // Статус (відкрито/закрито) - тепер використовуємо обчислювану властивість
                         HStack(spacing: 2) {
                             Circle()
                                 .fill(coffeeShop.isOpen ? Color.green : Color.red)
@@ -121,7 +120,7 @@ struct CoffeeShopRow: View {
 struct CoffeeShopRow_Previews: PreviewProvider {
     static var previews: some View {
         CoffeeShopRow(coffeeShop: CoffeeShop(
-            id: "1",
+            id: "mock-1",
             name: "Кава на Подолі",
             address: "вул. Сагайдачного 15, Київ",
             logoUrl: nil,

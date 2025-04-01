@@ -141,9 +141,10 @@ struct HomeView: View {
     }
     
     // Демо-дані для відображення, коли сервер ще не доступний
+    // Виправлений масив mockCoffeeShops без дублювання ID
     private var mockCoffeeShops: [CoffeeShop] = [
         CoffeeShop(
-            id: "1",
+            id: "mock-1",
             name: "Bean Haven",
             address: "вул. Хрещатик 15, Київ",
             logoUrl: nil,
@@ -157,7 +158,7 @@ struct HomeView: View {
             distance: 350
         ),
         CoffeeShop(
-            id: "2",
+            id: "mock-2",
             name: "Coffee Bloom",
             address: "вул. Льва Толстого 9, Київ",
             logoUrl: nil,
@@ -171,7 +172,7 @@ struct HomeView: View {
             distance: 750
         ),
         CoffeeShop(
-            id: "3",
+            id: "mock-3",
             name: "Morning Brew",
             address: "вул. Саксаганського 22, Київ",
             logoUrl: nil,
@@ -185,7 +186,7 @@ struct HomeView: View {
             distance: 1200
         ),
         CoffeeShop(
-            id: "4",
+            id: "mock-4",
             name: "Espresso Lane",
             address: "вул. Велика Васильківська 45, Київ",
             logoUrl: nil,
@@ -199,8 +200,8 @@ struct HomeView: View {
             distance: 2500
         ),
         CoffeeShop(
-            id: "1",
-            name: "Bean Haven",
+            id: "mock-5",
+            name: "Caffeine Corner",
             address: "вул. Хрещатик 15, Київ",
             logoUrl: nil,
             ownerId: nil,
@@ -213,8 +214,8 @@ struct HomeView: View {
             distance: 350
         ),
         CoffeeShop(
-            id: "2",
-            name: "Coffee Bloom",
+            id: "mock-6",
+            name: "Aroma Cafe",
             address: "вул. Льва Толстого 9, Київ",
             logoUrl: nil,
             ownerId: nil,
@@ -227,8 +228,8 @@ struct HomeView: View {
             distance: 750
         ),
         CoffeeShop(
-            id: "1",
-            name: "Bean Haven",
+            id: "mock-7",
+            name: "Daily Grind",
             address: "вул. Хрещатик 15, Київ",
             logoUrl: nil,
             ownerId: nil,
@@ -241,8 +242,8 @@ struct HomeView: View {
             distance: 350
         ),
         CoffeeShop(
-            id: "2",
-            name: "Coffee Bloom",
+            id: "mock-8",
+            name: "Urban Beans",
             address: "вул. Льва Толстого 9, Київ",
             logoUrl: nil,
             ownerId: nil,

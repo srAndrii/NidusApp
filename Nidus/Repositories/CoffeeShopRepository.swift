@@ -9,6 +9,9 @@ protocol CoffeeShopRepositoryProtocol {
     func createCoffeeShop(name: String, address: String?) async throws -> CoffeeShop
     func updateCoffeeShop(id: String, params: [String: Any]) async throws -> CoffeeShop
     func searchCoffeeShops(address: String) async throws -> [CoffeeShop]
+    // Нові методи
+    func deleteCoffeeShop(id: String) async throws
+    func assignOwner(coffeeShopId: String, userId: String) async throws -> CoffeeShop
 }
 
 class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
@@ -91,4 +94,16 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
         let encodedAddress = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         return try await networkService.fetch(endpoint: "/coffee-shops/search?address=\(encodedAddress)")
     }
+    
+    // MARK: - Нові методи для видалення кав'ярні та призначення власника
+    
+    func deleteCoffeeShop(id: String) async throws {
+        try await networkService.deleteWithoutResponse(endpoint: "/coffee-shops/\(id)")
+    }
+    
+    func assignOwner(coffeeShopId: String, userId: String) async throws -> CoffeeShop {
+        return try await networkService.patch(endpoint: "/coffee-shops/\(coffeeShopId)/assign-owner/\(userId)", body: EmptyBody())
+    }
+    
+    struct EmptyBody: Codable {}
 }
