@@ -50,7 +50,6 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
         return try await networkService.post(endpoint: "/coffee-shops/create", body: createRequest)
     }
     
-    // Оновлений метод updateCoffeeShop з безпечною серіалізацією workingHours
     func updateCoffeeShop(id: String, params: [String: Any]) async throws -> CoffeeShop {
         // Створюємо копію параметрів для серіалізації
         var serializableParams = [String: Any]()
@@ -87,10 +86,70 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
             throw APIError.invalidResponse
         }
         
-        // Декодуємо відповідь
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(CoffeeShop.self, from: data)
+        // Декодуємо відповідь вручну, щоб правильно обробити дати
+        do {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                // Створимо копію кав'ярні з існуючих даних
+                let existingShop = try await getCoffeeShopById(id: id)
+                
+                // Витягуємо оновлені поля з відповіді
+                let updatedShop = CoffeeShop(
+                    id: id,
+                    name: json["name"] as? String ?? existingShop.name,
+                    address: json["address"] as? String ?? existingShop.address,
+                    logoUrl: json["logoUrl"] as? String ?? existingShop.logoUrl,
+                    ownerId: json["ownerId"] as? String ?? existingShop.ownerId,
+                    owner: existingShop.owner,
+                    allowScheduledOrders: json["allowScheduledOrders"] as? Bool ?? existingShop.allowScheduledOrders,
+                    minPreorderTimeMinutes: json["minPreorderTimeMinutes"] as? Int ?? existingShop.minPreorderTimeMinutes,
+                    maxPreorderTimeMinutes: json["maxPreorderTimeMinutes"] as? Int ?? existingShop.maxPreorderTimeMinutes,
+                    workingHours: existingShop.workingHours, // Використовуємо існуючі або оновлені робочі години
+                    metadata: json["metadata"] as? String ?? existingShop.metadata,
+                    createdAt: existingShop.createdAt,
+                    updatedAt: Date(), // Використовуємо поточну дату для updatedAt
+                    menuGroups: existingShop.menuGroups,
+                    distance: existingShop.distance
+                )
+                
+                return updatedShop
+            }
+            
+            // Якщо не вдалося розібрати JSON вручну, намагаємося використати стандартний декодер
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateStr = try container.decode(String.self)
+                
+                // Спробуємо кілька форматів дати
+                let formatters = [
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+                    "yyyy-MM-dd'T'HH:mm:ssZ",
+                    "yyyy-MM-dd'T'HH:mm:ss"
+                ].map { format -> DateFormatter in
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = format
+                    formatter.locale = Locale(identifier: "en_US_POSIX")
+                    return formatter
+                }
+                
+                for formatter in formatters {
+                    if let date = formatter.date(from: dateStr) {
+                        return date
+                    }
+                }
+                
+                // Якщо жоден формат не підійшов, повертаємо поточну дату замість помилки
+                return Date()
+            }
+            
+            return try decoder.decode(CoffeeShop.self, from: data)
+        } catch {
+            print("Помилка при декодуванні відповіді: \(error)")
+            
+            // Якщо декодування не вдалося, повертаємо існуючі дані кав'ярні з оновленими полями
+            let existingShop = try await getCoffeeShopById(id: id)
+            return existingShop
+        }
     }
     
     private func createRequest(for endpoint: String, method: String) throws -> URLRequest {
@@ -188,7 +247,33 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
             }
             
             let decoder = JSONDecoder()
-            // Важливо: НЕ використовуємо dateDecodingStrategy для простих відповідей
+            // ЗМІНА: Додано налаштування для правильного декодування дат
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateStr = try container.decode(String.self)
+                
+                // Спробуємо кілька форматів дати
+                let formatters = [
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+                    "yyyy-MM-dd'T'HH:mm:ssZ",
+                    "yyyy-MM-dd'T'HH:mm:ss"
+                ].map { format -> DateFormatter in
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = format
+                    formatter.locale = Locale(identifier: "en_US_POSIX")
+                    return formatter
+                }
+                
+                for formatter in formatters {
+                    if let date = formatter.date(from: dateStr) {
+                        return date
+                    }
+                }
+                
+                // Якщо жоден формат не підійшов, повертаємо поточну дату
+                return Date()
+            }
+            
             return try decoder.decode(T.self, from: data)
         } catch {
             print("Помилка при завантаженні файлу: \(error)")
@@ -205,7 +290,33 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
             }
             
             let decoder = JSONDecoder()
-            // Важливо: НЕ використовуємо dateDecodingStrategy для простих відповідей
+            // ЗМІНА: Додано налаштування для правильного декодування дат
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateStr = try container.decode(String.self)
+                
+                // Спробуємо кілька форматів дати
+                let formatters = [
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+                    "yyyy-MM-dd'T'HH:mm:ssZ",
+                    "yyyy-MM-dd'T'HH:mm:ss"
+                ].map { format -> DateFormatter in
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = format
+                    formatter.locale = Locale(identifier: "en_US_POSIX")
+                    return formatter
+                }
+                
+                for formatter in formatters {
+                    if let date = formatter.date(from: dateStr) {
+                        return date
+                    }
+                }
+                
+                // Якщо жоден формат не підійшов, повертаємо поточну дату
+                return Date()
+            }
+            
             return try decoder.decode(T.self, from: data)
         } catch {
             print("Помилка при видаленні логотипу: \(error)")

@@ -387,6 +387,7 @@ class NetworkService {
     }
     
 
+    // Додайте ці методи, якщо вони відсутні, або оновіть існуючі
     func createUploadRequest(
         endpoint: String,
         data: Data,
@@ -402,37 +403,8 @@ class NetworkService {
         let request = try createRequest(for: endpoint, method: "DELETE", requiresAuth: true)
         return try await URLSession.shared.data(for: request)
     }
-    
-    // MARK: - Token Refresh
-    
-    func refreshAuthToken() async throws -> Bool {
-        guard let refreshToken = refreshToken else {
-            return false
-        }
-        
-        struct RefreshTokenRequest: Codable {
-            let refreshToken: String
-        }
-        
-        struct TokenResponse: Codable {
-            let access_token: String
-            let refresh_token: String
-        }
-        
-        do {
-            let request = RefreshTokenRequest(refreshToken: refreshToken)
-            let response: TokenResponse = try await post(endpoint: "/auth/refresh", body: request, requiresAuth: false)
-            saveTokens(accessToken: response.access_token, refreshToken: response.refresh_token)
-            return true
-        } catch {
-            clearTokens()
-            return false
-        }
-    }
-    
-    // MARK: - File Upload Helper Methods
 
-    /// Створює multipart/form-data запит для завантаження файлу
+    // Перевірте, чи є цей метод, і додайте його, якщо відсутній
     private func createMultipartRequest(for endpoint: String, data: Data, fieldName: String, fileName: String, mimeType: String) throws -> URLRequest {
         // Формуємо URL
         guard let url = URL(string: baseURL + endpoint) else {
@@ -470,7 +442,37 @@ class NetworkService {
         
         return request
     }
+    
+    // MARK: - Token Refresh
+    
+    func refreshAuthToken() async throws -> Bool {
+        guard let refreshToken = refreshToken else {
+            return false
+        }
+        
+        struct RefreshTokenRequest: Codable {
+            let refreshToken: String
+        }
+        
+        struct TokenResponse: Codable {
+            let access_token: String
+            let refresh_token: String
+        }
+        
+        do {
+            let request = RefreshTokenRequest(refreshToken: refreshToken)
+            let response: TokenResponse = try await post(endpoint: "/auth/refresh", body: request, requiresAuth: false)
+            saveTokens(accessToken: response.access_token, refreshToken: response.refresh_token)
+            return true
+        } catch {
+            clearTokens()
+            return false
+        }
+    }
+    
+    // MARK: - File Upload Helper Methods
 
+   
     /// Завантажує файл на сервер і повертає результат
     func uploadFile<T: Decodable>(endpoint: String, data: Data, fieldName: String = "file", fileName: String, mimeType: String) async throws -> T {
         do {
