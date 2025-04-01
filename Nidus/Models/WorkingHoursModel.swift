@@ -71,8 +71,6 @@ struct WorkingHoursModel {
         return nowTime >= openTime && nowTime <= closeTime
     }
     
-    // Додайте цей метод до WorkingHoursModel.swift
-
     func validate() -> (Bool, String?) {
         // Перевірка на наявність хоча б одного робочого дня
         let hasWorkingDays = hours.values.contains { !$0.isClosed }
@@ -102,9 +100,6 @@ struct WorkingHoursModel {
         
         return (true, nil)
     }
-    
-    
-
     
     // Конвертація для API
     func toApiModel() -> [String: [String: Any]] {
@@ -172,29 +167,6 @@ extension CoffeeShop {
         }
         
         return "\(todayHours.open) - \(todayHours.close)"
-    }
-    
-    private func validateWorkingHours() {
-        let model = WorkingHoursModel(hours: workingHours)
-        let (isValid, errorMessage) = model.validate()
-        
-        showValidationError = !isValid
-        if let message = errorMessage {
-            validationErrorMessage = message
-        }
-    }
-    
-    private func applyStandardTemplate() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            for day in 0...6 {
-                workingHours["\(day)"] = WorkingHoursPeriod(
-                    open: "09:00",
-                    close: "21:00",
-                    isClosed: day == 0 // За замовчуванням неділя - вихідний
-                )
-            }
-        }
-        validateWorkingHours()
     }
     
     // Отримує назву дня для конкретного дня тижня

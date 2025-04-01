@@ -53,7 +53,8 @@ struct WorkingHoursCardView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         // Перебираємо дні тижня
                         ForEach(0...6, id: \.self) { day in
-                            if let dayKey = String(day), let period = workingHours[dayKey] {
+                            let dayKey = String(day)
+                            if let period = workingHours[dayKey] {
                                 HStack {
                                     Text(coffeeShop.getDayName(for: day))
                                         .font(.subheadline)

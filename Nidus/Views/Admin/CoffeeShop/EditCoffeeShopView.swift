@@ -268,7 +268,7 @@ struct EditCoffeeShopView: View {
     
     // Збереження змін
     private func saveChanges() {
-        isSubmitting =
+        isSubmitting = true
         
         Task {
             // Завантажуємо логотип, якщо він був вибраний
