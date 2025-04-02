@@ -14,11 +14,11 @@ struct EditCoffeeShopView: View {
     @State private var maxPreorderTimeMinutes: Int
     @State private var workingHours: [String: WorkingHoursPeriod]
     
-    // Стан для логотипу
+    // Стан для логотипу - зберігаємо простоту
     @State private var selectedImage: UIImage?
     @State private var showImagePicker = false
-    @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
     
+    // Стан для індикації процесів
     @State private var isSubmitting = false
     @State private var section: FormSection = .basicInfo
     
@@ -67,16 +67,26 @@ struct EditCoffeeShopView: View {
                         }
                         
                         // Кнопка збереження
-                        Button(action: { saveChanges() }) {
+                        Button(action: saveChanges) {
                             if isSubmitting {
-                                ProgressView()
+                                HStack {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    
+                                    Text("Зберігаємо зміни...")
+                                        .font(.headline)
+                                        .foregroundColor(.white)
+                                        .padding(.leading, 8)
+                                }
                             } else {
-                                Text("Зберегти зміни").font(.headline)
+                                Text("Зберегти зміни")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
                             }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(name.isEmpty ? Color.gray : Color("primary"))
+                        .background(name.isEmpty || isSubmitting ? Color.gray : Color("primary"))
                         .foregroundColor(.white)
                         .cornerRadius(12)
                         .padding(.horizontal)
@@ -97,8 +107,9 @@ struct EditCoffeeShopView: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(trailing: cancelButton)
             .onChange(of: viewModel.showSuccess) { if $0 { presentationMode.wrappedValue.dismiss() } }
+            // Використовуємо стандартний UIImagePickerController через обгортку
             .sheet(isPresented: $showImagePicker) {
-                ImagePickerView(selectedImage: $selectedImage, isPresented: $showImagePicker, sourceType: sourceType)
+                BasicImagePicker(selectedImage: $selectedImage, isPresented: $showImagePicker)
             }
         }
     }
@@ -213,27 +224,19 @@ struct EditCoffeeShopView: View {
             
             HStack(spacing: 12) {
                 Button(action: { showImagePicker = true }) {
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
-                            .background(Color("primary"))
-                            .cornerRadius(8)
-                    } else {
-                        HStack {
-                            Image(systemName: "photo.on.rectangle.angled")
-                            Text("Вибрати зображення")
-                        }
-                        .foregroundColor(.white)
-                        .padding(.vertical, 12)
-                        .padding(.horizontal, 16)
-                        .background(Color("primary"))
-                        .cornerRadius(8)
+                    HStack {
+                        Image(systemName: "photo.on.rectangle.angled")
+                        Text("Вибрати зображення")
                     }
+                    .foregroundColor(.white)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 16)
+                    .background(Color("primary"))
+                    .cornerRadius(8)
                 }
+                .disabled(isSubmitting)
                 
-                Button(action: { resetLogo() }) {
+                Button(action: resetLogo) {
                     HStack {
                         Image(systemName: "xmark.circle")
                         Text("Видалити")
@@ -244,6 +247,7 @@ struct EditCoffeeShopView: View {
                     .background(Color.red)
                     .cornerRadius(8)
                 }
+                .disabled(isSubmitting)
             }
             .padding(.horizontal)
         }
@@ -267,7 +271,6 @@ struct EditCoffeeShopView: View {
     // MARK: - Actions
     
     // Збереження змін
-    // Збереження змін
     private func saveChanges() {
         isSubmitting = true
         
@@ -283,11 +286,21 @@ struct EditCoffeeShopView: View {
             }
             
             // Завантажуємо логотип, якщо він був вибраний
-            if let selectedImage = selectedImage {
-                do {
-                    _ = try await viewModel.uploadLogo(for: coffeeShop.id, image: selectedImage)
-                } catch {
-                    print("Помилка при завантаженні логотипу: \(error)")
+            if let imageToUpload = selectedImage {
+                // Стиск зображення перед завантаженням
+                if let compressedImage = compressImage(imageToUpload) {
+                    do {
+                        _ = try await viewModel.uploadLogo(for: coffeeShop.id, image: compressedImage)
+                    } catch {
+                        print("Помилка при завантаженні логотипу: \(error)")
+                        viewModel.error = "Помилка при завантаженні логотипу: \(error.localizedDescription)"
+                        isSubmitting = false
+                        return
+                    }
+                } else {
+                    viewModel.error = "Помилка при стисненні зображення"
+                    isSubmitting = false
+                    return
                 }
             }
             
@@ -306,16 +319,88 @@ struct EditCoffeeShopView: View {
         }
     }
     
+    // Стиснення зображення - виконується ТІЛЬКИ при збереженні, не при виборі
+    private func compressImage(_ image: UIImage) -> UIImage? {
+        let maxSize: CGFloat = 800
+        let originalSize = image.size
+        
+        // Зменшуємо зображення, якщо воно занадто велике
+        var newSize = originalSize
+        if originalSize.width > maxSize || originalSize.height > maxSize {
+            if originalSize.width > originalSize.height {
+                let ratio = maxSize / originalSize.width
+                newSize = CGSize(width: maxSize, height: originalSize.height * ratio)
+            } else {
+                let ratio = maxSize / originalSize.height
+                newSize = CGSize(width: originalSize.width * ratio, height: maxSize)
+            }
+        }
+        
+        // Стискаємо
+        UIGraphicsBeginImageContext(newSize)
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return newImage
+    }
+    
     // Скидання логотипу
     private func resetLogo() {
         selectedImage = nil
         
         Task {
+            isSubmitting = true
+            
             do {
                 _ = try await viewModel.resetLogo(for: coffeeShop.id)
             } catch {
                 print("Помилка при скиданні логотипу: \(error)")
+                viewModel.error = "Помилка при скиданні логотипу: \(error.localizedDescription)"
             }
+            
+            isSubmitting = false
+        }
+    }
+}
+
+// MARK: - Найпростіший варіант вибору зображення
+struct BasicImagePicker: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    @Binding var isPresented: Bool
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        var parent: BasicImagePicker
+        
+        init(_ parent: BasicImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                DispatchQueue.main.async {
+                    self.parent.selectedImage = image
+                }
+            }
+            
+            parent.isPresented = false
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.isPresented = false
         }
     }
 }
