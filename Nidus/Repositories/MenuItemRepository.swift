@@ -18,7 +18,26 @@ struct CreateMenuItemRequest: Codable {
     let isAvailable: Bool
     let ingredients: [Ingredient]?
     let customizationOptions: [String: [String]]?
-    var menuGroupId: String  
+    var menuGroupId: String
+    
+    // Додаємо кастомний кодер для уникнення проблем з форматом price
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        
+        // Відправляємо price як число, не як рядок
+        try container.encode(NSDecimalNumber(decimal: price).doubleValue, forKey: .price)
+        
+        try container.encodeIfPresent(description, forKey: .description)
+        try container.encode(isAvailable, forKey: .isAvailable)
+        try container.encodeIfPresent(ingredients, forKey: .ingredients)
+        try container.encodeIfPresent(customizationOptions, forKey: .customizationOptions)
+        try container.encode(menuGroupId, forKey: .menuGroupId)
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case name, price, description, isAvailable, ingredients, customizationOptions, menuGroupId
+    }
 }
 
 class MenuItemRepository: MenuItemRepositoryProtocol {

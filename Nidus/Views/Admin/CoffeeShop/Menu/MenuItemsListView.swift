@@ -11,6 +11,8 @@ struct MenuItemsListView: View {
     let menuGroup: MenuGroup
     @StateObject private var viewModel = MenuItemsViewModel()
     @State private var showingCreateSheet = false
+    @State private var showDeleteConfirmation = false
+    @State private var menuItemToDelete: (groupId: String, itemId: String, name: String)? = nil
     
     var body: some View {
         ZStack {
@@ -47,11 +49,28 @@ struct MenuItemsListView: View {
                     ScrollView {
                         VStack(spacing: 16) {
                             ForEach(viewModel.menuItems) { item in
-                                MenuItemRowView(menuItem: item)
-                                    .background(Color("cardColor"))
-                                    .cornerRadius(12)
-                                    .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                                    .padding(.horizontal)
+                                MenuItemRowView(
+                                    menuItem: item,
+                                    menuGroupId: menuGroup.id,
+                                    onDelete: { groupId, itemId in
+                                        // Показуємо підтвердження видалення
+                                        menuItemToDelete = (groupId, itemId, item.name)
+                                        showDeleteConfirmation = true
+                                    },
+                                    onToggleAvailability: { groupId, itemId, available in
+                                        Task {
+                                            await viewModel.updateMenuItemAvailability(
+                                                groupId: groupId,
+                                                itemId: itemId,
+                                                available: available
+                                            )
+                                        }
+                                    }
+                                )
+                                .background(Color("cardColor"))
+                                .cornerRadius(12)
+                                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                                .padding(.horizontal)
                             }
                         }
                         .padding(.vertical, 8)
@@ -101,11 +120,42 @@ struct MenuItemsListView: View {
                 viewModel: viewModel
             )
         }
+        .alert("Видалення пункту меню", isPresented: $showDeleteConfirmation) {
+            Button("Скасувати", role: .cancel) {}
+            Button("Видалити", role: .destructive) {
+                if let itemToDelete = menuItemToDelete {
+                    Task {
+                        await viewModel.deleteMenuItem(
+                            groupId: itemToDelete.groupId,
+                            itemId: itemToDelete.itemId
+                        )
+                    }
+                }
+            }
+        } message: {
+            if let itemToDelete = menuItemToDelete {
+                Text("Ви впевнені, що хочете видалити пункт меню '\(itemToDelete.name)'? Ця дія незворотна.")
+            } else {
+                Text("Ви впевнені, що хочете видалити цей пункт меню? Ця дія незворотна.")
+            }
+        }
     }
 }
 
 struct MenuItemRowView: View {
     let menuItem: MenuItem
+    let menuGroupId: String
+    let onDelete: (String, String) -> Void
+    let onToggleAvailability: (String, String, Bool) -> Void
+    @State private var isAvailable: Bool
+    
+    init(menuItem: MenuItem, menuGroupId: String, onDelete: @escaping (String, String) -> Void, onToggleAvailability: @escaping (String, String, Bool) -> Void) {
+        self.menuItem = menuItem
+        self.menuGroupId = menuGroupId
+        self.onDelete = onDelete
+        self.onToggleAvailability = onToggleAvailability
+        self._isAvailable = State(initialValue: menuItem.isAvailable)
+    }
     
     var body: some View {
         HStack(spacing: 16) {
@@ -151,50 +201,53 @@ struct MenuItemRowView: View {
                         .lineLimit(2)
                 }
                 
-                // Ціна та статус
+                // Ціна та перемикач доступності
                 HStack(spacing: 8) {
                     Text(formatPrice(menuItem.price))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(Color("primary"))
                     
-                    Circle()
-                        .fill(menuItem.isAvailable ? Color.green : Color.red)
-                        .frame(width: 8, height: 8)
+                    Spacer()
                     
-                    Text(menuItem.isAvailable ? "Доступно" : "Недоступно")
+                    // Доступність - текстовий індикатор поруч з перемикачем
+                    Text(isAvailable ? "Доступно" : "Недоступно")
                         .font(.caption)
-                        .foregroundColor(Color("secondaryText"))
+                        .foregroundColor(isAvailable ? Color.green : Color.red)
+                    
+                    // Перемикач доступності з сучасним синтаксисом
+                    Toggle(isOn: $isAvailable) {
+                        EmptyView()
+                    }
+                    .labelsHidden()
+                    .toggleStyle(SwitchToggleStyle(tint: Color("primary")))
+                    .onChange(of: isAvailable) {
+                        // Використовуємо новий синтаксис onChange без параметрів
+                        Task {
+                            // Запускаємо асинхронний код у Task
+                            await onToggleAvailability(menuGroupId, menuItem.id, isAvailable)
+                        }
+                    }
+                    .frame(width: 50)
                 }
             }
-            
-            Spacer()
             
             // Меню управління
             Menu {
                 Button(action: {
-                    // Редагувати пункт меню
+                    // Редагувати пункт меню (функціонал може бути доданий пізніше)
                 }) {
                     Label("Редагувати", systemImage: "pencil")
                 }
                 
                 Button(action: {
-                    // Додати зображення
+                    // Додати зображення (функціонал може бути доданий пізніше)
                 }) {
                     Label("Додати зображення", systemImage: "photo.fill")
                 }
                 
-                Button(action: {
-                    // Змінити доступність
-                }) {
-                    Label(
-                        menuItem.isAvailable ? "Зробити недоступним" : "Зробити доступним",
-                        systemImage: menuItem.isAvailable ? "eye.slash" : "eye"
-                    )
-                }
-                
                 Button(role: .destructive, action: {
-                    // Видалити пункт меню
+                    onDelete(menuGroupId, menuItem.id)
                 }) {
                     Label("Видалити", systemImage: "trash")
                 }

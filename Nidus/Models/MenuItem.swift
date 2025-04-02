@@ -30,7 +30,22 @@ struct MenuItem: Identifiable, Codable {
         
         id = try container.decode(String.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
-        price = try container.decode(Decimal.self, forKey: .price)
+        
+        // Покращене декодування price - підтримка як числових, так і рядкових значень
+        do {
+            // Спочатку спробуємо декодувати як Decimal (числовий формат)
+            price = try container.decode(Decimal.self, forKey: .price)
+        } catch {
+            // Якщо не вдалося, спробуємо декодувати як String і конвертувати в Decimal
+            if let priceString = try? container.decode(String.self, forKey: .price),
+               let decimalValue = Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) {
+                price = decimalValue
+            } else {
+                // Якщо конвертація не вдалася, все одно викидаємо початкову помилку
+                throw error
+            }
+        }
+        
         description = try container.decodeIfPresent(String.self, forKey: .description)
         imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
         isAvailable = try container.decode(Bool.self, forKey: .isAvailable)
