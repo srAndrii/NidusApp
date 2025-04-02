@@ -120,3 +120,27 @@ struct CoffeeShopHoursSection: View {
         .padding(.horizontal)
     }
 }
+
+
+struct WorkingHoursCardView_Previews: PreviewProvider {
+    static var previews: some View {
+        let coffeeShop = CoffeeShop(
+            id: "mock-1",
+            name: "Тестова кав'ярня",
+            address: "вул. Тестова 1, Київ",
+            workingHours: WorkingHoursModel.createDefault(),
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        
+        return WorkingHoursCardView(
+            coffeeShop: coffeeShop,
+            isExpanded: true,
+            onTap: {}
+        )
+        .padding()
+        .background(Color("backgroundColor"))
+        .previewLayout(.sizeThatFits)
+        .preferredColorScheme(.dark)
+    }
+}

@@ -1,5 +1,11 @@
 import SwiftUI
 
+// Визначаємо тип перегляду (всі кав'ярні або тільки мої)
+enum CoffeeShopViewMode {
+    case allShops
+    case myShops
+}
+
 struct AdminCoffeeShopsView: View {
     @StateObject private var viewModel: CoffeeShopViewModel
     @EnvironmentObject var authManager: AuthenticationManager
@@ -10,11 +16,15 @@ struct AdminCoffeeShopsView: View {
     @State private var selectedCoffeeShop: CoffeeShop?
     @State private var showToast = false
     @State private var toastMessage = ""
+    
+    // Режим перегляду (всі кав'ярні або тільки мої)
+    private let viewMode: CoffeeShopViewMode
      
-    init() {
-        // Створюємо тимчасовий AuthManager для ініціалізації, який буде замінений на @EnvironmentObject
+    init(viewMode: CoffeeShopViewMode = .allShops) {
+        // Створюємо тимчасовий AuthManager для ініціалізації
         let authManager = AuthenticationManager()
         self._viewModel = StateObject(wrappedValue: CoffeeShopViewModel(authManager: authManager))
+        self.viewMode = viewMode
     }
     
     var body: some View {
@@ -78,11 +88,13 @@ struct AdminCoffeeShopsView: View {
                                 .font(.system(size: 60))
                                 .foregroundColor(Color("secondaryText"))
                             
-                            Text("Кав'ярні відсутні")
+                            Text(viewMode == .myShops ? "У вас немає кав'ярень" : "Кав'ярні відсутні")
                                 .font(.headline)
                                 .foregroundColor(Color("primaryText"))
                             
-                            Text("Створіть свою першу кав'ярню, натиснувши кнопку нижче")
+                            Text(viewMode == .myShops
+                                ? "Ви ще не створили жодної кав'ярні або адміністратор ще не призначив вас власником"
+                                : "Створіть свою першу кав'ярню, натиснувши кнопку нижче")
                                 .font(.subheadline)
                                 .foregroundColor(Color("secondaryText"))
                                 .multilineTextAlignment(.center)
@@ -126,9 +138,13 @@ struct AdminCoffeeShopsView: View {
             // Оновлюємо ViewModel щоб використати @EnvironmentObject
             viewModel.authManager = authManager
             
-            // Завантажуємо дані
+            // Завантажуємо дані в залежності від режиму перегляду
             Task {
-                await viewModel.loadAllCoffeeShops()
+                if viewMode == .myShops {
+                    await viewModel.loadMyCoffeeShops()
+                } else {
+                    await viewModel.loadAllCoffeeShops()
+                }
             }
         }
         .sheet(isPresented: $showingCreateSheet) {
@@ -160,16 +176,38 @@ struct AdminCoffeeShopsView: View {
                 Text("Ви впевнені, що хочете видалити цю кав'ярню? Ця дія незворотна.")
             }
         }
-        .navigationTitle("Кав'ярні")
+        // Встановлюємо заголовок залежно від режиму перегляду
+        .navigationTitle(viewMode == .myShops ? "Мої кав'ярні" : "Кав'ярні")
         .navigationBarTitleDisplayMode(.inline)
     }
     
-    // Визначаємо, які кав'ярні показувати (залежно від ролі)
+    // Визначаємо, які кав'ярні показувати
     private var coffeeShopsToShow: [CoffeeShop] {
-        if viewModel.isSuperAdmin() {
+        if viewMode == .myShops {
+            return viewModel.myCoffeeShops
+        } else if viewModel.isSuperAdmin() {
             return viewModel.coffeeShops
         } else {
             return viewModel.myCoffeeShops
         }
+    }
+}
+
+struct AdminCoffeeShopsView_Previews: PreviewProvider {
+    static var previews: some View {
+        Group {
+            NavigationView {
+                AdminCoffeeShopsView(viewMode: .allShops)
+                    .environmentObject(AuthenticationManager())
+            }
+            .previewDisplayName("Всі кав'ярні")
+            
+            NavigationView {
+                AdminCoffeeShopsView(viewMode: .myShops)
+                    .environmentObject(AuthenticationManager())
+            }
+            .previewDisplayName("Мої кав'ярні")
+        }
+        .preferredColorScheme(.dark)
     }
 }

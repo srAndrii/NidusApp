@@ -261,3 +261,14 @@ struct CreateCoffeeShopView: View {
         }
     }
 }
+
+
+struct CreateCoffeeShopView_Previews: PreviewProvider {
+    static var previews: some View {
+        let authManager = AuthenticationManager()
+        let viewModel = CoffeeShopViewModel(authManager: authManager)
+        
+        return CreateCoffeeShopView(viewModel: viewModel)
+            .preferredColorScheme(.dark)
+    }
+}

@@ -246,3 +246,21 @@ struct AssignOwnerView: View {
         }
     }
 }
+
+struct AssignOwnerView_Previews: PreviewProvider {
+    static var previews: some View {
+        let authManager = AuthenticationManager()
+        let viewModel = CoffeeShopViewModel(authManager: authManager)
+        let coffeeShop = CoffeeShop(
+            id: "mock-1",
+            name: "Тестова кав'ярня",
+            address: "вул. Тестова 1, Київ",
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        
+        return AssignOwnerView(viewModel: viewModel, coffeeShop: coffeeShop)
+            .environmentObject(authManager)
+            .preferredColorScheme(.dark)
+    }
+}

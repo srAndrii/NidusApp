@@ -75,3 +75,17 @@ struct ImagePickerDialog: View {
         }
     }
 }
+
+struct ImagePickerDialog_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            Color("backgroundColor").ignoresSafeArea()
+            ImagePickerDialog(
+                isPresented: .constant(true),
+                showImagePicker: .constant(false),
+                sourceType: .constant(.photoLibrary)
+            )
+        }
+        .preferredColorScheme(.dark)
+    }
+}
