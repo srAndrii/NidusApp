@@ -18,7 +18,7 @@ struct CreateMenuItemRequest: Codable {
     let isAvailable: Bool
     let ingredients: [Ingredient]?
     let customizationOptions: [String: [String]]?
-    let menuGroupId: String
+    var menuGroupId: String  
 }
 
 class MenuItemRepository: MenuItemRepositoryProtocol {
@@ -37,8 +37,21 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
     }
     
     func createMenuItem(groupId: String, item: CreateMenuItemRequest) async throws -> MenuItem {
-        return try await networkService.post(endpoint: "/menu-groups/\(groupId)/items", body: item)
-    }
+            // Оновлюємо структуру запиту, щоб мати правильний menuGroupId
+            var createRequest = item
+            createRequest.menuGroupId = groupId
+            
+            // Виконуємо запит
+            let menuItem: MenuItem = try await networkService.post(endpoint: "/menu-groups/\(groupId)/items", body: createRequest)
+            
+            // Якщо menuGroupId відсутній у відповіді, додаємо його вручну
+            var updatedMenuItem = menuItem
+            if updatedMenuItem.menuGroupId == nil {
+                updatedMenuItem.menuGroupId = groupId
+            }
+            
+            return updatedMenuItem
+        }
     
     // Використовуємо Dictionary для гнучкого оновлення полів
     func updateMenuItem(groupId: String, itemId: String, updates: [String: Any]) async throws -> MenuItem {

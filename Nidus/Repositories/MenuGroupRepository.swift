@@ -26,22 +26,31 @@ class MenuGroupRepository: MenuGroupRepositoryProtocol {
     }
     
     struct CreateMenuGroupRequest: Codable {
-        let name: String
-        let description: String?
-        let displayOrder: Int
-        let coffeeShopId: String
-    }
-    
-    func createMenuGroup(coffeeShopId: String, name: String, description: String?, displayOrder: Int) async throws -> MenuGroup {
-        let createRequest = CreateMenuGroupRequest(
-            name: name,
-            description: description,
-            displayOrder: displayOrder,
-            coffeeShopId: coffeeShopId
-        )
+            let name: String
+            let description: String?
+            let displayOrder: Int
+            let coffeeShopId: String
+        }
         
-        return try await networkService.post(endpoint: "/coffee-shops/\(coffeeShopId)/menu-groups", body: createRequest)
-    }
+        func createMenuGroup(coffeeShopId: String, name: String, description: String?, displayOrder: Int) async throws -> MenuGroup {
+            let createRequest = CreateMenuGroupRequest(
+                name: name,
+                description: description,
+                displayOrder: displayOrder,
+                coffeeShopId: coffeeShopId
+            )
+            
+            // Створюємо групу через API
+            let menuGroup: MenuGroup = try await networkService.post(endpoint: "/coffee-shops/\(coffeeShopId)/menu-groups", body: createRequest)
+            
+            // Якщо coffeeShopId відсутній у відповіді, додаємо його вручну
+            var updatedMenuGroup = menuGroup
+            if updatedMenuGroup.coffeeShopId == nil {
+                updatedMenuGroup.coffeeShopId = coffeeShopId
+            }
+            
+            return updatedMenuGroup
+        }
     
     struct UpdateMenuGroupRequest: Codable {
         let name: String?

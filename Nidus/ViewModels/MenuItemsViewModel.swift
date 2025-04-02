@@ -33,35 +33,38 @@ class MenuItemsViewModel: ObservableObject {
     }
     
     @MainActor
-    func createMenuItem(groupId: String, name: String, price: Decimal, description: String?, isAvailable: Bool) async {
-        isLoading = true
-        error = nil
-        
-        do {
-            // Використовуємо вже існуючу структуру CreateMenuItemRequest з вашого репозиторію
-            let createRequest = CreateMenuItemRequest(
-                name: name,
-                price: price,
-                description: description,
-                isAvailable: isAvailable,
-                ingredients: nil,
-                customizationOptions: nil,
-                menuGroupId: groupId
-            )
+        func createMenuItem(groupId: String, name: String, price: Decimal, description: String?, isAvailable: Bool) async {
+            isLoading = true
+            error = nil
             
-            let newItem = try await repository.createMenuItem(groupId: groupId, item: createRequest)
+            do {
+                // Створюємо запит з необхідними даними
+                let createRequest = CreateMenuItemRequest(
+                    name: name,
+                    price: price,
+                    description: description,
+                    isAvailable: isAvailable,
+                    ingredients: nil,
+                    customizationOptions: nil,
+                    menuGroupId: groupId  // Встановлюємо groupId
+                )
+                
+                // Створюємо пункт меню через репозиторій
+                let newItem = try await repository.createMenuItem(groupId: groupId, item: createRequest)
+                
+                // Додаємо новий пункт до списку
+                menuItems.append(newItem)
+                
+                // Показуємо повідомлення про успіх
+                showSuccessMessage("Пункт меню \"\(name)\" успішно створено!")
+            } catch let apiError as APIError {
+                handleError(apiError)
+            } catch {
+                self.error = error.localizedDescription
+            }
             
-            menuItems.append(newItem)
-            
-            showSuccessMessage("Пункт меню \"\(name)\" успішно створено!")
-        } catch let apiError as APIError {
-            handleError(apiError)
-        } catch {
-            self.error = error.localizedDescription
+            isLoading = false
         }
-        
-        isLoading = false
-    }
     
     private func handleError(_ apiError: APIError) {
         switch apiError {

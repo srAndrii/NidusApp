@@ -5,7 +5,7 @@
 //  Created by Andrii Liakhovych on 4/2/25.
 //
 
-iimport Foundation
+import Foundation
 
 class MenuGroupsViewModel: ObservableObject {
     @Published var menuGroups: [MenuGroup] = []
@@ -63,6 +63,80 @@ class MenuGroupsViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+    
+    @MainActor
+    func updateMenuGroup(coffeeShopId: String, groupId: String, name: String?, description: String?, displayOrder: Int?) async {
+        isLoading = true
+        error = nil
+        
+        do {
+            let updatedGroup = try await repository.updateMenuGroup(
+                coffeeShopId: coffeeShopId,
+                groupId: groupId,
+                name: name,
+                description: description,
+                displayOrder: displayOrder
+            )
+            
+            // Оновлюємо групу в списку
+            if let index = menuGroups.firstIndex(where: { $0.id == groupId }) {
+                menuGroups[index] = updatedGroup
+            }
+            
+            // Пересортовуємо список, якщо змінився порядок відображення
+            menuGroups.sort { $0.displayOrder < $1.displayOrder }
+            
+            showSuccessMessage("Групу меню успішно оновлено!")
+        } catch let apiError as APIError {
+            handleError(apiError)
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
+    @MainActor
+    func deleteMenuGroup(coffeeShopId: String, groupId: String) async {
+        isLoading = true
+        error = nil
+        
+        do {
+            try await repository.deleteMenuGroup(coffeeShopId: coffeeShopId, groupId: groupId)
+            
+            // Видаляємо групу зі списку
+            menuGroups.removeAll { $0.id == groupId }
+            
+            showSuccessMessage("Групу меню успішно видалено!")
+        } catch let apiError as APIError {
+            handleError(apiError)
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
+    @MainActor
+    func updateDisplayOrder(coffeeShopId: String, groupId: String, order: Int) async {
+        do {
+            let updatedGroup = try await repository.updateDisplayOrder(
+                coffeeShopId: coffeeShopId,
+                groupId: groupId,
+                order: order
+            )
+            
+            // Оновлюємо групу в списку
+            if let index = menuGroups.firstIndex(where: { $0.id == groupId }) {
+                menuGroups[index] = updatedGroup
+            }
+            
+            // Пересортовуємо список
+            menuGroups.sort { $0.displayOrder < $1.displayOrder }
+        } catch {
+            print("Помилка при оновленні порядку відображення: \(error)")
+        }
     }
     
     private func handleError(_ apiError: APIError) {
