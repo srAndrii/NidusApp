@@ -94,21 +94,34 @@ class MenuItemsViewModel: ObservableObject {
     @MainActor
     func updateMenuItemAvailability(groupId: String, itemId: String, available: Bool) async {
         do {
-            // Оновлюємо на сервері і отримуємо оновлений елемент
-            let updatedItem = try await repository.updateAvailability(groupId: groupId, itemId: itemId, available: available)
+            print("Оновлюємо доступність для \(itemId) на \(available)")
             
-            // Оновлюємо локальний список
+            // Спрощене оновлення через загальний метод
+            let updates: [String: Any] = ["isAvailable": available]
+            
+            // Оновлюємо локальний стан для миттєвої реакції інтерфейсу
+            if let index = menuItems.firstIndex(where: { $0.id == itemId }) {
+                menuItems[index].isAvailable = available
+            }
+            
+            // Очищаємо попередню помилку
+            self.error = nil
+            
+            // Виконуємо запит
+            let updatedItem = try await repository.updateMenuItem(groupId: groupId, itemId: itemId, updates: updates)
+            
+            // Ще раз оновлюємо локальний стан з даними з сервера
             if let index = menuItems.firstIndex(where: { $0.id == itemId }) {
                 menuItems[index] = updatedItem
             }
             
-            // Перезавантажуємо весь список для впевненості
-            await loadMenuItems(groupId: groupId)
-            
             showSuccessMessage("Доступність пункту меню оновлено!")
         } catch {
             print("Помилка при оновленні доступності: \(error)")
-            self.error = error.localizedDescription
+            self.error = "Помилка оновлення: \(error.localizedDescription)"
+            
+            // Перезавантажуємо дані, щоб відновити правильний стан
+            await loadMenuItems(groupId: groupId)
         }
     }
     

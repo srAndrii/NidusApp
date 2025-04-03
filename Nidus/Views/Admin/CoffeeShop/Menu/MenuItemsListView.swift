@@ -221,9 +221,12 @@ struct MenuItemRowView: View {
                     }
                     .labelsHidden()
                     .toggleStyle(SwitchToggleStyle(tint: Color("primary")))
-                    .onChange(of: isAvailable) { newValue in
-                        Task {
-                            await onToggleAvailability(menuGroupId, menuItem.id, newValue)
+                    .onChange(of: isAvailable) { oldValue, newValue in
+                        if oldValue != newValue {  // Додаємо перевірку на зміну значення
+                            Task {
+                                // Асинхронний виклик всередині Task
+                                await onToggleAvailability(menuGroupId, menuItem.id, newValue)
+                            }
                         }
                     }
                     .frame(width: 50)

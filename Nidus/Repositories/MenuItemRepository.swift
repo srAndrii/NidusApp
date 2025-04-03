@@ -77,10 +77,7 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
         // Перетворення Dictionary на JSON data
         let jsonData = try JSONSerialization.data(withJSONObject: updates)
         
-        // Використовуємо raw Data для уникнення проблем з типами
-        struct UpdateResponse: Decodable {
-            let menuItem: MenuItem
-        }
+        print("JSON для оновлення: \(String(data: jsonData, encoding: .utf8) ?? "невідомо")")
         
         // Створюємо запит напряму
         var urlRequest = try createRequest(for: "/menu-groups/\(groupId)/items/\(itemId)", method: "PATCH")
@@ -92,9 +89,48 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
             throw APIError.invalidResponse
         }
         
+        // Виводимо відповідь для діагностики
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("Відповідь сервера: \(responseString)")
+        }
+        
+        // Використовуємо спеціальний декодер з надійною обробкою дат
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(MenuItem.self, from: data)
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateStr = try container.decode(String.self)
+            
+            // Спробуємо різні формати дат
+            let formatters = [
+                "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+                "yyyy-MM-dd'T'HH:mm:ssZ",
+                "yyyy-MM-dd'T'HH:mm:ss"
+            ].map { format -> DateFormatter in
+                let formatter = DateFormatter()
+                formatter.dateFormat = format
+                formatter.locale = Locale(identifier: "en_US_POSIX")
+                return formatter
+            }
+            
+            for formatter in formatters {
+                if let date = formatter.date(from: dateStr) {
+                    return date
+                }
+            }
+            
+            // Якщо не вдалося розпарсити, просто повертаємо поточну дату замість помилки
+            print("❌ Не вдалося розпарсити дату: \(dateStr)")
+            return Date()
+        }
+        
+        do {
+            return try decoder.decode(MenuItem.self, from: data)
+        } catch {
+            print("❌ Помилка декодування: \(error)")
+            
+            // Якщо декодування не вдалося, завантажуємо пункт меню окремим запитом
+            return try await getMenuItem(groupId: groupId, itemId: itemId)
+        }
     }
     
     private func createRequest(for endpoint: String, method: String) throws -> URLRequest {
