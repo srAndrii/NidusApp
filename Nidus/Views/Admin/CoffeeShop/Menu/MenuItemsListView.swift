@@ -221,11 +221,9 @@ struct MenuItemRowView: View {
                     }
                     .labelsHidden()
                     .toggleStyle(SwitchToggleStyle(tint: Color("primary")))
-                    .onChange(of: isAvailable) {
-                        // Використовуємо новий синтаксис onChange без параметрів
+                    .onChange(of: isAvailable) { newValue in
                         Task {
-                            // Запускаємо асинхронний код у Task
-                            await onToggleAvailability(menuGroupId, menuItem.id, isAvailable)
+                            await onToggleAvailability(menuGroupId, menuItem.id, newValue)
                         }
                     }
                     .frame(width: 50)

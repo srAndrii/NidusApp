@@ -120,10 +120,22 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
     }
     
     func updateAvailability(groupId: String, itemId: String, available: Bool) async throws -> MenuItem {
-        return try await networkService.patch(
-            endpoint: "/menu-groups/\(groupId)/items/\(itemId)/availability?available=\(available)",
-            body: EmptyBody()
-        )
+        // Правильний ендпоінт з query-параметром
+        let endpoint = "/menu-groups/\(groupId)/items/\(itemId)/availability?available=\(available)"
+        
+        struct EmptyBody: Codable {}
+        
+        // Виконуємо запит без декодування відповіді
+        let (_, response) = try await networkService.createPatchRequest(endpoint: endpoint, body: EmptyBody())
+        
+        // Перевіряємо статус-код
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.invalidResponse
+        }
+        
+        // Завантажуємо оновлений пункт меню
+        return try await getMenuItem(groupId: groupId, itemId: itemId)
     }
     
     func getFilteredMenuItems(groupId: String, minPrice: Double?, maxPrice: Double?) async throws -> [MenuItem] {

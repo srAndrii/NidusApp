@@ -90,16 +90,20 @@ class MenuItemsViewModel: ObservableObject {
         isLoading = false
     }
     
+    
     @MainActor
     func updateMenuItemAvailability(groupId: String, itemId: String, available: Bool) async {
         do {
-            // Викликаємо репозиторій для оновлення доступності
+            // Оновлюємо на сервері і отримуємо оновлений елемент
             let updatedItem = try await repository.updateAvailability(groupId: groupId, itemId: itemId, available: available)
             
-            // Оновлюємо пункт меню в локальному списку
+            // Оновлюємо локальний список
             if let index = menuItems.firstIndex(where: { $0.id == itemId }) {
                 menuItems[index] = updatedItem
             }
+            
+            // Перезавантажуємо весь список для впевненості
+            await loadMenuItems(groupId: groupId)
             
             showSuccessMessage("Доступність пункту меню оновлено!")
         } catch {

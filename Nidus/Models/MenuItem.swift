@@ -48,7 +48,19 @@ struct MenuItem: Identifiable, Codable {
         
         description = try container.decodeIfPresent(String.self, forKey: .description)
         imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
-        isAvailable = try container.decode(Bool.self, forKey: .isAvailable)
+        // Покращене декодування isAvailable - підтримка як булевих, так і рядкових значень
+        do {
+            // Спочатку спробуємо декодувати як Bool
+            isAvailable = try container.decode(Bool.self, forKey: .isAvailable)
+        } catch {
+            // Якщо не вдалося, спробуємо декодувати як String і конвертувати в Bool
+            if let availableString = try? container.decode(String.self, forKey: .isAvailable) {
+                isAvailable = availableString.lowercased() == "true"
+            } else {
+                // Якщо не вдалося, встановлюємо значення за замовчуванням
+                isAvailable = true
+            }
+        }
         
         // Спочатку спробуємо отримати menuGroupId напряму
         menuGroupId = try container.decodeIfPresent(String.self, forKey: .menuGroupId)

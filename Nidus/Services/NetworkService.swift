@@ -560,6 +560,17 @@ class NetworkService {
             return "application/octet-stream"
         }
     }
+    
+    func createPatchRequest<T: Encodable>(endpoint: String, body: T) async throws -> (Data, URLResponse) {
+        var urlRequest = try createRequest(for: endpoint, method: "PATCH", requiresAuth: true)
+        
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        
+        urlRequest.httpBody = try encoder.encode(body)
+        
+        return try await URLSession.shared.data(for: urlRequest)
+    }
 
     /// Конвертує UIImage в Data з визначеним форматом і якістю
     func compressImage(_ image: UIImage, format: ImageFormat = .jpeg, compressionQuality: CGFloat = 0.8) -> Data? {
