@@ -8,10 +8,12 @@ enum CoffeeShopViewMode {
 
 struct AdminCoffeeShopsView: View {
     @StateObject private var viewModel: CoffeeShopViewModel
+    @StateObject private var menuGroupsViewModel = MenuGroupsViewModel()
     @EnvironmentObject var authManager: AuthenticationManager
     @State private var showingCreateSheet = false
     @State private var showingEditSheet = false
     @State private var showingAssignOwnerSheet = false
+    @State private var showingAddMenuGroupSheet = false
     @State private var showingDeleteAlert = false
     @State private var selectedCoffeeShop: CoffeeShop?
     @State private var showToast = false
@@ -19,12 +21,26 @@ struct AdminCoffeeShopsView: View {
     
     // Режим перегляду (всі кав'ярні або тільки мої)
     private let viewMode: CoffeeShopViewMode
+    // Початкова кав'ярня (для режиму однієї кав'ярні)
+    private var initialCoffeeShop: CoffeeShop?
      
-    init(viewMode: CoffeeShopViewMode = .allShops) {
+    init(viewMode: CoffeeShopViewMode = .allShops, initialCoffeeShop: CoffeeShop? = nil) {
         // Створюємо тимчасовий AuthManager для ініціалізації
         let authManager = AuthenticationManager()
         self._viewModel = StateObject(wrappedValue: CoffeeShopViewModel(authManager: authManager))
         self.viewMode = viewMode
+        self.initialCoffeeShop = initialCoffeeShop
+    }
+    
+    // Перевіряємо чи є в користувача лише одна кав'ярня
+    private var hasOnlyOneCoffeeShop: Bool {
+        return (initialCoffeeShop != nil) ||
+               (viewMode == .myShops && viewModel.myCoffeeShops.count == 1 && !viewModel.isSuperAdmin())
+    }
+    
+    // Отримання єдиної кав'ярні для власника
+    private var singleCoffeeShop: CoffeeShop? {
+        return initialCoffeeShop ?? (hasOnlyOneCoffeeShop ? viewModel.myCoffeeShops.first : nil)
     }
     
     var body: some View {
@@ -41,72 +57,17 @@ struct AdminCoffeeShopsView: View {
                         .foregroundColor(.red)
                         .padding()
                         .multilineTextAlignment(.center)
+                } else if hasOnlyOneCoffeeShop, let coffeeShop = singleCoffeeShop {
+                    // Спеціальний вигляд для власника з однією кав'ярнею
+                    singleCoffeeShopView(coffeeShop)
                 } else {
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            // Заголовок зі статистикою
-                            HStack {
-                                Text("Загальна кількість: \(coffeeShopsToShow.count)")
-                                    .font(.subheadline)
-                                    .foregroundColor(Color("secondaryText"))
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal)
-                            
-                            // Список кав'ярень
-                            ForEach(coffeeShopsToShow) { coffeeShop in
-                                CoffeeShopAdminRow(
-                                    coffeeShop: coffeeShop,
-                                    canManage: viewModel.canManageCoffeeShop(coffeeShop),
-                                    isSuperAdmin: viewModel.isSuperAdmin(),
-                                    onEdit: {
-                                        selectedCoffeeShop = coffeeShop
-                                        showingEditSheet = true
-                                    },
-                                    onDelete: {
-                                        selectedCoffeeShop = coffeeShop
-                                        showingDeleteAlert = true
-                                    },
-                                    onAssignOwner: {
-                                        selectedCoffeeShop = coffeeShop
-                                        showingAssignOwnerSheet = true
-                                    }
-                                )
-                                .background(Color("cardColor"))
-                                .cornerRadius(12)
-                                .padding(.horizontal)
-                            }
-                        }
-                        .padding(.vertical)
-                    }
-                    
-                    // Якщо список порожній
-                    if coffeeShopsToShow.isEmpty && !viewModel.isLoading {
-                        VStack(spacing: 24) {
-                            Image(systemName: "cup.and.saucer")
-                                .font(.system(size: 60))
-                                .foregroundColor(Color("secondaryText"))
-                            
-                            Text(viewMode == .myShops ? "У вас немає кав'ярень" : "Кав'ярні відсутні")
-                                .font(.headline)
-                                .foregroundColor(Color("primaryText"))
-                            
-                            Text(viewMode == .myShops
-                                ? "Ви ще не створили жодної кав'ярні або адміністратор ще не призначив вас власником"
-                                : "Створіть свою першу кав'ярню, натиснувши кнопку нижче")
-                                .font(.subheadline)
-                                .foregroundColor(Color("secondaryText"))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 32)
-                        }
-                        .padding()
-                    }
+                    // Стандартний список кав'ярень
+                    multipleShopsView()
                 }
             }
             
-            // Кнопка додавання кав'ярні (якщо користувач має право)
-            if viewModel.canManageCoffeeShops() {
+            // Показуємо кнопку додавання кав'ярні лише для стандартного списку
+            if viewModel.canManageCoffeeShops() && !hasOnlyOneCoffeeShop {
                 VStack {
                     Spacer()
                     
@@ -140,8 +101,16 @@ struct AdminCoffeeShopsView: View {
             
             // Завантажуємо дані в залежності від режиму перегляду
             Task {
-                if viewMode == .myShops {
+                if initialCoffeeShop != nil {
+                    // Якщо є початкова кав'ярня, відразу завантажуємо її групи меню
+                    await menuGroupsViewModel.loadMenuGroups(coffeeShopId: initialCoffeeShop!.id)
+                } else if viewMode == .myShops {
                     await viewModel.loadMyCoffeeShops()
+                    
+                    // Якщо в нас одна кав'ярня, відразу завантажуємо групи меню
+                    if hasOnlyOneCoffeeShop, let coffeeShop = singleCoffeeShop {
+                        await menuGroupsViewModel.loadMenuGroups(coffeeShopId: coffeeShop.id)
+                    }
                 } else {
                     await viewModel.loadAllCoffeeShops()
                 }
@@ -160,6 +129,11 @@ struct AdminCoffeeShopsView: View {
                 AssignOwnerView(viewModel: viewModel, coffeeShop: coffeeShop)
             }
         }
+        .sheet(isPresented: $showingAddMenuGroupSheet) {
+            if let coffeeShop = singleCoffeeShop {
+                CreateMenuGroupView(coffeeShopId: coffeeShop.id, viewModel: menuGroupsViewModel)
+            }
+        }
         .alert("Видалення кав'ярні", isPresented: $showingDeleteAlert) {
             Button("Скасувати", role: .cancel) {}
             Button("Видалити", role: .destructive) {
@@ -176,9 +150,194 @@ struct AdminCoffeeShopsView: View {
                 Text("Ви впевнені, що хочете видалити цю кав'ярню? Ця дія незворотна.")
             }
         }
-        // Встановлюємо заголовок залежно від режиму перегляду
-        .navigationTitle(viewMode == .myShops ? "Мої кав'ярні" : "Кав'ярні")
+        // Встановлюємо заголовок
+        .navigationTitle(hasOnlyOneCoffeeShop ? "Моя кав'ярня" : (viewMode == .myShops ? "Мої кав'ярні" : "Кав'ярні"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    // Вигляд для однієї кав'ярні (для власника з однією кав'ярнею)
+    @ViewBuilder
+    private func singleCoffeeShopView(_ coffeeShop: CoffeeShop) -> some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                // Картка кав'ярні
+                CoffeeShopAdminRow(
+                    coffeeShop: coffeeShop,
+                    canManage: viewModel.canManageCoffeeShop(coffeeShop),
+                    isSuperAdmin: viewModel.isSuperAdmin(),
+                    onEdit: {
+                        selectedCoffeeShop = coffeeShop
+                        showingEditSheet = true
+                    },
+                    onDelete: {
+                        selectedCoffeeShop = coffeeShop
+                        showingDeleteAlert = true
+                    },
+                    onAssignOwner: {
+                        selectedCoffeeShop = coffeeShop
+                        showingAssignOwnerSheet = true
+                    }
+                )
+                .background(Color("cardColor"))
+                .cornerRadius(12)
+                .padding(.horizontal)
+                
+                // Заголовок секції меню
+                HStack {
+                    Text("Групи меню")
+                        .font(.headline)
+                        .foregroundColor(Color("primaryText"))
+                    
+                    Spacer()
+                    
+                    // Кнопка додавання кав'ярні
+                    Button(action: {
+                        showingCreateSheet = true
+                    }) {
+                        Label("Додати кав'ярню", systemImage: "plus")
+                            .font(.subheadline)
+                            .foregroundColor(Color("primary"))
+                    }
+                }
+                .padding(.horizontal)
+                
+                if menuGroupsViewModel.isLoading {
+                    ProgressView("Завантаження груп меню...")
+                        .padding()
+                } else if let error = menuGroupsViewModel.error {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .padding()
+                        .multilineTextAlignment(.center)
+                } else if menuGroupsViewModel.menuGroups.isEmpty {
+                    // Повідомлення, коли немає груп меню
+                    VStack(spacing: 12) {
+                        Image(systemName: "list.bullet.clipboard")
+                            .font(.system(size: 40))
+                            .foregroundColor(Color("secondaryText"))
+                            .padding(.bottom, 8)
+                        
+                        Text("Групи меню відсутні")
+                            .font(.headline)
+                            .foregroundColor(Color("primaryText"))
+                        
+                        Text("Додайте першу групу меню для організації вашого меню")
+                            .font(.subheadline)
+                            .foregroundColor(Color("secondaryText"))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .padding()
+                    .background(Color("cardColor"))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                } else {
+                    // Список груп меню
+                    VStack(spacing: 8) {
+                        ForEach(menuGroupsViewModel.menuGroups) { group in
+                            NavigationLink(destination: MenuItemsListView(menuGroup: group)) {
+                                MenuGroupRowView(menuGroup: group)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
+                // Кнопка додавання групи меню
+                Button(action: {
+                    showingAddMenuGroupSheet = true
+                }) {
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("Додати групу меню")
+                            .font(.headline)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color("primary"))
+                    .cornerRadius(12)
+                }
+                .padding()
+                
+                Spacer(minLength: 40)
+            }
+            .padding(.vertical)
+        }
+        .onChange(of: menuGroupsViewModel.showSuccess) { newValue in
+            if newValue {
+                // Перезавантажуємо групи меню після успішного оновлення
+                Task {
+                    await menuGroupsViewModel.loadMenuGroups(coffeeShopId: coffeeShop.id)
+                }
+            }
+        }
+    }
+    
+    // Стандартний список кав'ярень
+    @ViewBuilder
+    private func multipleShopsView() -> some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                // Заголовок зі статистикою
+                HStack {
+                    Text("Загальна кількість: \(coffeeShopsToShow.count)")
+                        .font(.subheadline)
+                        .foregroundColor(Color("secondaryText"))
+                    
+                    Spacer()
+                }
+                .padding(.horizontal)
+                
+                // Список кав'ярень
+                ForEach(coffeeShopsToShow) { coffeeShop in
+                    CoffeeShopAdminRow(
+                        coffeeShop: coffeeShop,
+                        canManage: viewModel.canManageCoffeeShop(coffeeShop),
+                        isSuperAdmin: viewModel.isSuperAdmin(),
+                        onEdit: {
+                            selectedCoffeeShop = coffeeShop
+                            showingEditSheet = true
+                        },
+                        onDelete: {
+                            selectedCoffeeShop = coffeeShop
+                            showingDeleteAlert = true
+                        },
+                        onAssignOwner: {
+                            selectedCoffeeShop = coffeeShop
+                            showingAssignOwnerSheet = true
+                        }
+                    )
+                    .background(Color("cardColor"))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
+            }
+            .padding(.vertical)
+        }
+        
+        // Якщо список порожній
+        if coffeeShopsToShow.isEmpty && !viewModel.isLoading {
+            VStack(spacing: 24) {
+                Image(systemName: "cup.and.saucer")
+                    .font(.system(size: 60))
+                    .foregroundColor(Color("secondaryText"))
+                
+                Text(viewMode == .myShops ? "У вас немає кав'ярень" : "Кав'ярні відсутні")
+                    .font(.headline)
+                    .foregroundColor(Color("primaryText"))
+                
+                Text(viewMode == .myShops
+                    ? "Ви ще не створили жодної кав'ярні або адміністратор ще не призначив вас власником"
+                    : "Створіть свою першу кав'ярню, натиснувши кнопку нижче")
+                    .font(.subheadline)
+                    .foregroundColor(Color("secondaryText"))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            .padding()
+        }
     }
     
     // Визначаємо, які кав'ярні показувати
