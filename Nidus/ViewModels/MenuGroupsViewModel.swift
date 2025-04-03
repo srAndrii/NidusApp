@@ -9,12 +9,14 @@ import Foundation
 
 class MenuGroupsViewModel: ObservableObject {
     @Published var menuGroups: [MenuGroup] = []
+    @Published var menuItemCounts: [String: Int] = [:] // ID групи: кількість пунктів
     @Published var isLoading = false
     @Published var error: String?
     @Published var showSuccess = false
     @Published var successMessage = ""
     
     private let repository = DIContainer.shared.menuGroupRepository
+    private let menuItemRepository = DIContainer.shared.menuItemRepository
     
     @MainActor
     func loadMenuGroups(coffeeShopId: String) async {
@@ -25,6 +27,11 @@ class MenuGroupsViewModel: ObservableObject {
             menuGroups = try await repository.getMenuGroups(coffeeShopId: coffeeShopId)
             // Сортування за порядком відображення
             menuGroups.sort { $0.displayOrder < $1.displayOrder }
+            
+            // Завантажуємо кількість пунктів для кожної групи
+            for group in menuGroups {
+                await loadMenuItemsCount(groupId: group.id)
+            }
         } catch let apiError as APIError {
             handleError(apiError)
         } catch {
@@ -33,6 +40,23 @@ class MenuGroupsViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+    
+    @MainActor
+    func loadMenuItemsCount(groupId: String) async {
+        do {
+            let items = try await menuItemRepository.getMenuItems(groupId: groupId)
+            menuItemCounts[groupId] = items.count
+        } catch {
+            print("Помилка завантаження кількості пунктів меню для групи \(groupId): \(error)")
+            // Встановлюємо 0, щоб уникнути nil
+            menuItemCounts[groupId] = 0
+        }
+    }
+    
+    // Отримання кількості пунктів для групи
+    func getMenuItemsCount(for groupId: String) -> Int {
+        return menuItemCounts[groupId] ?? 0
     }
     
     @MainActor
@@ -52,6 +76,9 @@ class MenuGroupsViewModel: ObservableObject {
             // Додаємо нову групу до списку і сортуємо
             menuGroups.append(newGroup)
             menuGroups.sort { $0.displayOrder < $1.displayOrder }
+            
+            // Для нової групи кількість пунктів - 0
+            menuItemCounts[newGroup.id] = 0
             
             showSuccessMessage("Групу меню \"\(name)\" успішно створено!")
         } catch let apiError as APIError {
@@ -107,6 +134,9 @@ class MenuGroupsViewModel: ObservableObject {
             
             // Видаляємо групу зі списку
             menuGroups.removeAll { $0.id == groupId }
+            
+            // Видаляємо інформацію про кількість пунктів
+            menuItemCounts.removeValue(forKey: groupId)
             
             showSuccessMessage("Групу меню успішно видалено!")
         } catch let apiError as APIError {

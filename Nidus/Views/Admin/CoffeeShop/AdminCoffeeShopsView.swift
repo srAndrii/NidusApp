@@ -233,12 +233,67 @@ struct AdminCoffeeShopsView: View {
                     .padding(.horizontal)
                 } else {
                     // Список груп меню
-                    VStack(spacing: 8) {
+                    VStack(spacing: 12) {
                         ForEach(menuGroupsViewModel.menuGroups) { group in
+                            // Отримуємо кількість пунктів меню для групи
+                            let itemsCount = menuGroupsViewModel.getMenuItemsCount(for: group.id)
+                            
                             NavigationLink(destination: MenuItemsListView(menuGroup: group)) {
-                                MenuGroupRowView(menuGroup: group)
+                                VStack(spacing: 0) {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text(group.name)
+                                                .font(.headline)
+                                                .foregroundColor(Color("primaryText"))
+                                            
+                                            if let description = group.description, !description.isEmpty {
+                                                Text(description)
+                                                    .font(.subheadline)
+                                                    .foregroundColor(Color("secondaryText"))
+                                                    .lineLimit(2)
+                                            }
+                                            
+                                            HStack(spacing: 12) {
+                                                // Порядковий номер
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: "number")
+                                                        .font(.caption)
+                                                        .foregroundColor(Color("primary"))
+                                                    
+                                                    Text("Порядок: \(group.displayOrder)")
+                                                        .font(.caption)
+                                                        .foregroundColor(Color("secondaryText"))
+                                                }
+                                                
+                                                // Кількість пунктів меню
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: "square.stack")
+                                                        .font(.caption)
+                                                        .foregroundColor(Color("primary"))
+                                                    
+                                                    Text("\(itemsCount) \(menuItemText(itemsCount))")
+                                                        .font(.caption)
+                                                        .foregroundColor(Color("secondaryText"))
+                                                }
+                                            }
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        // Індикатор переходу
+                                        Image(systemName: "chevron.right")
+                                            .foregroundColor(Color("secondaryText"))
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .padding(.trailing, 4)
+                                    }
+                                    .padding(16)
+                                }
+                                .background(Color("cardColor"))
+                                .cornerRadius(12)
+                                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                                .contentShape(Rectangle()) // Важливо для того, щоб вся картка була клікабельною
                             }
-                            .buttonStyle(PlainButtonStyle())
+                            .buttonStyle(PlainButtonStyle()) // Використовуємо PlainButtonStyle для кращого контролю
                         }
                     }
                     .padding(.horizontal)
@@ -272,6 +327,24 @@ struct AdminCoffeeShopsView: View {
                     await menuGroupsViewModel.loadMenuGroups(coffeeShopId: coffeeShop.id)
                 }
             }
+        }
+    }
+    
+    private func menuItemText(_ count: Int) -> String {
+        let lastDigit = count % 10
+        let lastTwoDigits = count % 100
+        
+        if lastTwoDigits >= 11 && lastTwoDigits <= 19 {
+            return "пунктів меню"
+        }
+        
+        switch lastDigit {
+        case 1:
+            return "пункт меню"
+        case 2, 3, 4:
+            return "пункти меню"
+        default:
+            return "пунктів меню"
         }
     }
     

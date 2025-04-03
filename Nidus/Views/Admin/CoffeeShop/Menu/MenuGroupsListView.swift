@@ -65,11 +65,14 @@ struct MenuGroupsListView: View {
                     ScrollView {
                         VStack(spacing: 16) {
                             ForEach(viewModel.menuGroups) { group in
-                                MenuGroupRowView(menuGroup: group)
-                                    .background(Color("cardColor"))
-                                    .cornerRadius(12)
-                                    .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                                    .padding(.horizontal)
+                                MenuGroupRowView(
+                                    menuGroup: group,
+                                    itemsCount: viewModel.getMenuItemsCount(for: group.id)
+                                )
+                                .background(Color("cardColor"))
+                                .cornerRadius(12)
+                                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                                .padding(.horizontal)
                             }
                         }
                         .padding(.vertical, 8)
@@ -124,37 +127,80 @@ struct MenuGroupsListView: View {
 
 struct MenuGroupRowView: View {
     let menuGroup: MenuGroup
+    let itemsCount: Int
     
     var body: some View {
         NavigationLink(destination: MenuItemsListView(menuGroup: menuGroup)) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(menuGroup.name)
-                        .font(.headline)
-                        .foregroundColor(Color("primaryText"))
-                    
-                    if let description = menuGroup.description {
-                        Text(description)
-                            .font(.subheadline)
-                            .foregroundColor(Color("secondaryText"))
-                            .lineLimit(2)
+            VStack(spacing: 0) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(menuGroup.name)
+                            .font(.headline)
+                            .foregroundColor(Color("primaryText"))
+                        
+                        if let description = menuGroup.description, !description.isEmpty {
+                            Text(description)
+                                .font(.subheadline)
+                                .foregroundColor(Color("secondaryText"))
+                                .lineLimit(2)
+                        }
+                        
+                        HStack(spacing: 12) {
+                            // Порядковий номер
+                            HStack(spacing: 4) {
+                                Image(systemName: "number")
+                                    .font(.caption)
+                                    .foregroundColor(Color("primary"))
+                                
+                                Text("Порядок: \(menuGroup.displayOrder)")
+                                    .font(.caption)
+                                    .foregroundColor(Color("secondaryText"))
+                            }
+                            
+                            // Кількість пунктів меню
+                            HStack(spacing: 4) {
+                                Image(systemName: "square.stack")
+                                    .font(.caption)
+                                    .foregroundColor(Color("primary"))
+                                
+                                Text("\(itemsCount) \(menuItemText(itemsCount))")
+                                    .font(.caption)
+                                    .foregroundColor(Color("secondaryText"))
+                            }
+                        }
                     }
                     
-                    Text("Порядок: \(menuGroup.displayOrder)")
-                        .font(.caption)
+                    Spacer()
+                    
+                    // Індикатор переходу
+                    Image(systemName: "chevron.right")
                         .foregroundColor(Color("secondaryText"))
+                        .font(.system(size: 14, weight: .semibold))
+                        .padding(.trailing, 4)
                 }
-                
-                Spacer()
-                
-                // Індикатор переходу
-                Image(systemName: "chevron.right")
-                    .foregroundColor(Color("secondaryText"))
-                    .font(.system(size: 14, weight: .semibold))
-                    .padding(.trailing, 4)
+                .padding(16)
             }
-            .padding(16)
+            .contentShape(Rectangle()) // Важливо для того, щоб вся картка була клікабельною
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(PlainButtonStyle()) // Використовуємо PlainButtonStyle для кращого контролю
+    }
+    
+    // Функція для правильної форми слова "пункт меню" залежно від кількості
+    private func menuItemText(_ count: Int) -> String {
+        let lastDigit = count % 10
+        let lastTwoDigits = count % 100
+        
+        if lastTwoDigits >= 11 && lastTwoDigits <= 19 {
+            return "пунктів меню"
+        }
+        
+        switch lastDigit {
+        case 1:
+            return "пункт меню"
+        case 2, 3, 4:
+            return "пункти меню"
+        default:
+            return "пунктів меню"
+        }
     }
 }
