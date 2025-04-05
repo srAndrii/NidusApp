@@ -11,6 +11,9 @@ struct MenuGroupsListView: View {
     let coffeeShop: CoffeeShop
     @StateObject private var viewModel = MenuGroupsViewModel()
     @State private var showingCreateSheet = false
+    @State private var selectedMenuGroup: MenuGroup?
+    @State private var showingEditSheet = false
+    @State private var showDeleteConfirmation = false
     
     var body: some View {
         ZStack {
@@ -67,7 +70,16 @@ struct MenuGroupsListView: View {
                             ForEach(viewModel.menuGroups) { group in
                                 MenuGroupRowView(
                                     menuGroup: group,
-                                    itemsCount: viewModel.getMenuItemsCount(for: group.id)
+                                    itemsCount: viewModel.getMenuItemsCount(for: group.id),
+                                    coffeeShopId: coffeeShop.id,
+                                    onEdit: { menuGroup in
+                                        selectedMenuGroup = menuGroup
+                                        showingEditSheet = true
+                                    },
+                                    onDelete: { menuGroup in
+                                        selectedMenuGroup = menuGroup
+                                        showDeleteConfirmation = true
+                                    }
                                 )
                                 .background(Color("cardColor"))
                                 .cornerRadius(12)
@@ -122,67 +134,118 @@ struct MenuGroupsListView: View {
                 viewModel: viewModel
             )
         }
+        .sheet(isPresented: $showingEditSheet) {
+            if let menuGroup = selectedMenuGroup {
+                EditMenuGroupView(
+                    coffeeShopId: coffeeShop.id,
+                    menuGroup: menuGroup,
+                    viewModel: viewModel
+                )
+            }
+        }
+        .alert("Видалення групи меню", isPresented: $showDeleteConfirmation) {
+            Button("Скасувати", role: .cancel) {}
+            Button("Видалити", role: .destructive) {
+                if let menuGroup = selectedMenuGroup {
+                    Task {
+                        await viewModel.deleteMenuGroup(coffeeShopId: coffeeShop.id, groupId: menuGroup.id)
+                    }
+                }
+            }
+        } message: {
+            if let menuGroup = selectedMenuGroup {
+                Text("Ви впевнені, що хочете видалити групу меню '\(menuGroup.name)'? Ця дія незворотна.")
+            } else {
+                Text("Ви впевнені, що хочете видалити цю групу меню? Ця дія незворотна.")
+            }
+        }
     }
 }
+
 
 struct MenuGroupRowView: View {
     let menuGroup: MenuGroup
     let itemsCount: Int
+    let coffeeShopId: String
+    let onEdit: (MenuGroup) -> Void
+    let onDelete: (MenuGroup) -> Void
     
     var body: some View {
-        NavigationLink(destination: MenuItemsListView(menuGroup: menuGroup)) {
-            VStack(spacing: 0) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(menuGroup.name)
-                            .font(.headline)
-                            .foregroundColor(Color("primaryText"))
+        HStack {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(menuGroup.name)
+                    .font(.headline)
+                    .foregroundColor(Color("primaryText"))
+                
+                if let description = menuGroup.description, !description.isEmpty {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundColor(Color("secondaryText"))
+                        .lineLimit(2)
+                }
+                
+                HStack(spacing: 12) {
+                    // Порядковий номер
+                    HStack(spacing: 4) {
+                        Image(systemName: "number")
+                            .font(.caption)
+                            .foregroundColor(Color("primary"))
                         
-                        if let description = menuGroup.description, !description.isEmpty {
-                            Text(description)
-                                .font(.subheadline)
-                                .foregroundColor(Color("secondaryText"))
-                                .lineLimit(2)
-                        }
-                        
-                        HStack(spacing: 12) {
-                            // Порядковий номер
-                            HStack(spacing: 4) {
-                                Image(systemName: "number")
-                                    .font(.caption)
-                                    .foregroundColor(Color("primary"))
-                                
-                                Text("Порядок: \(menuGroup.displayOrder)")
-                                    .font(.caption)
-                                    .foregroundColor(Color("secondaryText"))
-                            }
-                            
-                            // Кількість пунктів меню
-                            HStack(spacing: 4) {
-                                Image(systemName: "square.stack")
-                                    .font(.caption)
-                                    .foregroundColor(Color("primary"))
-                                
-                                Text("\(itemsCount) \(menuItemText(itemsCount))")
-                                    .font(.caption)
-                                    .foregroundColor(Color("secondaryText"))
-                            }
-                        }
+                        Text("Порядок: \(menuGroup.displayOrder)")
+                            .font(.caption)
+                            .foregroundColor(Color("secondaryText"))
                     }
                     
-                    Spacer()
-                    
-                    // Індикатор переходу
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(Color("secondaryText"))
-                        .font(.system(size: 14, weight: .semibold))
-                        .padding(.trailing, 4)
+                    // Кількість пунктів меню
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.stack")
+                            .font(.caption)
+                            .foregroundColor(Color("primary"))
+                        
+                        Text("\(itemsCount) \(menuItemText(itemsCount))")
+                            .font(.caption)
+                            .foregroundColor(Color("secondaryText"))
+                    }
                 }
-                .padding(16)
             }
-            .contentShape(Rectangle()) // Важливо для того, щоб вся картка була клікабельною
+            
+            Spacer()
+            
+            // Кнопка меню (три крапки)
+            Menu {
+                Button(action: {
+                    onEdit(menuGroup)
+                }) {
+                    Label("Редагувати", systemImage: "pencil")
+                }
+                
+                Button(role: .destructive, action: {
+                    onDelete(menuGroup)
+                }) {
+                    Label("Видалити", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.title3)
+                    .foregroundColor(Color("secondaryText"))
+                    .padding(8)
+                    .background(Color("inputField").opacity(0.5))
+                    .clipShape(Circle())
+            }
+            .padding(.trailing, 8)
+            
+            // Навігація до пунктів меню
+            NavigationLink(destination: MenuItemsListView(menuGroup: menuGroup)) {
+                Image(systemName: "chevron.right")
+                    .foregroundColor(Color("secondaryText"))
+                    .font(.system(size: 14, weight: .semibold))
+                    .padding(.trailing, 4)
+            }
         }
-        .buttonStyle(PlainButtonStyle()) // Використовуємо PlainButtonStyle для кращого контролю
+        .padding(16)
+        .background(Color("cardColor"))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
     
     // Функція для правильної форми слова "пункт меню" залежно від кількості

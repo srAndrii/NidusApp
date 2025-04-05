@@ -18,6 +18,9 @@ struct AdminCoffeeShopsView: View {
     @State private var selectedCoffeeShop: CoffeeShop?
     @State private var showToast = false
     @State private var toastMessage = ""
+    @State private var selectedMenuGroup: MenuGroup?
+    @State private var showingEditMenuGroupSheet = false
+    @State private var showMenuGroupDeleteAlert = false
     
     // Режим перегляду (всі кав'ярні або тільки мої)
     private let viewMode: CoffeeShopViewMode
@@ -57,17 +60,14 @@ struct AdminCoffeeShopsView: View {
                         .foregroundColor(.red)
                         .padding()
                         .multilineTextAlignment(.center)
-                } else if hasOnlyOneCoffeeShop, let coffeeShop = singleCoffeeShop {
-                    // Спеціальний вигляд для власника з однією кав'ярнею
-                    singleCoffeeShopView(coffeeShop)
                 } else {
-                    // Стандартний список кав'ярень
-                    multipleShopsView()
+                    // Новий уніфікований вигляд
+                    coffeeShopsWithMenuGroupsView()
                 }
             }
             
-            // Показуємо кнопку додавання кав'ярні лише для стандартного списку
-            if viewModel.canManageCoffeeShops() && !hasOnlyOneCoffeeShop {
+            // Показуємо кнопку додавання кав'ярні
+            if viewModel.canManageCoffeeShops() {
                 VStack {
                     Spacer()
                     
@@ -101,16 +101,8 @@ struct AdminCoffeeShopsView: View {
             
             // Завантажуємо дані в залежності від режиму перегляду
             Task {
-                if initialCoffeeShop != nil {
-                    // Якщо є початкова кав'ярня, відразу завантажуємо її групи меню
-                    await menuGroupsViewModel.loadMenuGroups(coffeeShopId: initialCoffeeShop!.id)
-                } else if viewMode == .myShops {
+                if viewMode == .myShops {
                     await viewModel.loadMyCoffeeShops()
-                    
-                    // Якщо в нас одна кав'ярня, відразу завантажуємо групи меню
-                    if hasOnlyOneCoffeeShop, let coffeeShop = singleCoffeeShop {
-                        await menuGroupsViewModel.loadMenuGroups(coffeeShopId: coffeeShop.id)
-                    }
                 } else {
                     await viewModel.loadAllCoffeeShops()
                 }
@@ -153,6 +145,273 @@ struct AdminCoffeeShopsView: View {
         // Встановлюємо заголовок
         .navigationTitle(hasOnlyOneCoffeeShop ? "Моя кав'ярня" : (viewMode == .myShops ? "Мої кав'ярні" : "Кав'ярні"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+    struct CoffeeShopMenuGroupsSection: View {
+        let coffeeShopId: String
+        @StateObject private var menuGroupsViewModel = MenuGroupsViewModel()
+        @State private var selectedMenuGroup: MenuGroup?
+        @State private var showingEditMenuGroupSheet = false
+        @State private var showMenuGroupDeleteAlert = false
+        
+        var body: some View {
+            VStack(spacing: 12) {
+                if menuGroupsViewModel.isLoading {
+                    ProgressView("Завантаження груп меню...")
+                        .padding()
+                } else if let error = menuGroupsViewModel.error {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .padding()
+                        .multilineTextAlignment(.center)
+                } else if menuGroupsViewModel.menuGroups.isEmpty {
+                    // Повідомлення, коли немає груп меню
+                    VStack(spacing: 8) {
+                        Text("Групи меню відсутні")
+                            .font(.headline)
+                            .foregroundColor(Color("primaryText"))
+                        
+                        Text("Додайте першу групу меню для організації вашого меню")
+                            .font(.caption)
+                            .foregroundColor(Color("secondaryText"))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .padding()
+                    .background(Color("cardColor"))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                } else {
+                    // Списку груп меню
+                    ForEach(menuGroupsViewModel.menuGroups) { group in
+                        // Отримуємо кількість пунктів меню для групи
+                        let itemsCount = menuGroupsViewModel.getMenuItemsCount(for: group.id)
+                        
+                        HStack(spacing: 0) {
+                            // Навігаційне посилання на весь основний контент
+                            NavigationLink(destination: MenuItemsListView(menuGroup: group)) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(group.name)
+                                            .font(.headline)
+                                            .foregroundColor(Color("primaryText"))
+                                        
+                                        if let description = group.description, !description.isEmpty {
+                                            Text(description)
+                                                .font(.subheadline)
+                                                .foregroundColor(Color("secondaryText"))
+                                                .lineLimit(2)
+                                        }
+                                        
+                                        HStack(spacing: 12) {
+                                            // Порядковий номер
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "number")
+                                                    .font(.caption)
+                                                    .foregroundColor(Color("primary"))
+                                                
+                                                Text("Порядок: \(group.displayOrder)")
+                                                    .font(.caption)
+                                                    .foregroundColor(Color("secondaryText"))
+                                            }
+                                            
+                                            // Кількість пунктів меню
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "square.stack")
+                                                    .font(.caption)
+                                                    .foregroundColor(Color("primary"))
+                                                
+                                                Text("\(itemsCount) \(menuItemText(itemsCount))")
+                                                    .font(.caption)
+                                                    .foregroundColor(Color("secondaryText"))
+                                            }
+                                        }
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    // Стрілка вправо всередині посилання
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(Color("secondaryText"))
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .padding(.trailing, 8)
+                                }
+                                .padding(16)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            // Кнопка меню (три крапки) - окремо від навігаційного посилання
+                            Menu {
+                                Button(action: {
+                                    selectedMenuGroup = group
+                                    showingEditMenuGroupSheet = true
+                                }) {
+                                    Label("Редагувати", systemImage: "pencil")
+                                }
+                                
+                                Button(role: .destructive, action: {
+                                    selectedMenuGroup = group
+                                    showMenuGroupDeleteAlert = true
+                                }) {
+                                    Label("Видалити", systemImage: "trash")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.title3)
+                                    .foregroundColor(Color("secondaryText"))
+                                    .padding(8)
+                                    .background(Color("inputField").opacity(0.5))
+                                    .clipShape(Circle())
+                            }
+                            .padding(.trailing, 16)
+                        }
+                        .background(Color("cardColor"))
+                        .cornerRadius(12)
+                        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            .onAppear {
+                // Завантажуємо групи меню при появі компонента
+                Task {
+                    await menuGroupsViewModel.loadMenuGroups(coffeeShopId: coffeeShopId)
+                }
+            }
+            .sheet(isPresented: $showingEditMenuGroupSheet) {
+                if let menuGroup = selectedMenuGroup {
+                    EditMenuGroupView(
+                        coffeeShopId: coffeeShopId,
+                        menuGroup: menuGroup,
+                        viewModel: menuGroupsViewModel
+                    )
+                }
+            }
+            .alert("Видалення групи меню", isPresented: $showMenuGroupDeleteAlert) {
+                Button("Скасувати", role: .cancel) {}
+                Button("Видалити", role: .destructive) {
+                    if let menuGroup = selectedMenuGroup {
+                        Task {
+                            await menuGroupsViewModel.deleteMenuGroup(coffeeShopId: coffeeShopId, groupId: menuGroup.id)
+                        }
+                    }
+                }
+            } message: {
+                if let menuGroup = selectedMenuGroup {
+                    Text("Ви впевнені, що хочете видалити групу меню '\(menuGroup.name)'? Ця дія незворотна.")
+                } else {
+                    Text("Ви впевнені, що хочете видалити цю групу меню? Ця дія незворотна.")
+                }
+            }
+        }
+        
+        // Функція для правильної форми слова "пункт меню" залежно від кількості
+        private func menuItemText(_ count: Int) -> String {
+            let lastDigit = count % 10
+            let lastTwoDigits = count % 100
+            
+            if lastTwoDigits >= 11 && lastTwoDigits <= 19 {
+                return "пунктів меню"
+            }
+            
+            switch lastDigit {
+            case 1:
+                return "пункт меню"
+            case 2, 3, 4:
+                return "пункти меню"
+            default:
+                return "пунктів меню"
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func coffeeShopsWithMenuGroupsView() -> some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Заголовок зі статистикою
+                HStack {
+                    Text("Загальна кількість: \(coffeeShopsToShow.count)")
+                        .font(.subheadline)
+                        .foregroundColor(Color("secondaryText"))
+                    
+                    Spacer()
+                }
+                .padding(.horizontal)
+                
+                // Перебираємо всі кав'ярні та показуємо їх з групами меню
+                ForEach(coffeeShopsToShow) { coffeeShop in
+                    VStack(spacing: 16) {
+                        // 1. Картка кав'ярні
+                        CoffeeShopAdminRow(
+                            coffeeShop: coffeeShop,
+                            canManage: viewModel.canManageCoffeeShop(coffeeShop),
+                            isSuperAdmin: viewModel.isSuperAdmin(),
+                            onEdit: {
+                                selectedCoffeeShop = coffeeShop
+                                showingEditSheet = true
+                            },
+                            onDelete: {
+                                selectedCoffeeShop = coffeeShop
+                                showingDeleteAlert = true
+                            },
+                            onAssignOwner: {
+                                selectedCoffeeShop = coffeeShop
+                                showingAssignOwnerSheet = true
+                            }
+                        )
+                        .background(Color("cardColor"))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                        
+                        // 2. Заголовок секції груп меню
+                        HStack {
+                            Text("Групи меню")
+                                .font(.headline)
+                                .foregroundColor(Color("primaryText"))
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        
+                        // 3. Показуємо групи меню для цієї кав'ярні
+                        CoffeeShopMenuGroupsSection(coffeeShopId: coffeeShop.id)
+                        
+                        // 4. Кнопка додавання групи меню для цієї кав'ярні
+                        Button(action: {
+                            selectedCoffeeShop = coffeeShop
+                            showingAddMenuGroupSheet = true
+                        }) {
+                            HStack {
+                                Image(systemName: "plus")
+                                Text("Додати групу меню")
+                                    .font(.headline)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color("primary"))
+                            .cornerRadius(12)
+                        }
+                        .padding(.horizontal)
+                        
+                        // 5. Розділювач між кав'ярнями
+                        Rectangle()
+                            .fill(Color("secondaryText").opacity(0.1))
+                            .frame(height: 2)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 16)
+                    }
+                }
+                
+                Spacer(minLength: 40)
+            }
+            .padding(.vertical)
+        }
+        .sheet(isPresented: $showingAddMenuGroupSheet) {
+            if let coffeeShop = selectedCoffeeShop {
+                CreateMenuGroupView(coffeeShopId: coffeeShop.id, viewModel: menuGroupsViewModel)
+            }
+        }
     }
     
     // Вигляд для однієї кав'ярні (для власника з однією кав'ярнею)
@@ -238,8 +497,9 @@ struct AdminCoffeeShopsView: View {
                             // Отримуємо кількість пунктів меню для групи
                             let itemsCount = menuGroupsViewModel.getMenuItemsCount(for: group.id)
                             
-                            NavigationLink(destination: MenuItemsListView(menuGroup: group)) {
-                                VStack(spacing: 0) {
+                            HStack(spacing: 0) {
+                                // Навігаційне посилання на весь основний контент
+                                NavigationLink(destination: MenuItemsListView(menuGroup: group)) {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 6) {
                                             Text(group.name)
@@ -280,20 +540,44 @@ struct AdminCoffeeShopsView: View {
                                         
                                         Spacer()
                                         
-                                        // Індикатор переходу
+                                        // Стрілка вправо всередині посилання
                                         Image(systemName: "chevron.right")
                                             .foregroundColor(Color("secondaryText"))
                                             .font(.system(size: 14, weight: .semibold))
-                                            .padding(.trailing, 4)
+                                            .padding(.trailing, 8)
                                     }
                                     .padding(16)
                                 }
-                                .background(Color("cardColor"))
-                                .cornerRadius(12)
-                                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                                .contentShape(Rectangle()) // Важливо для того, щоб вся картка була клікабельною
+                                .buttonStyle(PlainButtonStyle())
+                                
+                                // Кнопка меню (три крапки) - окремо від навігаційного посилання
+                                Menu {
+                                    Button(action: {
+                                        selectedMenuGroup = group
+                                        showingEditMenuGroupSheet = true
+                                    }) {
+                                        Label("Редагувати", systemImage: "pencil")
+                                    }
+                                    
+                                    Button(role: .destructive, action: {
+                                        selectedMenuGroup = group
+                                        showMenuGroupDeleteAlert = true
+                                    }) {
+                                        Label("Видалити", systemImage: "trash")
+                                    }
+                                } label: {
+                                    Image(systemName: "ellipsis")
+                                        .font(.title3)
+                                        .foregroundColor(Color("secondaryText"))
+                                        .padding(8)
+                                        .background(Color("inputField").opacity(0.5))
+                                        .clipShape(Circle())
+                                }
+                                .padding(.trailing, 16)
                             }
-                            .buttonStyle(PlainButtonStyle()) // Використовуємо PlainButtonStyle для кращого контролю
+                            .background(Color("cardColor"))
+                            .cornerRadius(12)
+                            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
                         }
                     }
                     .padding(.horizontal)
@@ -328,8 +612,34 @@ struct AdminCoffeeShopsView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingEditMenuGroupSheet) {
+            if let menuGroup = selectedMenuGroup {
+                EditMenuGroupView(
+                    coffeeShopId: coffeeShop.id,
+                    menuGroup: menuGroup,
+                    viewModel: menuGroupsViewModel
+                )
+            }
+        }
+        .alert("Видалення групи меню", isPresented: $showMenuGroupDeleteAlert) {
+            Button("Скасувати", role: .cancel) {}
+            Button("Видалити", role: .destructive) {
+                if let menuGroup = selectedMenuGroup {
+                    Task {
+                        await menuGroupsViewModel.deleteMenuGroup(coffeeShopId: coffeeShop.id, groupId: menuGroup.id)
+                    }
+                }
+            }
+        } message: {
+            if let menuGroup = selectedMenuGroup {
+                Text("Ви впевнені, що хочете видалити групу меню '\(menuGroup.name)'? Ця дія незворотна.")
+            } else {
+                Text("Ви впевнені, що хочете видалити цю групу меню? Ця дія незворотна.")
+            }
+        }
     }
-    
+
+    // Функція для правильної форми слова "пункт меню" залежно від кількості
     private func menuItemText(_ count: Int) -> String {
         let lastDigit = count % 10
         let lastTwoDigits = count % 100
@@ -347,6 +657,8 @@ struct AdminCoffeeShopsView: View {
             return "пунктів меню"
         }
     }
+    
+    
     
     // Стандартний список кав'ярень
     @ViewBuilder

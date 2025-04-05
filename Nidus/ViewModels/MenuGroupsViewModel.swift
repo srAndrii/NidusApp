@@ -103,30 +103,70 @@ class MenuGroupsViewModel: ObservableObject {
         isLoading = false
     }
     
-    /// Оновлення групи меню
+    // Визначаємо структуру запиту для оновлення групи меню
+    struct UpdateMenuGroupRequest: Codable {
+        let name: String?
+        let description: String?
+        let displayOrder: Int?
+    }
+
     @MainActor
     func updateMenuGroup(coffeeShopId: String, groupId: String, name: String?, description: String?, displayOrder: Int?) async {
         isLoading = true
         error = nil
         
         do {
-            let updatedGroup = try await repository.updateMenuGroup(
-                coffeeShopId: coffeeShopId,
-                groupId: groupId,
+            // Створюємо запит
+            let updateRequest = UpdateMenuGroupRequest(
                 name: name,
                 description: description,
                 displayOrder: displayOrder
             )
             
-            // Оновлюємо групу в списку
-            if let index = menuGroups.firstIndex(where: { $0.id == groupId }) {
-                menuGroups[index] = updatedGroup
+            // Замість прямого використання загального patch методу
+            // Реалізуємо спеціальний підхід для обробки відповіді
+            
+            // 1. Створюємо URL-запит напряму
+            let endpoint = "/coffee-shops/\(coffeeShopId)/menu-groups/\(groupId)"
+            let jsonData = try JSONEncoder().encode(updateRequest)
+            
+            var urlRequest = try createRequest(for: endpoint, method: "PATCH")
+            urlRequest.httpBody = jsonData
+            
+            // 2. Надсилаємо запит
+            let (data, response) = try await URLSession.shared.data(for: urlRequest)
+            
+            // 3. Перевіряємо статус-код відповіді
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                throw APIError.invalidResponse
             }
             
-            // Пересортовуємо список, якщо змінився порядок відображення
-            menuGroups.sort { $0.displayOrder < $1.displayOrder }
-            
-            showSuccessMessage("Групу меню успішно оновлено!")
+            // 4. Замість декодування повної відповіді, отримуємо тільки базові поля групи меню
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                // Створюємо об'єкт MenuGroup з необхідних полів, ігноруючи menuItems
+                let updatedGroup = MenuGroup(
+                    id: json["id"] as? String ?? groupId,
+                    name: json["name"] as? String ?? name ?? "",
+                    description: json["description"] as? String,
+                    displayOrder: json["displayOrder"] as? Int ?? displayOrder ?? 0,
+                    coffeeShopId: coffeeShopId,
+                    menuItems: nil,  // Важливо встановити nil для menuItems
+                    createdAt: Date(),
+                    updatedAt: Date()
+                )
+                
+                // Оновлюємо групу в списку
+                if let index = menuGroups.firstIndex(where: { $0.id == groupId }) {
+                    menuGroups[index] = updatedGroup
+                }
+                
+                // Пересортовуємо список, якщо змінився порядок відображення
+                menuGroups.sort { $0.displayOrder < $1.displayOrder }
+                
+                showSuccessMessage("Групу меню успішно оновлено!")
+            } else {
+                throw APIError.decodingFailed(NSError(domain: "MenuGroupsViewModel", code: 1, userInfo: nil))
+            }
         } catch let apiError as APIError {
             handleError(apiError)
         } catch {
@@ -134,6 +174,26 @@ class MenuGroupsViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+
+    // Допоміжний метод для створення запиту
+    private func createRequest(for endpoint: String, method: String) throws -> URLRequest {
+        let baseURL = "https://nidus-845c224671ea.herokuapp.com/api" // або отримати з NetworkService
+        guard let url = URL(string: baseURL + endpoint) else {
+            throw APIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if let token = UserDefaults.standard.string(forKey: "accessToken") {
+            request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        } else {
+            throw APIError.unauthorized
+        }
+        
+        return request
     }
     
     /// Видалення групи меню

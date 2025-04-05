@@ -154,6 +154,7 @@ struct AdminCoffeeShopsMenuView: View {
     }
     
     // Метод для перевірки кількості кав'ярень
+    // Замінити метод checkCoffeeShops
     private func checkCoffeeShops() {
         // Оновлюємо ViewModel щоб використати @EnvironmentObject
         viewModel.authManager = authManager
@@ -164,15 +165,6 @@ struct AdminCoffeeShopsMenuView: View {
             // Завантажуємо кав'ярні користувача
             if isCoffeeShopOwner() {
                 await viewModel.loadMyCoffeeShops()
-                
-                // Перевіряємо, чи є в користувача лише одна кав'ярня
-                if viewModel.myCoffeeShops.count == 1 {
-                    hasOnlyOneCoffeeShop = true
-                    singleCoffeeShop = viewModel.myCoffeeShops.first
-                } else {
-                    hasOnlyOneCoffeeShop = false
-                    singleCoffeeShop = nil
-                }
             }
             
             isLoading = false
