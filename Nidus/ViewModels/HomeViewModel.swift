@@ -4,18 +4,27 @@ import Combine
 import CoreLocation
 
 class HomeViewModel: ObservableObject {
+    // MARK: - Опубліковані властивості
+    
     @Published var coffeeShops: [CoffeeShop] = []
     @Published var isLoading = false
     @Published var error: Error?
     @Published var currentLocation: CLLocationCoordinate2D?
     
+    // MARK: - Залежності та властивості
+    
     private let coffeeShopRepository: CoffeeShopRepositoryProtocol
     private let locationManager = CLLocationManager()
+    
+    // MARK: - Ініціалізація
     
     init(coffeeShopRepository: CoffeeShopRepositoryProtocol) {
         self.coffeeShopRepository = coffeeShopRepository
     }
     
+    // MARK: - Користувацькі методи для роботи з кав'ярнями
+    
+    /// Завантаження всіх кав'ярень з сортуванням за відстанню, якщо доступно
     @MainActor
     func loadCoffeeShops() async {
         isLoading = true
@@ -49,15 +58,8 @@ class HomeViewModel: ObservableObject {
         isLoading = false
     }
     
-    func startLocationUpdates() {
-        locationManager.requestWhenInUseAuthorization()
-        locationManager.startUpdatingLocation()
-    }
-    
-    func updateLocation(coordinate: CLLocationCoordinate2D) {
-        self.currentLocation = coordinate
-    }
-    
+    /// Пошук кав'ярень за запитом (адресою)
+    @MainActor
     func searchCoffeeShops(query: String) async {
         if query.isEmpty {
             await loadCoffeeShops()
@@ -75,5 +77,18 @@ class HomeViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+    
+    // MARK: - Методи для роботи з геолокацією
+    
+    /// Запуск відстеження місцезнаходження
+    func startLocationUpdates() {
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
+    }
+    
+    /// Оновлення поточного місцезнаходження
+    func updateLocation(coordinate: CLLocationCoordinate2D) {
+        self.currentLocation = coordinate
     }
 }

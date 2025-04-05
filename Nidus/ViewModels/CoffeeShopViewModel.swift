@@ -3,6 +3,8 @@ import Combine
 import UIKit
 
 class CoffeeShopViewModel: ObservableObject {
+    // MARK: - Опубліковані властивості
+    
     @Published var coffeeShops: [CoffeeShop] = []
     @Published var myCoffeeShops: [CoffeeShop] = []
     @Published var isLoading: Bool = false
@@ -11,14 +13,17 @@ class CoffeeShopViewModel: ObservableObject {
     @Published var showSuccess: Bool = false
     @Published var successMessage: String = ""
     
+    // MARK: - Залежності та властивості
     
     private let coffeeShopRepository: CoffeeShopRepositoryProtocol
-    private let networkService = NetworkService.shared // Додаємо посилання на NetworkService
+    private let networkService = NetworkService.shared
     var authManager: AuthenticationManager
     
     // Константи для ролей
     private let ROLE_SUPER_ADMIN = "superadmin"
     private let ROLE_COFFEE_SHOP_OWNER = "coffee_shop_owner"
+    
+    // MARK: - Ініціалізація
     
     init(coffeeShopRepository: CoffeeShopRepositoryProtocol = DIContainer.shared.coffeeShopRepository,
          authManager: AuthenticationManager) {
@@ -26,24 +31,24 @@ class CoffeeShopViewModel: ObservableObject {
         self.authManager = authManager
     }
     
-    // MARK: - Перевірка ролей
+    // MARK: - Перевірка прав доступу
     
-    // Перевіряє, чи є користувач Super Admin
+    /// Перевіряє, чи є користувач Super Admin
     func isSuperAdmin() -> Bool {
         return authManager.currentUser?.roles?.contains(where: { $0.name == ROLE_SUPER_ADMIN }) ?? false
     }
     
-    // Перевіряє, чи є користувач Coffee Shop Owner
+    /// Перевіряє, чи є користувач Coffee Shop Owner
     func isCoffeeShopOwner() -> Bool {
         return authManager.currentUser?.roles?.contains(where: { $0.name == ROLE_COFFEE_SHOP_OWNER }) ?? false
     }
     
-    // Перевіряє, чи має користувач доступ до управління кав'ярнями
+    /// Перевіряє, чи має користувач доступ до управління кав'ярнями
     func canManageCoffeeShops() -> Bool {
         return isSuperAdmin() || isCoffeeShopOwner()
     }
     
-    // Перевіряє, чи має користувач доступ до конкретної кав'ярні
+    /// Перевіряє, чи має користувач доступ до конкретної кав'ярні
     func canManageCoffeeShop(_ coffeeShop: CoffeeShop) -> Bool {
         if isSuperAdmin() {
             return true
@@ -60,8 +65,9 @@ class CoffeeShopViewModel: ObservableObject {
         return false
     }
     
-    // MARK: - Завантаження даних
+    // MARK: - Користувацькі методи завантаження даних
     
+    /// Загальний метод завантаження кав'ярень, що обирає правильний метод в залежності від ролі
     @MainActor
     func loadAllCoffeeShops() async {
         // Для Super Admin завантажуємо всі кав'ярні
@@ -73,6 +79,7 @@ class CoffeeShopViewModel: ObservableObject {
         }
     }
     
+    /// Завантаження всіх кав'ярень для користувачів
     @MainActor
     func loadCoffeeShops() async {
         isLoading = true
@@ -89,6 +96,9 @@ class CoffeeShopViewModel: ObservableObject {
         isLoading = false
     }
     
+    // MARK: - Адміністративні методи завантаження даних
+    
+    /// Завантаження кав'ярень для власника
     @MainActor
     func loadMyCoffeeShops() async {
         isLoading = true
@@ -105,8 +115,9 @@ class CoffeeShopViewModel: ObservableObject {
         isLoading = false
     }
     
-    // MARK: - Управління кав'ярнями
+    // MARK: - Адміністративні методи управління кав'ярнями
     
+    /// Створення нової кав'ярні
     @MainActor
     func createCoffeeShop(name: String, address: String?) async {
         isLoading = true
@@ -160,6 +171,7 @@ class CoffeeShopViewModel: ObservableObject {
         isLoading = false
     }
     
+    /// Оновлення існуючої кав'ярні
     @MainActor
     func updateCoffeeShop(id: String, params: [String: Any]) async {
         isLoading = true
@@ -194,6 +206,7 @@ class CoffeeShopViewModel: ObservableObject {
         isLoading = false
     }
     
+    /// Видалення кав'ярні
     @MainActor
     func deleteCoffeeShop(id: String) async {
         isLoading = true
@@ -229,9 +242,116 @@ class CoffeeShopViewModel: ObservableObject {
         isLoading = false
     }
     
-    // MARK: - Завантаження логотипу
+    /// Призначення власника кав'ярні
+    @MainActor
+    func assignOwner(coffeeShopId: String, userId: String) async {
+        isLoading = true
+        error = nil
+        
+        // Перевіряємо, чи є користувач Super Admin
+        if !isSuperAdmin() {
+            error = "Тільки адміністратори можуть призначати власників кав'ярень"
+            isLoading = false
+            return
+        }
+        
+        do {
+            // Викликаємо API для призначення власника
+            let updatedCoffeeShop = try await coffeeShopRepository.assignOwner(coffeeShopId: coffeeShopId, userId: userId)
+            
+            // Оновлюємо кав'ярню в списках
+            if let index = coffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
+                coffeeShops[index] = updatedCoffeeShop
+            }
+            
+            if let index = myCoffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
+                myCoffeeShops[index] = updatedCoffeeShop
+            }
+            
+            // Оновлюємо вибрану кав'ярню, якщо вона відповідає оновленій
+            if selectedCoffeeShop?.id == coffeeShopId {
+                selectedCoffeeShop = updatedCoffeeShop
+            }
+            
+            showSuccess = true
+            successMessage = "Власника кав'ярні \"\(updatedCoffeeShop.name)\" успішно призначено!"
+            
+        } catch let apiError as APIError {
+            handleError(apiError)
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
     
-
+    // MARK: - Методи управління робочими годинами
+    
+    /// Оновлення робочих годин кав'ярні
+    @MainActor
+    func updateWorkingHours(coffeeShopId: String, workingHours: [String: WorkingHoursPeriod]) async {
+        isLoading = true
+        error = nil
+        
+        do {
+            // Валідуємо години роботи перед відправкою
+            let model = WorkingHoursModel(hours: workingHours)
+            let (isValid, errorMessage) = model.validate()
+            
+            if !isValid {
+                error = errorMessage ?? "Невірний формат робочих годин"
+                isLoading = false
+                return
+            }
+            
+            // Оновлюємо робочі години кав'ярні
+            let params: [String: Any] = ["workingHours": workingHours]
+            await updateCoffeeShop(id: coffeeShopId, params: params)
+            
+            showSuccess = true
+            successMessage = "Робочі години успішно оновлено!"
+        } catch let apiError as APIError {
+            handleError(apiError)
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
+    /// Копіювання робочих годин з іншої кав'ярні
+    @MainActor
+    func copyWorkingHours(from sourceCoffeeShopId: String, to targetCoffeeShopId: String) async {
+        isLoading = true
+        error = nil
+        
+        do {
+            // Отримуємо вихідну кав'ярню
+            let sourceCoffeeShop = try await coffeeShopRepository.getCoffeeShopById(id: sourceCoffeeShopId)
+            
+            // Перевіряємо, чи є робочі години у вихідної кав'ярні
+            if let workingHours = sourceCoffeeShop.workingHours, !workingHours.isEmpty {
+                // Оновлюємо цільову кав'ярню з робочими годинами вихідної
+                let params: [String: Any] = ["workingHours": workingHours]
+                await updateCoffeeShop(id: targetCoffeeShopId, params: params)
+                
+                showSuccess = true
+                successMessage = "Робочі години успішно скопійовано!"
+            } else {
+                error = "У вихідній кав'ярні немає робочих годин для копіювання"
+            }
+        } catch let apiError as APIError {
+            handleError(apiError)
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
+    // MARK: - Методи управління зображеннями
+    
+    /// Завантаження логотипу для кав'ярні
     @MainActor
     func uploadLogo(for coffeeShopId: String, image: UIImage) async throws -> String {
         isLoading = true
@@ -322,7 +442,8 @@ class CoffeeShopViewModel: ObservableObject {
             throw error
         }
     }
-
+    
+    /// Скидання логотипу до дефолтного
     @MainActor
     func resetLogo(for coffeeShopId: String) async throws -> String {
         isLoading = true
@@ -392,8 +513,9 @@ class CoffeeShopViewModel: ObservableObject {
         }
     }
     
-  
+    // MARK: - Допоміжні методи
     
+    /// Перевірка валідності зображення
     func validateImage(_ image: UIImage) -> (isValid: Bool, error: String?) {
         // Перевірка розміру зображення (не більше 5 МБ)
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
@@ -412,7 +534,7 @@ class CoffeeShopViewModel: ObservableObject {
         return (true, nil)
     }
     
-    
+    /// Оновлення даних кав'ярні з сервера
     @MainActor
     func refreshCoffeeShopData(id: String) async {
         do {
@@ -437,119 +559,13 @@ class CoffeeShopViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Робочі години
-    
-    @MainActor
-    func updateWorkingHours(coffeeShopId: String, workingHours: [String: WorkingHoursPeriod]) async {
-        isLoading = true
-        error = nil
-        
-        do {
-            // Валідуємо години роботи перед відправкою
-            let model = WorkingHoursModel(hours: workingHours)
-            let (isValid, errorMessage) = model.validate()
-            
-            if !isValid {
-                error = errorMessage ?? "Невірний формат робочих годин"
-                isLoading = false
-                return
-            }
-            
-            // Оновлюємо робочі години кав'ярні
-            let params: [String: Any] = ["workingHours": workingHours]
-            await updateCoffeeShop(id: coffeeShopId, params: params)
-            
-            showSuccess = true
-            successMessage = "Робочі години успішно оновлено!"
-        } catch let apiError as APIError {
-            handleError(apiError)
-        } catch {
-            self.error = error.localizedDescription
-        }
-        
-        isLoading = false
-    }
-    
-    // Допоміжний метод для швидкого копіювання робочих годин з іншої кав'ярні
-    @MainActor
-    func copyWorkingHours(from sourceCoffeeShopId: String, to targetCoffeeShopId: String) async {
-        isLoading = true
-        error = nil
-        
-        do {
-            // Отримуємо вихідну кав'ярню
-            let sourceCoffeeShop = try await coffeeShopRepository.getCoffeeShopById(id: sourceCoffeeShopId)
-            
-            // Перевіряємо, чи є робочі години у вихідної кав'ярні
-            if let workingHours = sourceCoffeeShop.workingHours, !workingHours.isEmpty {
-                // Оновлюємо цільову кав'ярню з робочими годинами вихідної
-                let params: [String: Any] = ["workingHours": workingHours]
-                await updateCoffeeShop(id: targetCoffeeShopId, params: params)
-                
-                showSuccess = true
-                successMessage = "Робочі години успішно скопійовано!"
-            } else {
-                error = "У вихідній кав'ярні немає робочих годин для копіювання"
-            }
-        } catch let apiError as APIError {
-            handleError(apiError)
-        } catch {
-            self.error = error.localizedDescription
-        }
-        
-        isLoading = false
-    }
-    
-    // Метод для призначення власника кав'ярні (тільки для Super Admin)
-    @MainActor
-    func assignOwner(coffeeShopId: String, userId: String) async {
-        isLoading = true
-        error = nil
-        
-        // Перевіряємо, чи є користувач Super Admin
-        if !isSuperAdmin() {
-            error = "Тільки адміністратори можуть призначати власників кав'ярень"
-            isLoading = false
-            return
-        }
-        
-        do {
-            // Викликаємо API для призначення власника
-            let updatedCoffeeShop = try await coffeeShopRepository.assignOwner(coffeeShopId: coffeeShopId, userId: userId)
-            
-            // Оновлюємо кав'ярню в списках
-            if let index = coffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
-                coffeeShops[index] = updatedCoffeeShop
-            }
-            
-            if let index = myCoffeeShops.firstIndex(where: { $0.id == coffeeShopId }) {
-                myCoffeeShops[index] = updatedCoffeeShop
-            }
-            
-            // Оновлюємо вибрану кав'ярню, якщо вона відповідає оновленій
-            if selectedCoffeeShop?.id == coffeeShopId {
-                selectedCoffeeShop = updatedCoffeeShop
-            }
-            
-            showSuccess = true
-            successMessage = "Власника кав'ярні \"\(updatedCoffeeShop.name)\" успішно призначено!"
-            
-        } catch let apiError as APIError {
-            handleError(apiError)
-        } catch {
-            self.error = error.localizedDescription
-        }
-        
-        isLoading = false
-    }
-    
+    /// Показ повідомлення про успіх
     func showSuccessMessage(_ message: String) {
         self.successMessage = message
         self.showSuccess = true
     }
     
-    // MARK: - Обробка помилок
-    
+    /// Обробка помилок API
     private func handleError(_ apiError: APIError) {
         switch apiError {
         case .serverError(_, let message):

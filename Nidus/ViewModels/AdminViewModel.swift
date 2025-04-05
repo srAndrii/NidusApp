@@ -9,15 +9,21 @@ import Foundation
 import Combine
 
 class AdminViewModel: ObservableObject {
-    // Властивості для роботи з користувачами
+    // MARK: - Опубліковані властивості
+    
     @Published var users: [User] = []
     @Published var searchedUser: User?
     @Published var isLoading: Bool = false
     @Published var error: String?
+    @Published var showSuccess: Bool = false
+    @Published var successMessage: String = ""
     
-    // Репозиторії
+    // MARK: - Залежності та властивості
+    
     private let userRepository: UserRepositoryProtocol
     private let networkService: NetworkService
+    
+    // MARK: - Ініціалізація
     
     init(
         userRepository: UserRepositoryProtocol = DIContainer.shared.userRepository,
@@ -29,6 +35,7 @@ class AdminViewModel: ObservableObject {
     
     // MARK: - Методи для роботи з користувачами
     
+    /// Отримання списку всіх користувачів
     @MainActor
     func getAllUsers() async {
         isLoading = true
@@ -51,8 +58,7 @@ class AdminViewModel: ObservableObject {
         isLoading = false
     }
     
-    // Додайте або оновіть цей метод в AdminViewModel
-
+    /// Пошук користувача за email
     @MainActor
     func searchUserByEmail(email: String) async {
         isLoading = true
@@ -79,8 +85,10 @@ class AdminViewModel: ObservableObject {
         
         isLoading = false
     }
-
-    // Також оновіть метод оновлення ролей
+    
+    // MARK: - Методи управління користувачами
+    
+    /// Оновлення ролей користувача
     @MainActor
     func updateUserRoles(userId: String, roles: [String]) async {
         isLoading = true
@@ -119,6 +127,8 @@ class AdminViewModel: ObservableObject {
             if let index = users.firstIndex(where: { $0.id == userId }) {
                 users[index] = updated
             }
+            
+            showSuccessMessage("Ролі користувача успішно оновлено!")
         } catch let apiError as APIError {
             handleError(apiError)
             print("API Error при оновленні ролей: \(apiError)")
@@ -129,7 +139,8 @@ class AdminViewModel: ObservableObject {
         
         isLoading = false
     }
-    // Метод для отримання ролей користувача
+    
+    /// Отримання ролей користувача
     func getUserRoles(userId: String) async -> [Role]? {
         do {
             // Структура для отримання відповіді з API
@@ -150,7 +161,7 @@ class AdminViewModel: ObservableObject {
         }
     }
     
-
+    /// Оновлення профілю користувача
     @MainActor
     func updateUserProfile(userId: String, firstName: String?, lastName: String?, phone: String?) async {
         isLoading = true
@@ -194,6 +205,8 @@ class AdminViewModel: ObservableObject {
             if let index = users.firstIndex(where: { $0.id == userId }) {
                 users[index] = updated
             }
+            
+            showSuccessMessage("Профіль користувача успішно оновлено!")
         } catch let apiError as APIError {
             handleError(apiError)
             print("API Error при оновленні профілю: \(apiError)")
@@ -205,8 +218,7 @@ class AdminViewModel: ObservableObject {
         isLoading = false
     }
     
-   
-
+    /// Альтернативний метод оновлення профілю користувача за допомогою низькорівневого API
     @MainActor
     func updateUserProfileManually(userId: String, firstName: String?, lastName: String?, phone: String?) async {
         isLoading = true
@@ -286,12 +298,14 @@ class AdminViewModel: ObservableObject {
                         users[index] = updatedUser
                     }
                     
-                    print("Успішно оновлено профіль користувача")
+                    showSuccessMessage("Профіль користувача успішно оновлено!")
                 } catch {
                     print("Помилка декодування відповіді: \(error)")
                     
                     // Якщо не вдалося декодувати відповідь, спробуємо оновити користувача через повторний пошук
                     await searchUserByEmail(email: searchedUser?.email ?? "")
+                    
+                    showSuccessMessage("Профіль оновлено, але не вдалося отримати оновлені дані.")
                 }
             } else {
                 // Обробка помилки
@@ -313,7 +327,7 @@ class AdminViewModel: ObservableObject {
         isLoading = false
     }
     
-    
+    /// Видалення користувача
     @MainActor
     func deleteUser(userId: String) async {
         isLoading = true
@@ -336,6 +350,8 @@ class AdminViewModel: ObservableObject {
             if searchedUser?.id == userId {
                 searchedUser = nil
             }
+            
+            showSuccessMessage("Користувача успішно видалено!")
         } catch let apiError as APIError {
             handleError(apiError)
         } catch {
@@ -345,8 +361,15 @@ class AdminViewModel: ObservableObject {
         isLoading = false
     }
     
-    // MARK: - Обробка помилок
+    // MARK: - Допоміжні методи
     
+    /// Показ повідомлення про успіх
+    func showSuccessMessage(_ message: String) {
+        self.successMessage = message
+        self.showSuccess = true
+    }
+    
+    /// Обробка помилок API
     private func handleError(_ apiError: APIError) {
         switch apiError {
         case .serverError(_, let message):

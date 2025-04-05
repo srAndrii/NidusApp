@@ -2,17 +2,18 @@ import Foundation
 import UIKit
 
 protocol CoffeeShopRepositoryProtocol {
+    // MARK: - Користувацький інтерфейс
     func getAllCoffeeShops() async throws -> [CoffeeShop]
     func getCoffeeShopById(id: String) async throws -> CoffeeShop
-    func getMyCoffeeShops() async throws -> [CoffeeShop]
     func getCoffeeShopMenu(id: String) async throws -> [MenuGroup]
+    func searchCoffeeShops(address: String) async throws -> [CoffeeShop]
+    
+    // MARK: - Адміністративний інтерфейс
+    func getMyCoffeeShops() async throws -> [CoffeeShop]
     func createCoffeeShop(name: String, address: String?) async throws -> CoffeeShop
     func updateCoffeeShop(id: String, params: [String: Any]) async throws -> CoffeeShop
-    func searchCoffeeShops(address: String) async throws -> [CoffeeShop]
     func deleteCoffeeShop(id: String) async throws
     func assignOwner(coffeeShopId: String, userId: String) async throws -> CoffeeShop
-    
-    // Нові методи для завантаження та скидання логотипу
     func uploadLogo(coffeeShopId: String, imageData: Data) async throws -> String
     func resetLogo(coffeeShopId: String) async throws -> String
 }
@@ -24,6 +25,8 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
         self.networkService = networkService
     }
     
+    // MARK: - Користувацький інтерфейс
+    
     func getAllCoffeeShops() async throws -> [CoffeeShop] {
         return try await networkService.fetch(endpoint: "/coffee-shops/find-all")
     }
@@ -32,12 +35,19 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
         return try await networkService.fetch(endpoint: "/coffee-shops/\(id)")
     }
     
-    func getMyCoffeeShops() async throws -> [CoffeeShop] {
-        return try await networkService.fetch(endpoint: "/coffee-shops/my-shops")
-    }
-    
     func getCoffeeShopMenu(id: String) async throws -> [MenuGroup] {
         return try await networkService.fetch(endpoint: "/coffee-shops/\(id)/menu")
+    }
+    
+    func searchCoffeeShops(address: String) async throws -> [CoffeeShop] {
+        let encodedAddress = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        return try await networkService.fetch(endpoint: "/coffee-shops/search?address=\(encodedAddress)")
+    }
+    
+    // MARK: - Адміністративний інтерфейс
+    
+    func getMyCoffeeShops() async throws -> [CoffeeShop] {
+        return try await networkService.fetch(endpoint: "/coffee-shops/my-shops")
     }
     
     struct CreateCoffeeShopRequest: Codable {
@@ -168,11 +178,6 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
         
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return request
-    }
-    
-    func searchCoffeeShops(address: String) async throws -> [CoffeeShop] {
-        let encodedAddress = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        return try await networkService.fetch(endpoint: "/coffee-shops/search?address=\(encodedAddress)")
     }
     
     func deleteCoffeeShop(id: String) async throws {

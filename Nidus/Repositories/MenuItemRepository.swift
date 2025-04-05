@@ -2,13 +2,28 @@
 import Foundation
 
 protocol MenuItemRepositoryProtocol {
+    // MARK: - Користувацький інтерфейс
+    /// Отримання всіх пунктів меню для групи
     func getMenuItems(groupId: String) async throws -> [MenuItem]
+    
+    /// Отримання деталей пункту меню
     func getMenuItem(groupId: String, itemId: String) async throws -> MenuItem
-    func createMenuItem(groupId: String, item: CreateMenuItemRequest) async throws -> MenuItem
-    func updateMenuItem(groupId: String, itemId: String, updates: [String: Any]) async throws -> MenuItem
-    func deleteMenuItem(groupId: String, itemId: String) async throws
-    func updateAvailability(groupId: String, itemId: String, available: Bool) async throws -> MenuItem
+    
+    /// Отримання відфільтрованих пунктів меню (за ціною)
     func getFilteredMenuItems(groupId: String, minPrice: Double?, maxPrice: Double?) async throws -> [MenuItem]
+    
+    // MARK: - Адміністративний інтерфейс
+    /// Створення нового пункту меню
+    func createMenuItem(groupId: String, item: CreateMenuItemRequest) async throws -> MenuItem
+    
+    /// Оновлення існуючого пункту меню
+    func updateMenuItem(groupId: String, itemId: String, updates: [String: Any]) async throws -> MenuItem
+    
+    /// Видалення пункту меню
+    func deleteMenuItem(groupId: String, itemId: String) async throws
+    
+    /// Оновлення доступності пункту меню
+    func updateAvailability(groupId: String, itemId: String, available: Bool) async throws -> MenuItem
 }
 
 struct CreateMenuItemRequest: Codable {
@@ -47,6 +62,8 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
         self.networkService = networkService
     }
     
+    // MARK: - Користувацький інтерфейс
+    
     func getMenuItems(groupId: String) async throws -> [MenuItem] {
         return try await networkService.fetch(endpoint: "/menu-groups/\(groupId)/items")
     }
@@ -55,22 +72,43 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
         return try await networkService.fetch(endpoint: "/menu-groups/\(groupId)/items/\(itemId)")
     }
     
-    func createMenuItem(groupId: String, item: CreateMenuItemRequest) async throws -> MenuItem {
-            // Оновлюємо структуру запиту, щоб мати правильний menuGroupId
-            var createRequest = item
-            createRequest.menuGroupId = groupId
-            
-            // Виконуємо запит
-            let menuItem: MenuItem = try await networkService.post(endpoint: "/menu-groups/\(groupId)/items", body: createRequest)
-            
-            // Якщо menuGroupId відсутній у відповіді, додаємо його вручну
-            var updatedMenuItem = menuItem
-            if updatedMenuItem.menuGroupId == nil {
-                updatedMenuItem.menuGroupId = groupId
-            }
-            
-            return updatedMenuItem
+    func getFilteredMenuItems(groupId: String, minPrice: Double?, maxPrice: Double?) async throws -> [MenuItem] {
+        var endpoint = "/menu-groups/\(groupId)/items/filter?"
+        
+        if let minPrice = minPrice {
+            endpoint += "minPrice=\(minPrice)&"
         }
+        
+        if let maxPrice = maxPrice {
+            endpoint += "maxPrice=\(maxPrice)&"
+        }
+        
+        // Видаляємо останній символ, якщо це '&' або '?'
+        if endpoint.last == "&" || endpoint.last == "?" {
+            endpoint.removeLast()
+        }
+        
+        return try await networkService.fetch(endpoint: endpoint)
+    }
+    
+    // MARK: - Адміністративний інтерфейс
+    
+    func createMenuItem(groupId: String, item: CreateMenuItemRequest) async throws -> MenuItem {
+        // Оновлюємо структуру запиту, щоб мати правильний menuGroupId
+        var createRequest = item
+        createRequest.menuGroupId = groupId
+        
+        // Виконуємо запит
+        let menuItem: MenuItem = try await networkService.post(endpoint: "/menu-groups/\(groupId)/items", body: createRequest)
+        
+        // Якщо menuGroupId відсутній у відповіді, додаємо його вручну
+        var updatedMenuItem = menuItem
+        if updatedMenuItem.menuGroupId == nil {
+            updatedMenuItem.menuGroupId = groupId
+        }
+        
+        return updatedMenuItem
+    }
     
     // Використовуємо Dictionary для гнучкого оновлення полів
     func updateMenuItem(groupId: String, itemId: String, updates: [String: Any]) async throws -> MenuItem {
@@ -133,6 +171,29 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
         }
     }
     
+    func deleteMenuItem(groupId: String, itemId: String) async throws {
+        try await networkService.deleteWithoutResponse(endpoint: "/menu-groups/\(groupId)/items/\(itemId)")
+    }
+    
+    func updateAvailability(groupId: String, itemId: String, available: Bool) async throws -> MenuItem {
+        // Правильний ендпоінт з query-параметром
+        let endpoint = "/menu-groups/\(groupId)/items/\(itemId)/availability?available=\(available)"
+        
+        // Виконуємо запит без декодування відповіді
+        let (_, response) = try await networkService.createPatchRequest(endpoint: endpoint, body: EmptyBody())
+        
+        // Перевіряємо статус-код
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.invalidResponse
+        }
+        
+        // Завантажуємо оновлений пункт меню
+        return try await getMenuItem(groupId: groupId, itemId: itemId)
+    }
+    
+    // MARK: - Допоміжні методи
+    
     private func createRequest(for endpoint: String, method: String) throws -> URLRequest {
         let baseURL = networkService.getBaseURL()
         guard let url = URL(string: baseURL + endpoint) else {
@@ -149,48 +210,6 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
         
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return request
-    }
-    
-    func deleteMenuItem(groupId: String, itemId: String) async throws {
-        try await networkService.deleteWithoutResponse(endpoint: "/menu-groups/\(groupId)/items/\(itemId)")
-    }
-    
-    func updateAvailability(groupId: String, itemId: String, available: Bool) async throws -> MenuItem {
-        // Правильний ендпоінт з query-параметром
-        let endpoint = "/menu-groups/\(groupId)/items/\(itemId)/availability?available=\(available)"
-        
-        struct EmptyBody: Codable {}
-        
-        // Виконуємо запит без декодування відповіді
-        let (_, response) = try await networkService.createPatchRequest(endpoint: endpoint, body: EmptyBody())
-        
-        // Перевіряємо статус-код
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.invalidResponse
-        }
-        
-        // Завантажуємо оновлений пункт меню
-        return try await getMenuItem(groupId: groupId, itemId: itemId)
-    }
-    
-    func getFilteredMenuItems(groupId: String, minPrice: Double?, maxPrice: Double?) async throws -> [MenuItem] {
-        var endpoint = "/menu-groups/\(groupId)/items/filter?"
-        
-        if let minPrice = minPrice {
-            endpoint += "minPrice=\(minPrice)&"
-        }
-        
-        if let maxPrice = maxPrice {
-            endpoint += "maxPrice=\(maxPrice)&"
-        }
-        
-        // Видаляємо останній символ, якщо це '&' або '?'
-        if endpoint.last == "&" || endpoint.last == "?" {
-            endpoint.removeLast()
-        }
-        
-        return try await networkService.fetch(endpoint: endpoint)
     }
     
     struct EmptyBody: Codable {}

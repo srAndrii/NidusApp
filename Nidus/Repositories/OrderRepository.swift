@@ -2,12 +2,27 @@
 import Foundation
 
 protocol OrderRepositoryProtocol {
+    // MARK: - Користувацький інтерфейс
+    /// Отримання активних замовлень поточного користувача
     func getMyActiveOrders() async throws -> [Order]
+    
+    /// Отримання історії замовлень поточного користувача
     func getMyOrderHistory() async throws -> [Order]
+    
+    /// Отримання деталей замовлення за ID
     func getOrderById(id: String) async throws -> Order
+    
+    /// Створення нового замовлення
     func createOrder(orderRequest: CreateOrderRequest) async throws -> Order
+    
+    /// Скасування замовлення
     func cancelOrder(id: String) async throws -> Order
+    
+    // MARK: - Адміністративний інтерфейс
+    /// Отримання замовлень для конкретної кав'ярні з можливістю фільтрації
     func getCoffeeShopOrders(coffeeShopId: String, status: [String]?, startDate: Date?, endDate: Date?) async throws -> [Order]
+    
+    /// Оновлення статусу замовлення (для адміністраторів та персоналу кав'ярні)
     func updateOrderStatus(id: String, status: OrderStatus, comment: String?) async throws -> Order
 }
 
@@ -31,6 +46,8 @@ class OrderRepository: OrderRepositoryProtocol {
         self.networkService = networkService
     }
     
+    // MARK: - Користувацький інтерфейс
+    
     func getMyActiveOrders() async throws -> [Order] {
         return try await networkService.fetch(endpoint: "/orders/my")
     }
@@ -50,6 +67,8 @@ class OrderRepository: OrderRepositoryProtocol {
     func cancelOrder(id: String) async throws -> Order {
         return try await networkService.patch(endpoint: "/orders/\(id)/cancel", body: EmptyBody())
     }
+    
+    // MARK: - Адміністративний інтерфейс
     
     func getCoffeeShopOrders(coffeeShopId: String, status: [String]?, startDate: Date?, endDate: Date?) async throws -> [Order] {
         var endpoint = "/orders/coffee-shop/\(coffeeShopId)?"
@@ -88,6 +107,8 @@ class OrderRepository: OrderRepositoryProtocol {
         let updateRequest = UpdateStatusRequest(status: status.rawValue, comment: comment)
         return try await networkService.patch(endpoint: "/orders/\(id)/status", body: updateRequest)
     }
+    
+    // MARK: - Допоміжні структури
     
     struct EmptyBody: Codable {}
 }

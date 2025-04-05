@@ -8,6 +8,8 @@
 import Foundation
 
 class MenuGroupsViewModel: ObservableObject {
+    // MARK: - Опубліковані властивості
+    
     @Published var menuGroups: [MenuGroup] = []
     @Published var menuItemCounts: [String: Int] = [:] // ID групи: кількість пунктів
     @Published var isLoading = false
@@ -15,9 +17,14 @@ class MenuGroupsViewModel: ObservableObject {
     @Published var showSuccess = false
     @Published var successMessage = ""
     
+    // MARK: - Залежності та властивості
+    
     private let repository = DIContainer.shared.menuGroupRepository
     private let menuItemRepository = DIContainer.shared.menuItemRepository
     
+    // MARK: - Користувацькі методи для роботи з групами меню
+    
+    /// Завантаження груп меню для кав'ярні
     @MainActor
     func loadMenuGroups(coffeeShopId: String) async {
         isLoading = true
@@ -42,6 +49,7 @@ class MenuGroupsViewModel: ObservableObject {
         isLoading = false
     }
     
+    /// Завантаження кількості пунктів меню для групи
     @MainActor
     func loadMenuItemsCount(groupId: String) async {
         do {
@@ -54,11 +62,14 @@ class MenuGroupsViewModel: ObservableObject {
         }
     }
     
-    // Отримання кількості пунктів для групи
+    /// Отримання кількості пунктів для групи
     func getMenuItemsCount(for groupId: String) -> Int {
         return menuItemCounts[groupId] ?? 0
     }
     
+    // MARK: - Адміністративні методи для роботи з групами меню
+    
+    /// Створення нової групи меню
     @MainActor
     func createMenuGroup(coffeeShopId: String, name: String, description: String?, displayOrder: Int) async {
         isLoading = true
@@ -92,6 +103,7 @@ class MenuGroupsViewModel: ObservableObject {
         isLoading = false
     }
     
+    /// Оновлення групи меню
     @MainActor
     func updateMenuGroup(coffeeShopId: String, groupId: String, name: String?, description: String?, displayOrder: Int?) async {
         isLoading = true
@@ -124,6 +136,7 @@ class MenuGroupsViewModel: ObservableObject {
         isLoading = false
     }
     
+    /// Видалення групи меню
     @MainActor
     func deleteMenuGroup(coffeeShopId: String, groupId: String) async {
         isLoading = true
@@ -148,6 +161,7 @@ class MenuGroupsViewModel: ObservableObject {
         isLoading = false
     }
     
+    /// Оновлення порядку відображення групи меню
     @MainActor
     func updateDisplayOrder(coffeeShopId: String, groupId: String, order: Int) async {
         do {
@@ -164,11 +178,23 @@ class MenuGroupsViewModel: ObservableObject {
             
             // Пересортовуємо список
             menuGroups.sort { $0.displayOrder < $1.displayOrder }
+            
+            showSuccessMessage("Порядок відображення успішно оновлено!")
         } catch {
             print("Помилка при оновленні порядку відображення: \(error)")
+            self.error = "Помилка оновлення порядку: \(error.localizedDescription)"
         }
     }
     
+    // MARK: - Допоміжні методи
+    
+    /// Показ повідомлення про успіх
+    func showSuccessMessage(_ message: String) {
+        self.successMessage = message
+        self.showSuccess = true
+    }
+    
+    /// Обробка помилок API
     private func handleError(_ apiError: APIError) {
         switch apiError {
         case .serverError(_, let message):
@@ -181,10 +207,5 @@ class MenuGroupsViewModel: ObservableObject {
         default:
             self.error = apiError.localizedDescription
         }
-    }
-    
-    func showSuccessMessage(_ message: String) {
-        self.successMessage = message
-        self.showSuccess = true
     }
 }

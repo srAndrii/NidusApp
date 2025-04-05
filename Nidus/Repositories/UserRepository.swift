@@ -2,9 +2,18 @@
 import Foundation
 
 protocol UserRepositoryProtocol {
+    // MARK: - Користувацький інтерфейс
+    /// Отримання профілю поточного користувача
     func getProfile() async throws -> User
+    
+    /// Оновлення профілю поточного користувача
     func updateProfile(firstName: String?, lastName: String?, phone: String?) async throws -> User
+    
+    // MARK: - Адміністративний інтерфейс
+    /// Пошук користувача за email (для адміністраторів)
     func searchUsers(email: String) async throws -> User
+    
+    /// Отримання списку всіх користувачів (для адміністраторів)
     func getUsers() async throws -> [User]
 }
 
@@ -14,6 +23,8 @@ class UserRepository: UserRepositoryProtocol {
     init(networkService: NetworkService = NetworkService.shared) {
         self.networkService = networkService
     }
+    
+    // MARK: - Користувацький інтерфейс
     
     func getProfile() async throws -> User {
         return try await networkService.fetch(endpoint: "/user/profile")
@@ -30,9 +41,8 @@ class UserRepository: UserRepositoryProtocol {
         return try await networkService.patch(endpoint: "/user/profile", body: updateRequest)
     }
     
-   
+    // MARK: - Адміністративний інтерфейс
     
-
     func searchUsers(email: String) async throws -> User {
         do {
             let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
@@ -126,8 +136,14 @@ class UserRepository: UserRepositoryProtocol {
             throw error
         }
     }
-
-    // Допоміжна функція для парсингу дат
+    
+    func getUsers() async throws -> [User] {
+        return try await networkService.fetch(endpoint: "/user")
+    }
+    
+    // MARK: - Допоміжні методи
+    
+    /// Допоміжна функція для парсингу дат
     private func parseDate(_ dateString: String) -> Date? {
         let formatters = [
             "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
@@ -149,10 +165,5 @@ class UserRepository: UserRepositoryProtocol {
         }
         
         return nil
-    }
-    
-    
-    func getUsers() async throws -> [User] {
-        return try await networkService.fetch(endpoint: "/user")
     }
 }

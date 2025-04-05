@@ -2,6 +2,7 @@
 import Foundation
 
 protocol AuthRepositoryProtocol {
+    // MARK: - Користувацький інтерфейс
     func login(email: String, password: String) async throws -> (accessToken: String, refreshToken: String)
     func register(email: String, password: String) async throws -> User
     func logout() async throws
@@ -15,6 +16,8 @@ class AuthRepository: AuthRepositoryProtocol {
         self.networkService = networkService
     }
     
+    // MARK: - Користувацький інтерфейс
+    
     struct LoginRequest: Codable {
         let email: String
         let password: String
@@ -25,6 +28,14 @@ class AuthRepository: AuthRepositoryProtocol {
         let refresh_token: String
     }
     
+    func login(email: String, password: String) async throws -> (accessToken: String, refreshToken: String) {
+        let loginRequest = LoginRequest(email: email, password: password)
+        let response: LoginResponse = try await networkService.post(endpoint: "/auth/login", body: loginRequest, requiresAuth: false)
+        
+        networkService.saveTokens(accessToken: response.access_token, refreshToken: response.refresh_token)
+        return (response.access_token, response.refresh_token)
+    }
+    
     struct RegisterRequest: Codable {
         let email: String
         let password: String
@@ -33,23 +44,6 @@ class AuthRepository: AuthRepositoryProtocol {
     struct RegisterResponse: Codable {
         let user: User
         let token: String
-    }
-    
-    struct RefreshTokenRequest: Codable {
-        let refreshToken: String
-    }
-    
-    struct RefreshTokenResponse: Codable {
-        let access_token: String
-        let refresh_token: String
-    }
-    
-    func login(email: String, password: String) async throws -> (accessToken: String, refreshToken: String) {
-        let loginRequest = LoginRequest(email: email, password: password)
-        let response: LoginResponse = try await networkService.post(endpoint: "/auth/login", body: loginRequest, requiresAuth: false)
-        
-        networkService.saveTokens(accessToken: response.access_token, refreshToken: response.refresh_token)
-        return (response.access_token, response.refresh_token)
     }
     
     func register(email: String, password: String) async throws -> User {
@@ -81,6 +75,15 @@ class AuthRepository: AuthRepositoryProtocol {
         
         networkService.saveTokens(accessToken: response.access_token, refreshToken: response.refresh_token)
         return (response.access_token, response.refresh_token)
+    }
+    
+    struct RefreshTokenRequest: Codable {
+        let refreshToken: String
+    }
+    
+    struct RefreshTokenResponse: Codable {
+        let access_token: String
+        let refresh_token: String
     }
     
     struct EmptyBody: Codable {}

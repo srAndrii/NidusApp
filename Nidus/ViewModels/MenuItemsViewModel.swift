@@ -8,14 +8,21 @@
 import Foundation
 
 class MenuItemsViewModel: ObservableObject {
+    // MARK: - Опубліковані властивості
+    
     @Published var menuItems: [MenuItem] = []
     @Published var isLoading = false
     @Published var error: String?
     @Published var showSuccess = false
     @Published var successMessage = ""
     
+    // MARK: - Залежності та властивості
+    
     private let repository = DIContainer.shared.menuItemRepository
     
+    // MARK: - Користувацькі методи для роботи з пунктами меню
+    
+    /// Завантаження всіх пунктів меню для групи
     @MainActor
     func loadMenuItems(groupId: String) async {
         isLoading = true
@@ -34,6 +41,9 @@ class MenuItemsViewModel: ObservableObject {
         isLoading = false
     }
     
+    // MARK: - Адміністративні методи для роботи з пунктами меню
+    
+    /// Створення нового пункту меню
     @MainActor
     func createMenuItem(groupId: String, name: String, price: Decimal, description: String?, isAvailable: Bool) async {
         isLoading = true
@@ -68,6 +78,7 @@ class MenuItemsViewModel: ObservableObject {
         isLoading = false
     }
     
+    /// Видалення пункту меню
     @MainActor
     func deleteMenuItem(groupId: String, itemId: String) async {
         isLoading = true
@@ -90,7 +101,7 @@ class MenuItemsViewModel: ObservableObject {
         isLoading = false
     }
     
-    
+    /// Оновлення доступності пункту меню
     @MainActor
     func updateMenuItemAvailability(groupId: String, itemId: String, available: Bool) async {
         do {
@@ -125,6 +136,15 @@ class MenuItemsViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Допоміжні методи
+    
+    /// Показ повідомлення про успіх
+    func showSuccessMessage(_ message: String) {
+        self.successMessage = message
+        self.showSuccess = true
+    }
+    
+    /// Обробка помилок API
     private func handleError(_ apiError: APIError) {
         switch apiError {
         case .serverError(_, let message):
@@ -134,10 +154,5 @@ class MenuItemsViewModel: ObservableObject {
         default:
             self.error = apiError.localizedDescription
         }
-    }
-    
-    func showSuccessMessage(_ message: String) {
-        self.successMessage = message
-        self.showSuccess = true
     }
 }
