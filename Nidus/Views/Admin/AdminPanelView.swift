@@ -8,6 +8,10 @@
 import SwiftUI
 
 struct AdminPanelView: View {
+    @EnvironmentObject var authManager: AuthenticationManager
+    @State private var isSuperAdmin = false
+    @State private var isCoffeeShopOwner = false
+    
     var body: some View {
         // Використовуємо ZStack щоб мати повний контроль над фоном
         ZStack {
@@ -80,7 +84,17 @@ struct AdminPanelView: View {
                             .padding(.leading, 56)
                         
                         // Кав'ярні - оновлений блок
-                        NavigationLink(destination: AdminCoffeeShopsMenuView()) {
+                        NavigationLink(destination:
+                            Group {
+                                if isSuperAdmin {
+                                    AdminCoffeeShopsMenuView()
+                                } else if isCoffeeShopOwner {
+                                    AdminCoffeeShopsView(viewMode: .myShops)
+                                } else {
+                                    Text("Немає доступу до управління кав'ярнями")
+                                }
+                            }
+                        ) {
                             HStack {
                                 Image(systemName: "cup.and.saucer.fill")
                                     .font(.system(size: 20))
@@ -215,6 +229,17 @@ struct AdminPanelView: View {
         }
         .navigationTitle("Адмін панель")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            checkUserRoles()
+        }
+    }
+    
+    // Функція для перевірки ролей користувача
+    private func checkUserRoles() {
+        if let user = authManager.currentUser {
+            isSuperAdmin = user.roles?.contains(where: { $0.name == "superadmin" }) ?? false
+            isCoffeeShopOwner = user.roles?.contains(where: { $0.name == "coffee_shop_owner" }) ?? false
+        }
     }
 }
 
@@ -222,6 +247,7 @@ struct AdminPanelView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
             AdminPanelView()
+                .environmentObject(AuthenticationManager())
         }
         .preferredColorScheme(.dark)
     }
