@@ -4,10 +4,10 @@ struct MenuItemsListView: View {
     let menuGroup: MenuGroup
     @StateObject private var viewModel = MenuItemsViewModel()
     @State private var showingCreateSheet = false
-    @State private var showingEditSheet = false
-    @State private var showDeleteConfirmation = false
+    @State private var showingDeleteConfirmation = false
     @State private var menuItemToDelete: (groupId: String, itemId: String, name: String)? = nil
     @State private var menuItemToEdit: MenuItem? = nil
+    @State private var showCustomEditor = false
     
     var body: some View {
         ZStack {
@@ -51,7 +51,7 @@ struct MenuItemsListView: View {
                                     onDelete: { groupId, itemId in
                                         // Показуємо підтвердження видалення
                                         menuItemToDelete = (groupId, itemId, item.name)
-                                        showDeleteConfirmation = true
+                                        showingDeleteConfirmation = true
                                     },
                                     onToggleAvailability: { groupId, itemId, available in
                                         Task {
@@ -63,9 +63,9 @@ struct MenuItemsListView: View {
                                         }
                                     },
                                     onEdit: { menuItem in
-                                        // Показуємо форму редагування
+                                        // Показуємо власне модальне вікно редагування
                                         menuItemToEdit = menuItem
-                                        showingEditSheet = true
+                                        showCustomEditor = true
                                     }
                                 )
                                 .background(Color("cardColor"))
@@ -103,6 +103,17 @@ struct MenuItemsListView: View {
                 .padding(.bottom, 20)
             }
             
+            // Накладення для власного модального вікна редагування
+            if showCustomEditor, let menuItem = menuItemToEdit {
+                CustomModalMenuItemEditor(
+                    isPresented: $showCustomEditor,
+                    menuGroup: menuGroup,
+                    menuItem: menuItem,
+                    viewModel: viewModel
+                )
+                .zIndex(100) // Переконуємося, що модальне вікно буде поверх усього
+            }
+            
             // Тост із повідомленням
             if viewModel.showSuccess {
                 Toast(message: viewModel.successMessage, isShowing: $viewModel.showSuccess)
@@ -116,21 +127,14 @@ struct MenuItemsListView: View {
             }
         }
         .sheet(isPresented: $showingCreateSheet) {
-            CreateMenuItemView(
-                menuGroup: menuGroup,
-                viewModel: viewModel
-            )
-        }
-        .sheet(isPresented: $showingEditSheet) {
-            if let menuItem = menuItemToEdit {
-                EditMenuItemView(
+            NavigationView {
+                CreateMenuItemView(
                     menuGroup: menuGroup,
-                    menuItem: menuItem,
                     viewModel: viewModel
                 )
             }
         }
-        .alert("Видалення пункту меню", isPresented: $showDeleteConfirmation) {
+        .alert("Видалення пункту меню", isPresented: $showingDeleteConfirmation) {
             Button("Скасувати", role: .cancel) {}
             Button("Видалити", role: .destructive) {
                 if let itemToDelete = menuItemToDelete {
