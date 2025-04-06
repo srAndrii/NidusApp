@@ -188,24 +188,38 @@ struct CreateMenuItemView: View {
                     isAvailable: isAvailable
                 )
                 
-                // Якщо є зображення, завантажуємо його
-                if let selectedImage = selectedImage,
-                   let compressedImageData = NetworkService.shared.compressImage(selectedImage, format: .jpeg, compressionQuality: 0.7) {
-                    let uploadRequest = ImageUploadRequest(
-                        imageData: compressedImageData,
-                        fileName: "menu_item_\(createdMenuItem.id).jpg",
-                        mimeType: "image/jpeg"
-                    )
-                    
-                    try await viewModel.uploadMenuItemImage(
-                        groupId: menuGroup.id,
-                        itemId: createdMenuItem.id,
-                        imageRequest: uploadRequest
-                    )
+                print("Пункт меню успішно створено з ID: \(createdMenuItem.id)")
+                
+                // Якщо є зображення, завантажуємо його з додатковою перевіркою
+                if let selectedImage = selectedImage {
+                    if let compressedImageData = NetworkService.shared.compressImage(selectedImage, format: .jpeg, compressionQuality: 0.7) {
+                        print("Зображення успішно стиснуто: \(compressedImageData.count) байт")
+                        
+                        let uploadRequest = ImageUploadRequest(
+                            imageData: compressedImageData,
+                            fileName: "menu_item_\(createdMenuItem.id).jpg",
+                            mimeType: "image/jpeg"
+                        )
+                        
+                        // Додаємо затримку у 0.5 секунди, щоб переконатися, що запис у БД завершився
+                        try await Task.sleep(nanoseconds: 500_000_000)
+                        
+                        try await viewModel.uploadMenuItemImage(
+                            groupId: menuGroup.id,
+                            itemId: createdMenuItem.id,
+                            imageRequest: uploadRequest
+                        )
+                        
+                        print("Зображення успішно завантажено")
+                    } else {
+                        print("Помилка стиснення зображення")
+                        viewModel.error = "Помилка при підготовці зображення для завантаження"
+                    }
                 }
                 
                 isSubmitting = false
             } catch {
+                print("Помилка при створенні пункту меню: \(error)")
                 viewModel.error = error.localizedDescription
                 isSubmitting = false
             }

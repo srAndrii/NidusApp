@@ -491,6 +491,8 @@ class NetworkService {
             
             // Перевіряємо статус код
             if !(200...299).contains(httpResponse.statusCode) {
+                print("Статус код відповіді: \(httpResponse.statusCode)")
+                print("Повні заголовки відповіді: \(httpResponse.allHeaderFields)")
                 // Безпечно обробляємо помилку серверу
                 do {
                     // Спробуємо спочатку стандартний формат помилки

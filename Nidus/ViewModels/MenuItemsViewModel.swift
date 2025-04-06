@@ -85,8 +85,8 @@ class MenuItemsViewModel: ObservableObject {
     @MainActor
     func uploadMenuItemImage(groupId: String, itemId: String, imageRequest: ImageUploadRequest) async throws {
         do {
-            // Виконуємо запит на завантаження зображення
-            let endpoint = "/menu-groups/\(groupId)/items/\(itemId)/image"
+            // Виправлений endpoint
+            let endpoint = "/upload/menu-item/\(itemId)/image"
             let uploadResponse: UploadResponse = try await networkService.uploadFile(
                 endpoint: endpoint,
                 data: imageRequest.imageData,
