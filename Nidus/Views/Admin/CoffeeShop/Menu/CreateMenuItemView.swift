@@ -1,10 +1,3 @@
-//
-//  CreateMenuItemView.swift
-//  Nidus
-//
-//  Created by Andrii Liakhovych on 4/2/25.
-//
-
 import SwiftUI
 
 struct CreateMenuItemView: View {
@@ -17,6 +10,12 @@ struct CreateMenuItemView: View {
     @State private var description = ""
     @State private var isAvailable = true
     @State private var isSubmitting = false
+    
+    // Стан для роботи з зображеннями
+    @State private var selectedImage: UIImage?
+    @State private var showImagePicker = false
+    @State private var showImagePickerDialog = false
+    @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
     
     var body: some View {
         NavigationView {
@@ -61,6 +60,50 @@ struct CreateMenuItemView: View {
                                     .labelsHidden()
                             }
                             .padding(.horizontal)
+                            
+                            // Додавання зображення
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Зображення пункту меню")
+                                    .font(.subheadline)
+                                    .foregroundColor(Color("secondaryText"))
+                                
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color("inputField"))
+                                        .frame(height: 200)
+                                    
+                                    if let selectedImage = selectedImage {
+                                        Image(uiImage: selectedImage)
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(height: 200)
+                                            .cornerRadius(12)
+                                    } else {
+                                        VStack {
+                                            Image(systemName: "photo")
+                                                .font(.system(size: 40))
+                                                .foregroundColor(Color("secondaryText"))
+                                            Text("Виберіть зображення")
+                                                .foregroundColor(Color("secondaryText"))
+                                        }
+                                    }
+                                }
+                                
+                                Button(action: { showImagePickerDialog = true }) {
+                                    HStack {
+                                        Image(systemName: "photo.on.rectangle.angled")
+                                        Text("Вибрати зображення")
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 12)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color("primary"))
+                                    .cornerRadius(8)
+                                }
+                            }
+                            .padding()
+                            .background(Color("cardColor"))
+                            .cornerRadius(12)
                         }
                         .padding()
                         .background(Color("cardColor"))
@@ -105,6 +148,24 @@ struct CreateMenuItemView: View {
                     presentationMode.wrappedValue.dismiss()
                 }
             }
+            .sheet(isPresented: $showImagePicker) {
+                ImagePickerView(
+                    selectedImage: $selectedImage,
+                    isPresented: $showImagePicker,
+                    sourceType: sourceType
+                )
+            }
+            .overlay(
+                Group {
+                    if showImagePickerDialog {
+                        ImagePickerDialog(
+                            isPresented: $showImagePickerDialog,
+                            showImagePicker: $showImagePicker,
+                            sourceType: $sourceType
+                        )
+                    }
+                }
+            )
         }
     }
     
@@ -117,15 +178,37 @@ struct CreateMenuItemView: View {
         isSubmitting = true
         
         Task {
-            await viewModel.createMenuItem(
-                groupId: menuGroup.id,
-                name: name,
-                price: priceDecimal,
-                description: description.isEmpty ? nil : description,
-                isAvailable: isAvailable
-            )
-            
-            isSubmitting = false
+            do {
+                // Створення пункту меню
+                let createdMenuItem = try await viewModel.createMenuItem(
+                    groupId: menuGroup.id,
+                    name: name,
+                    price: priceDecimal,
+                    description: description.isEmpty ? nil : description,
+                    isAvailable: isAvailable
+                )
+                
+                // Якщо є зображення, завантажуємо його
+                if let selectedImage = selectedImage,
+                   let compressedImageData = NetworkService.shared.compressImage(selectedImage, format: .jpeg, compressionQuality: 0.7) {
+                    let uploadRequest = ImageUploadRequest(
+                        imageData: compressedImageData,
+                        fileName: "menu_item_\(createdMenuItem.id).jpg",
+                        mimeType: "image/jpeg"
+                    )
+                    
+                    try await viewModel.uploadMenuItemImage(
+                        groupId: menuGroup.id,
+                        itemId: createdMenuItem.id,
+                        imageRequest: uploadRequest
+                    )
+                }
+                
+                isSubmitting = false
+            } catch {
+                viewModel.error = error.localizedDescription
+                isSubmitting = false
+            }
         }
     }
 }

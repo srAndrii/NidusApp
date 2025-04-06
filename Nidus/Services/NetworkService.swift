@@ -58,7 +58,7 @@ struct ErrorResponse: Decodable {
 class NetworkService {
     static let shared = NetworkService()
     
-    private let baseURL = "https://nidus-845c224671ea.herokuapp.com/api"
+    private let baseURL = "https://nidus-production.up.railway.app/api"
     private let userDefaults = UserDefaults.standard
     
     private init() {}

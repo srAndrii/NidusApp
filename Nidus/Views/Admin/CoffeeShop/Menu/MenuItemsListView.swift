@@ -1,10 +1,3 @@
-//
-//  MenuItemsListView.swift
-//  Nidus
-//
-//  Created by Andrii Liakhovych on 4/2/25.
-//
-
 import SwiftUI
 
 struct MenuItemsListView: View {
@@ -52,6 +45,7 @@ struct MenuItemsListView: View {
                                 MenuItemRowView(
                                     menuItem: item,
                                     menuGroupId: menuGroup.id,
+                                    viewModel: viewModel,
                                     onDelete: { groupId, itemId in
                                         // Показуємо підтвердження видалення
                                         menuItemToDelete = (groupId, itemId, item.name)
@@ -149,9 +143,20 @@ struct MenuItemRowView: View {
     let onToggleAvailability: (String, String, Bool) -> Void
     @State private var isAvailable: Bool
     
-    init(menuItem: MenuItem, menuGroupId: String, onDelete: @escaping (String, String) -> Void, onToggleAvailability: @escaping (String, String, Bool) -> Void) {
+    // Стан для роботи з зображеннями
+    @State private var selectedImage: UIImage?
+    @State private var showImagePicker = false
+    @State private var showImagePickerDialog = false
+    @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
+    @State private var isUploadingImage = false
+    
+    // Джерело даних
+    @ObservedObject var viewModel: MenuItemsViewModel
+    
+    init(menuItem: MenuItem, menuGroupId: String, viewModel: MenuItemsViewModel, onDelete: @escaping (String, String) -> Void, onToggleAvailability: @escaping (String, String, Bool) -> Void) {
         self.menuItem = menuItem
         self.menuGroupId = menuGroupId
+        self.viewModel = viewModel
         self.onDelete = onDelete
         self.onToggleAvailability = onToggleAvailability
         self._isAvailable = State(initialValue: menuItem.isAvailable)
@@ -160,7 +165,7 @@ struct MenuItemRowView: View {
     var body: some View {
         HStack(spacing: 16) {
             // Зображення пункту меню або заглушка
-            ZStack {
+            ZStack(alignment: .bottomTrailing) {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color("inputField"))
                     .frame(width: 60, height: 60)
@@ -186,6 +191,15 @@ struct MenuItemRowView: View {
                     Image(systemName: "fork.knife")
                         .font(.system(size: 20))
                         .foregroundColor(Color("primary"))
+                }
+                
+                // Кнопка завантаження зображення
+                if isUploadingImage {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: Color("primary")))
+                        .frame(width: 20, height: 20)
+                        .background(Color.white.opacity(0.8))
+                        .clipShape(Circle())
                 }
             }
             
@@ -241,9 +255,7 @@ struct MenuItemRowView: View {
                     Label("Редагувати", systemImage: "pencil")
                 }
                 
-                Button(action: {
-                    // Додати зображення (функціонал може бути доданий пізніше)
-                }) {
+                Button(action: { showImagePickerDialog = true }) {
                     Label("Додати зображення", systemImage: "photo.fill")
                 }
                 
@@ -262,6 +274,61 @@ struct MenuItemRowView: View {
             }
         }
         .padding(16)
+        .sheet(isPresented: $showImagePicker) {
+            ImagePickerView(
+                selectedImage: $selectedImage,
+                isPresented: $showImagePicker,
+                sourceType: sourceType
+            )
+            .onChange(of: selectedImage) { newImage in
+                if let image = newImage {
+                    uploadImage(image)
+                }
+            }
+        }
+        .overlay(
+            Group {
+                if showImagePickerDialog {
+                    ImagePickerDialog(
+                        isPresented: $showImagePickerDialog,
+                        showImagePicker: $showImagePicker,
+                        sourceType: $sourceType
+                    )
+                }
+            }
+        )
+    }
+    
+    private func uploadImage(_ image: UIImage) {
+        guard let compressedImageData = NetworkService.shared.compressImage(image, format: .jpeg, compressionQuality: 0.7) else {
+            viewModel.error = "Не вдалося підготувати зображення"
+            return
+        }
+        
+        let uploadRequest = ImageUploadRequest(
+            imageData: compressedImageData,
+            fileName: "menu_item_\(menuItem.id).jpg",
+            mimeType: "image/jpeg"
+        )
+        
+        isUploadingImage = true
+        
+        Task {
+            do {
+                try await viewModel.uploadMenuItemImage(
+                    groupId: menuGroupId,
+                    itemId: menuItem.id,
+                    imageRequest: uploadRequest
+                )
+                
+                // Очищення стану
+                selectedImage = nil
+            } catch {
+                print("Помилка завантаження зображення: \(error)")
+            }
+            
+            isUploadingImage = false
+        }
     }
     
     private func formatPrice(_ price: Decimal) -> String {

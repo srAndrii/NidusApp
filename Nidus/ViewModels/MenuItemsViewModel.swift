@@ -1,10 +1,3 @@
-//
-//  MenuItemsViewModel.swift
-//  Nidus
-//
-//  Created by Andrii Liakhovych on 4/2/25.
-//
-
 import Foundation
 
 class MenuItemsViewModel: ObservableObject {
@@ -19,6 +12,11 @@ class MenuItemsViewModel: ObservableObject {
     // MARK: - Залежності та властивості
     
     private let repository = DIContainer.shared.menuItemRepository
+    private let networkService: NetworkService
+    
+    init(networkService: NetworkService = NetworkService.shared) {
+        self.networkService = networkService
+    }
     
     // MARK: - Користувацькі методи для роботи з пунктами меню
     
@@ -45,7 +43,7 @@ class MenuItemsViewModel: ObservableObject {
     
     /// Створення нового пункту меню
     @MainActor
-    func createMenuItem(groupId: String, name: String, price: Decimal, description: String?, isAvailable: Bool) async {
+    func createMenuItem(groupId: String, name: String, price: Decimal, description: String?, isAvailable: Bool) async throws -> MenuItem {
         isLoading = true
         error = nil
         
@@ -69,13 +67,47 @@ class MenuItemsViewModel: ObservableObject {
             
             // Показуємо повідомлення про успіх
             showSuccessMessage("Пункт меню \"\(name)\" успішно створено!")
+            
+            isLoading = false
+            return newItem
         } catch let apiError as APIError {
             handleError(apiError)
+            isLoading = false
+            throw apiError
         } catch {
             self.error = error.localizedDescription
+            isLoading = false
+            throw error
         }
-        
-        isLoading = false
+    }
+    
+    /// Завантаження зображення для пункту меню
+    @MainActor
+    func uploadMenuItemImage(groupId: String, itemId: String, imageRequest: ImageUploadRequest) async throws {
+        do {
+            // Виконуємо запит на завантаження зображення
+            let endpoint = "/menu-groups/\(groupId)/items/\(itemId)/image"
+            let uploadResponse: UploadResponse = try await networkService.uploadFile(
+                endpoint: endpoint,
+                data: imageRequest.imageData,
+                fieldName: "file",
+                fileName: imageRequest.fileName,
+                mimeType: imageRequest.mimeType
+            )
+            
+            // Оновлюємо локальний список пунктів меню
+            if let index = menuItems.firstIndex(where: { $0.id == itemId }) {
+                menuItems[index].imageUrl = uploadResponse.url
+            }
+            
+            // Показуємо повідомлення про успіх
+            showSuccessMessage("Зображення успішно додано!")
+        } catch {
+            // Обробка помилки завантаження
+            print("Помилка завантаження зображення: \(error)")
+            self.error = "Не вдалося завантажити зображення: \(error.localizedDescription)"
+            throw error
+        }
     }
     
     /// Видалення пункту меню
@@ -107,9 +139,6 @@ class MenuItemsViewModel: ObservableObject {
         do {
             print("Оновлюємо доступність для \(itemId) на \(available)")
             
-            // Спрощене оновлення через загальний метод
-            let updates: [String: Any] = ["isAvailable": available]
-            
             // Оновлюємо локальний стан для миттєвої реакції інтерфейсу
             if let index = menuItems.firstIndex(where: { $0.id == itemId }) {
                 menuItems[index].isAvailable = available
@@ -119,9 +148,13 @@ class MenuItemsViewModel: ObservableObject {
             self.error = nil
             
             // Виконуємо запит
-            let updatedItem = try await repository.updateMenuItem(groupId: groupId, itemId: itemId, updates: updates)
+            let updatedItem = try await repository.updateMenuItem(
+                groupId: groupId,
+                itemId: itemId,
+                updates: ["isAvailable": available]
+            )
             
-            // Ще раз оновлюємо локальний стан з даними з сервера
+            // Оновлюємо локальний стан з даними з сервера
             if let index = menuItems.firstIndex(where: { $0.id == itemId }) {
                 menuItems[index] = updatedItem
             }
@@ -131,7 +164,7 @@ class MenuItemsViewModel: ObservableObject {
             print("Помилка при оновленні доступності: \(error)")
             self.error = "Помилка оновлення: \(error.localizedDescription)"
             
-            // Перезавантажуємо дані, щоб відновити правильний стан
+            // Перезавантаження даних, щоб відновити правильний стан
             await loadMenuItems(groupId: groupId)
         }
     }
@@ -140,8 +173,8 @@ class MenuItemsViewModel: ObservableObject {
     
     /// Показ повідомлення про успіх
     func showSuccessMessage(_ message: String) {
-        self.successMessage = message
-        self.showSuccess = true
+        successMessage = message
+        showSuccess = true
     }
     
     /// Обробка помилок API
