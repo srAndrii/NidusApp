@@ -4,8 +4,10 @@ struct MenuItemsListView: View {
     let menuGroup: MenuGroup
     @StateObject private var viewModel = MenuItemsViewModel()
     @State private var showingCreateSheet = false
+    @State private var showingEditSheet = false
     @State private var showDeleteConfirmation = false
     @State private var menuItemToDelete: (groupId: String, itemId: String, name: String)? = nil
+    @State private var menuItemToEdit: MenuItem? = nil
     
     var body: some View {
         ZStack {
@@ -59,6 +61,11 @@ struct MenuItemsListView: View {
                                                 available: available
                                             )
                                         }
+                                    },
+                                    onEdit: { menuItem in
+                                        // Показуємо форму редагування
+                                        menuItemToEdit = menuItem
+                                        showingEditSheet = true
                                     }
                                 )
                                 .background(Color("cardColor"))
@@ -114,6 +121,15 @@ struct MenuItemsListView: View {
                 viewModel: viewModel
             )
         }
+        .sheet(isPresented: $showingEditSheet) {
+            if let menuItem = menuItemToEdit {
+                EditMenuItemView(
+                    menuGroup: menuGroup,
+                    menuItem: menuItem,
+                    viewModel: viewModel
+                )
+            }
+        }
         .alert("Видалення пункту меню", isPresented: $showDeleteConfirmation) {
             Button("Скасувати", role: .cancel) {}
             Button("Видалити", role: .destructive) {
@@ -138,29 +154,31 @@ struct MenuItemsListView: View {
 
 struct MenuItemRowView: View {
     let menuItem: MenuItem
-    let menuGroupId: String
-    let onDelete: (String, String) -> Void
-    let onToggleAvailability: (String, String, Bool) -> Void
-    @State private var isAvailable: Bool
-    
-    // Стан для роботи з зображеннями
-    @State private var selectedImage: UIImage?
-    @State private var showImagePicker = false
-    @State private var showImagePickerDialog = false
-    @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
-    @State private var isUploadingImage = false
-    
-    // Джерело даних
-    @ObservedObject var viewModel: MenuItemsViewModel
-    
-    init(menuItem: MenuItem, menuGroupId: String, viewModel: MenuItemsViewModel, onDelete: @escaping (String, String) -> Void, onToggleAvailability: @escaping (String, String, Bool) -> Void) {
-        self.menuItem = menuItem
-        self.menuGroupId = menuGroupId
-        self.viewModel = viewModel
-        self.onDelete = onDelete
-        self.onToggleAvailability = onToggleAvailability
-        self._isAvailable = State(initialValue: menuItem.isAvailable)
-    }
+        let menuGroupId: String
+        let onDelete: (String, String) -> Void
+        let onToggleAvailability: (String, String, Bool) -> Void
+        let onEdit: (MenuItem) -> Void
+        @State private var isAvailable: Bool
+        
+        // Стан для роботи з зображеннями
+        @State private var selectedImage: UIImage?
+        @State private var showImagePicker = false
+        @State private var showImagePickerDialog = false
+        @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
+        @State private var isUploadingImage = false
+        
+        // Джерело даних
+        @ObservedObject var viewModel: MenuItemsViewModel
+        
+        init(menuItem: MenuItem, menuGroupId: String, viewModel: MenuItemsViewModel, onDelete: @escaping (String, String) -> Void, onToggleAvailability: @escaping (String, String, Bool) -> Void, onEdit: @escaping (MenuItem) -> Void) {
+            self.menuItem = menuItem
+            self.menuGroupId = menuGroupId
+            self.viewModel = viewModel
+            self.onDelete = onDelete
+            self.onToggleAvailability = onToggleAvailability
+            self.onEdit = onEdit
+            self._isAvailable = State(initialValue: menuItem.isAvailable)
+        }
     
     var body: some View {
         HStack(spacing: 16) {
@@ -248,26 +266,28 @@ struct MenuItemRowView: View {
             }
             
             // Меню управління
-            Menu {
-                Button(action: {
-                    // Редагувати пункт меню (функціонал може бути доданий пізніше)
-                }) {
-                    Label("Редагувати", systemImage: "pencil")
-                }
-                
-                Button(role: .destructive, action: {
-                    onDelete(menuGroupId, menuItem.id)
-                }) {
-                    Label("Видалити", systemImage: "trash")
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.title3)
-                    .foregroundColor(Color("secondaryText"))
-                    .padding(8)
-                    .background(Color("inputField").opacity(0.5))
-                    .clipShape(Circle())
-            }
+            // Меню управління
+                        Menu {
+                            Button(action: {
+                                // Редагувати пункт меню
+                                onEdit(menuItem)
+                            }) {
+                                Label("Редагувати", systemImage: "pencil")
+                            }
+                            
+                            Button(role: .destructive, action: {
+                                onDelete(menuGroupId, menuItem.id)
+                            }) {
+                                Label("Видалити", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.title3)
+                                .foregroundColor(Color("secondaryText"))
+                                .padding(8)
+                                .background(Color("inputField").opacity(0.5))
+                                .clipShape(Circle())
+                        }
         }
         .padding(16)
         .sheet(isPresented: $showImagePicker) {

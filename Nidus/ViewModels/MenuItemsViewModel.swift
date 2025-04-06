@@ -103,6 +103,34 @@ class MenuItemsViewModel: ObservableObject {
         }
     }
     
+    /// Оновлення пункту меню
+    @MainActor
+    func updateMenuItem(groupId: String, itemId: String, updates: [String: Any]) async throws -> MenuItem {
+        isLoading = true
+        error = nil
+        
+        do {
+            // Оновлюємо пункт меню через репозиторій
+            let updatedItem = try await repository.updateMenuItem(groupId: groupId, itemId: itemId, updates: updates)
+            
+            // Оновлюємо пункт меню в локальному списку
+            if let index = menuItems.firstIndex(where: { $0.id == itemId }) {
+                menuItems[index] = updatedItem
+            }
+            
+            isLoading = false
+            return updatedItem
+        } catch let apiError as APIError {
+            handleError(apiError)
+            isLoading = false
+            throw apiError
+        } catch {
+            self.error = error.localizedDescription
+            isLoading = false
+            throw error
+        }
+    }
+    
     /// Завантаження зображення для пункту меню
     @MainActor
     func uploadMenuItemImage(groupId: String, itemId: String, imageRequest: ImageUploadRequest) async throws {
