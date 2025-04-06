@@ -130,9 +130,9 @@ struct MenuItemFormModel {
             description = item.description ?? ""
             isAvailable = item.isAvailable
             
-            // Визначаємо, чи є кастомізація
-            isCustomizable = item.ingredients?.contains(where: { $0.isCustomizable }) ?? false ||
-                             item.customizationOptions?.isEmpty == false
+            // Перевіряємо наявність інгредієнтів або опцій кастомізації
+            isCustomizable = (item.ingredients != nil && !item.ingredients!.isEmpty) ||
+                             (item.customizationOptions != nil && !item.customizationOptions!.isEmpty)
             
             // Копіюємо інгредієнти та опції
             ingredients = item.ingredients ?? []
@@ -168,7 +168,7 @@ struct MenuItemCustomizationEditor_Previews: PreviewProvider {
                 isCustomizable: .constant(true),
                 ingredients: .constant([
                     Ingredient(name: "Еспресо", amount: 1, unit: "шт.", isCustomizable: true, minAmount: 1, maxAmount: 3),
-                    Ingredient(name: "Молоко", amount: 150, unit: "мл", isCustomizable: false)
+                    Ingredient(name: "Молоко", amount: 150, unit: "мл", isCustomizable: false, minAmount: nil, maxAmount: nil)
                 ]),
                 customizationOptions: .constant([
                     CustomizationOption(

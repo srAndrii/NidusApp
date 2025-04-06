@@ -1,20 +1,16 @@
 //
-//  CustomModalMenuItemEditor.swift
+//  FullScreenMenuItemEditor.swift
 //  Nidus
 //
-//  Updated by Andrii Liakhovych
+//  Created by Andrii Liakhovych on 4/5/25.
 //
 import SwiftUI
 
-struct CustomModalMenuItemEditor: View {
-    @Binding var isPresented: Bool
-    @State private var offset: CGFloat = 1000
+struct FullScreenMenuItemEditor: View {
+    @Environment(\.presentationMode) var presentationMode
+    @ObservedObject var viewModel: MenuItemsViewModel
     let menuGroup: MenuGroup
     let menuItem: MenuItem
-    let viewModel: MenuItemsViewModel
-    
-    // Додаємо цей рядок - функція для оновлення батьківського компонента
-    var onUpdate: ((MenuItem) -> Void)? = nil
     
     // Використовуємо нову модель форми для кастомізації
     @State private var menuItemForm: MenuItemFormModel
@@ -27,117 +23,70 @@ struct CustomModalMenuItemEditor: View {
     @State private var showImagePickerDialog = false
     @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
     
-    init(isPresented: Binding<Bool>, menuGroup: MenuGroup, menuItem: MenuItem, viewModel: MenuItemsViewModel, onUpdate: ((MenuItem) -> Void)? = nil) {
-        self._isPresented = isPresented
+    init(viewModel: MenuItemsViewModel, menuGroup: MenuGroup, menuItem: MenuItem) {
+        self.viewModel = viewModel
         self.menuGroup = menuGroup
         self.menuItem = menuItem
-        self.viewModel = viewModel
-        self.onUpdate = onUpdate
         
         // Ініціалізуємо форму з існуючим меню-айтемом
         self._menuItemForm = State(initialValue: MenuItemFormModel(from: menuItem))
     }
     
     var body: some View {
-        // Ваш поточний код без змін
-        ZStack {
-            // Напівпрозорий фон
-            Color.black.opacity(0.5)
-                .edgesIgnoringSafeArea(.all)
-                .onTapGesture {
-                    dismissModal()
-                }
-            
-            // Вміст модального вікна
-            VStack {
-                // Заголовок з кнопкою закриття
-                HStack {
-                    Text("Редагування пункту меню")
-                        .font(.headline)
-                        .foregroundColor(Color("primaryText"))
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        dismissModal()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title3)
-                            .foregroundColor(Color("secondaryText"))
-                    }
-                }
-                .padding(.top)
-                .padding(.horizontal)
-                
-                // Вкладки для перемикання між розділами
-                Picker("", selection: $selectedTab) {
-                    Text("Основне").tag(0)
-                    Text("Кастомізація").tag(1)
-                    Text("Зображення").tag(2)
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding(.horizontal)
-                
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // Вміст вкладок
-                        if selectedTab == 0 {
-                            // Основна інформація
-                            basicInfoSection
-                        } else if selectedTab == 1 {
-                            // Кастомізація
-                            MenuItemCustomizationEditor(
-                                isCustomizable: $menuItemForm.isCustomizable,
-                                ingredients: $menuItemForm.ingredients,
-                                customizationOptions: $menuItemForm.customizationOptions
-                            )
-                        } else {
-                            // Зображення
-                            imageSection
-                        }
-                        
-                        // Повідомлення про помилку
-                        if let error = viewModel.error {
-                            Text(error)
-                                .foregroundColor(.red)
-                                .padding()
-                                .multilineTextAlignment(.center)
-                        }
-                        
-                        // Кнопка збереження
-                        Button(action: updateMenuItem) {
-                            if isSubmitting {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Text("Зберегти зміни")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty ? Color.gray : Color("primary"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                        .padding(.horizontal)
-                        .padding(.bottom, 20)
-                        .disabled(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty || isSubmitting)
-                    }
-                    .padding(.vertical)
-                }
+        VStack(spacing: 0) {
+            // Вкладки для перемикання між розділами
+            Picker("", selection: $selectedTab) {
+                Text("Основне").tag(0)
+                Text("Кастомізація").tag(1)
+                Text("Зображення").tag(2)
             }
-            .background(Color("backgroundColor"))
-            .cornerRadius(16)
+            .pickerStyle(SegmentedPickerStyle())
             .padding(.horizontal)
-            .padding(.vertical, 40)
-            .offset(y: offset)
-            .onAppear {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    offset = 0
+            .padding(.top)
+            
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Вміст вкладок
+                    if selectedTab == 0 {
+                        // Основна інформація
+                        basicInfoSection
+                    } else if selectedTab == 1 {
+                        // Кастомізація
+                        MenuItemCustomizationEditor(
+                            isCustomizable: $menuItemForm.isCustomizable,
+                            ingredients: $menuItemForm.ingredients,
+                            customizationOptions: $menuItemForm.customizationOptions
+                        )
+                    } else {
+                        // Зображення
+                        imageSection
+                    }
+                    
+                    // Кнопка збереження
+                    Button(action: updateMenuItem) {
+                        if isSubmitting {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Text("Зберегти зміни")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty ? Color.gray : Color("primary"))
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
+                    .disabled(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty || isSubmitting)
                 }
+                .padding(.vertical)
             }
         }
+        .navigationTitle("Редагування \(menuItem.name)")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showImagePicker) {
             ImagePickerView(
                 selectedImage: $selectedImage,
@@ -156,12 +105,23 @@ struct CustomModalMenuItemEditor: View {
                 }
             }
         )
+        .onAppear {
+            // Завантажуємо найсвіжіші дані при появі екрану
+            Task {
+                do {
+                    let freshMenuItem = try await viewModel.getMenuItem(groupId: menuGroup.id, itemId: menuItem.id)
+                    // Оновлюємо форму з новими даними
+                    menuItemForm = MenuItemFormModel(from: freshMenuItem)
+                } catch {
+                    print("Помилка при завантаженні свіжих даних: \(error)")
+                }
+            }
+        }
     }
     
-    // MARK: - Компоненти інтерфейсу
-    
-    // Ваш поточний код basicInfoSection без змін
-    private var basicInfoSection: some View {
+    // MARK: - Секції інтерфейсу (аналогічно з вашого модального редактора)
+    var basicInfoSection: some View {
+        // Код секції основної інформації (скопіюйте з вашого модального редактора)
         VStack(spacing: 16) {
             CustomTextField(
                 iconName: "cup.and.saucer",
@@ -199,8 +159,8 @@ struct CustomModalMenuItemEditor: View {
         }
     }
     
-    // Ваш поточний код imageSection без змін
-    private var imageSection: some View {
+    var imageSection: some View {
+        // Код секції зображення (скопіюйте з вашого модального редактора)
         VStack(alignment: .leading, spacing: 8) {
             Text("Зображення пункту меню")
                 .font(.subheadline)
@@ -262,20 +222,7 @@ struct CustomModalMenuItemEditor: View {
         }
     }
     
-    // MARK: - Логіка роботи
-    
-    private func dismissModal() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            offset = 1000
-        }
-        
-        // Даємо анімації час завершитись перед закриттям модального вікна
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            isPresented = false
-        }
-    }
-    
-    // Змінений метод updateMenuItem
+    // MARK: - Функція оновлення меню-айтема
     private func updateMenuItem() {
         guard let priceDecimal = Decimal(string: menuItemForm.price.replacingOccurrences(of: ",", with: ".")) else {
             viewModel.error = "Вкажіть коректну ціну"
@@ -299,14 +246,19 @@ struct CustomModalMenuItemEditor: View {
                 updates["description"] = NSNull()
             }
             
-            // Обробка кастомізації
+            // Обробка кастомізації - важливо завжди додавати інгредієнти та опції
             if menuItemForm.isCustomizable {
+                // Якщо кастомізація увімкнена, зберігаємо інгредієнти та опції
                 updates["ingredients"] = menuItemForm.ingredients
                 updates["customizationOptions"] = menuItemForm.customizationOptions
             } else {
+                // Якщо кастомізація вимкнена, видаляємо інгредієнти та опції
                 updates["ingredients"] = NSNull()
                 updates["customizationOptions"] = NSNull()
             }
+            
+            // Логуємо дані для дебагу
+            print("Дані для оновлення: \(updates)")
             
             do {
                 // Оновлення пункту меню
@@ -345,14 +297,14 @@ struct CustomModalMenuItemEditor: View {
                     }
                 }
                 
-                // Викликаємо функцію оновлення з новими даними, якщо вона була передана
-                if let onUpdate = onUpdate {
-                    onUpdate(updatedItem)
-                }
-                
-                // Показуємо успішне повідомлення
+                // Показуємо успішне повідомлення та оновлюємо список
                 viewModel.showSuccessMessage("Пункт меню успішно оновлено")
-                dismissModal()
+                
+                // Оновлюємо список пунктів меню
+                await viewModel.loadMenuItems(groupId: menuGroup.id)
+                
+                // Повертаємось назад
+                presentationMode.wrappedValue.dismiss()
                 
             } catch {
                 print("Помилка при оновленні пункту меню: \(error)")

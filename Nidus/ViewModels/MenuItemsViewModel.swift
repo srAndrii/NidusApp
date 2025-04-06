@@ -106,29 +106,168 @@ class MenuItemsViewModel: ObservableObject {
     /// Оновлення пункту меню
     @MainActor
     func updateMenuItem(groupId: String, itemId: String, updates: [String: Any]) async throws -> MenuItem {
-        isLoading = true
-        error = nil
+        // Створюємо безпечну копію оновлень для серіалізації
+        var safeUpdates = [String: Any]()
         
-        do {
-            // Оновлюємо пункт меню через репозиторій
-            let updatedItem = try await repository.updateMenuItem(groupId: groupId, itemId: itemId, updates: updates)
-            
-            // Оновлюємо пункт меню в локальному списку
-            if let index = menuItems.firstIndex(where: { $0.id == itemId }) {
-                menuItems[index] = updatedItem
+        // Копіюємо прості значення як є
+        for (key, value) in updates {
+            if key != "ingredients" && key != "customizationOptions" {
+                safeUpdates[key] = value
+            }
+        }
+        
+        // Обробляємо інгредієнти якщо вони є
+        if let ingredients = updates["ingredients"] as? [Ingredient] {
+            let safeIngredients = ingredients.map { ingredient -> [String: Any] in
+                var dict: [String: Any] = [
+                    "name": ingredient.name,
+                    "amount": ingredient.amount,
+                    "unit": ingredient.unit,
+                    "isCustomizable": ingredient.isCustomizable
+                ]
+                
+                // Додаємо опціональні поля, тільки якщо вони не nil
+                if let minAmount = ingredient.minAmount {
+                    dict["minAmount"] = minAmount
+                }
+                
+                if let maxAmount = ingredient.maxAmount {
+                    dict["maxAmount"] = maxAmount
+                }
+                
+                return dict
             }
             
-            isLoading = false
-            return updatedItem
-        } catch let apiError as APIError {
-            handleError(apiError)
-            isLoading = false
-            throw apiError
+            safeUpdates["ingredients"] = safeIngredients
+        }
+        
+        // Обробляємо опції кастомізації якщо вони є
+        if let customOptions = updates["customizationOptions"] as? [CustomizationOption] {
+            let safeOptions = customOptions.map { option -> [String: Any] in
+                var optionDict: [String: Any] = [
+                    "id": option.id,
+                    "name": option.name,
+                    "required": option.required
+                ]
+                
+                // Конвертуємо вибори
+                let safeChoices = option.choices.map { choice -> [String: Any] in
+                    var choiceDict: [String: Any] = [
+                        "id": choice.id,
+                        "name": choice.name
+                    ]
+                    
+                    // Додаємо ціну, тільки якщо вона не nil
+                    if let price = choice.price {
+                        choiceDict["price"] = price
+                    }
+                    
+                    return choiceDict
+                }
+                
+                optionDict["choices"] = safeChoices
+                return optionDict
+            }
+            
+            safeUpdates["customizationOptions"] = safeOptions
+        }
+        
+        do {
+            // Перевіряємо, чи можна серіалізувати наші дані
+            let jsonData = try JSONSerialization.data(withJSONObject: safeUpdates)
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                print("Дані для оновлення: \(jsonString)")
+            }
+            
+            // Створюємо та виконуємо запит напряму
+            let baseURL = networkService.getBaseURL()
+            guard let url = URL(string: baseURL + "/menu-groups/\(groupId)/items/\(itemId)") else {
+                throw APIError.invalidURL
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            if let token = UserDefaults.standard.string(forKey: "accessToken") {
+                request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+            
+            // Встановлюємо тіло запиту напряму
+            request.httpBody = jsonData
+            
+            // Виконуємо запит
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                throw APIError.invalidResponse
+            }
+            
+            // Виводимо відповідь для діагностики
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("Відповідь сервера: \(responseString)")
+            }
+            
+            // Використовуємо спеціальний декодер з надійною обробкою дат
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateStr = try container.decode(String.self)
+                
+                // Спробуємо різні формати дат
+                let formatters = [
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+                    "yyyy-MM-dd'T'HH:mm:ssZ",
+                    "yyyy-MM-dd'T'HH:mm:ss"
+                ].map { format -> DateFormatter in
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = format
+                    formatter.locale = Locale(identifier: "en_US_POSIX")
+                    return formatter
+                }
+                
+                for formatter in formatters {
+                    if let date = formatter.date(from: dateStr) {
+                        return date
+                    }
+                }
+                
+                // Якщо не вдалося розпарсити, просто повертаємо поточну дату замість помилки
+                print("❌ Не вдалося розпарсити дату: \(dateStr)")
+                return Date()
+            }
+            
+            do {
+                return try decoder.decode(MenuItem.self, from: data)
+            } catch {
+                print("❌ Помилка декодування: \(error)")
+                
+                // Якщо декодування не вдалося, повертаємо запит для отримання пункту меню
+                return try await getMenuItem(groupId: groupId, itemId: itemId)
+            }
         } catch {
-            self.error = error.localizedDescription
-            isLoading = false
+            print("Помилка при оновленні пункту меню: \(error)")
             throw error
         }
+    }
+    
+    @MainActor
+    func getMenuItem(groupId: String, itemId: String) async throws -> MenuItem {
+        // Спочатку перевіряємо, чи є пункт меню вже завантажений
+        if let menuItem = menuItems.first(where: { $0.id == itemId }) {
+            return menuItem
+        }
+        
+        // Якщо немає, завантажуємо всі пункти меню для групи
+        await loadMenuItems(groupId: groupId)
+        
+        // Після завантаження перевіряємо ще раз
+        if let menuItem = menuItems.first(where: { $0.id == itemId }) {
+            return menuItem
+        }
+        
+        // Якщо все ще немає, кидаємо помилку
+        throw NSError(domain: "MenuItemsViewModel", code: 404, userInfo: [NSLocalizedDescriptionKey: "Пункт меню не знайдено"])
     }
     
     /// Завантаження зображення для пункту меню

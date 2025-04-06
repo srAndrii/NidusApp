@@ -8,6 +8,7 @@ struct MenuItemsListView: View {
     @State private var menuItemToDelete: (groupId: String, itemId: String, name: String)? = nil
     @State private var menuItemToEdit: MenuItem? = nil
     @State private var showCustomEditor = false
+    @State private var useFullScreenEditor = true // Додаємо контроль для вибору типу редактора
     
     var body: some View {
         ZStack {
@@ -44,34 +45,26 @@ struct MenuItemsListView: View {
                     ScrollView {
                         VStack(spacing: 16) {
                             ForEach(viewModel.menuItems) { item in
-                                MenuItemRowView(
+                                MenuItemRowWithNavigation(
                                     menuItem: item,
-                                    menuGroupId: menuGroup.id,
+                                    menuGroup: menuGroup,
                                     viewModel: viewModel,
+                                    useFullScreenEditor: useFullScreenEditor,
                                     onDelete: { groupId, itemId in
-                                        // Показуємо підтвердження видалення
                                         menuItemToDelete = (groupId, itemId, item.name)
                                         showingDeleteConfirmation = true
                                     },
-                                    onToggleAvailability: { groupId, itemId, available in
-                                        Task {
-                                            await viewModel.updateMenuItemAvailability(
-                                                groupId: groupId,
-                                                itemId: itemId,
-                                                available: available
-                                            )
+                                    onEditPressed: { menuItem in
+                                        if useFullScreenEditor {
+                                            // Для повноекранного редактора використовуємо NavigationLink
+                                            menuItemToEdit = menuItem
+                                        } else {
+                                            // Для модального вікна
+                                            menuItemToEdit = menuItem
+                                            showCustomEditor = true
                                         }
-                                    },
-                                    onEdit: { menuItem in
-                                        // Показуємо власне модальне вікно редагування
-                                        menuItemToEdit = menuItem
-                                        showCustomEditor = true
                                     }
                                 )
-                                .background(Color("cardColor"))
-                                .cornerRadius(12)
-                                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                                .padding(.horizontal)
                             }
                         }
                         .padding(.vertical, 8)
@@ -103,15 +96,21 @@ struct MenuItemsListView: View {
                 .padding(.bottom, 20)
             }
             
-            // Накладення для власного модального вікна редагування
+            // Модальне вікно редагування (для непоноекранного режиму)
             if showCustomEditor, let menuItem = menuItemToEdit {
                 CustomModalMenuItemEditor(
                     isPresented: $showCustomEditor,
                     menuGroup: menuGroup,
                     menuItem: menuItem,
-                    viewModel: viewModel
+                    viewModel: viewModel,
+                    onUpdate: { updatedItem in
+                        // Оновлюємо локальний список пунктів меню
+                        if let index = viewModel.menuItems.firstIndex(where: { $0.id == updatedItem.id }) {
+                            viewModel.menuItems[index] = updatedItem
+                        }
+                    }
                 )
-                .zIndex(100) // Переконуємося, що модальне вікно буде поверх усього
+                .zIndex(100)
             }
             
             // Тост із повідомленням
@@ -156,33 +155,97 @@ struct MenuItemsListView: View {
     }
 }
 
+// Допоміжний компонент для рядка меню-айтема з навігацією
+struct MenuItemRowWithNavigation: View {
+    let menuItem: MenuItem
+    let menuGroup: MenuGroup
+    let viewModel: MenuItemsViewModel
+    let useFullScreenEditor: Bool
+    let onDelete: (String, String) -> Void
+    let onEditPressed: (MenuItem) -> Void
+    
+    @State private var isAvailable: Bool
+    @State private var isEditing: Bool = false
+    
+    init(menuItem: MenuItem, menuGroup: MenuGroup, viewModel: MenuItemsViewModel, useFullScreenEditor: Bool, onDelete: @escaping (String, String) -> Void, onEditPressed: @escaping (MenuItem) -> Void) {
+        self.menuItem = menuItem
+        self.menuGroup = menuGroup
+        self.viewModel = viewModel
+        self.useFullScreenEditor = useFullScreenEditor
+        self.onDelete = onDelete
+        self.onEditPressed = onEditPressed
+        self._isAvailable = State(initialValue: menuItem.isAvailable)
+    }
+    
+    var body: some View {
+        ZStack {
+            // Контент рядка меню-айтема
+            MenuItemRowView(
+                menuItem: menuItem,
+                menuGroupId: menuGroup.id,
+                viewModel: viewModel,
+                onDelete: onDelete,
+                onToggleAvailability: { groupId, itemId, available in
+                    Task {
+                        await viewModel.updateMenuItemAvailability(
+                            groupId: groupId,
+                            itemId: itemId,
+                            available: available
+                        )
+                    }
+                },
+                onEdit: {item in
+                    if useFullScreenEditor {
+                        isEditing = true
+                    } else {
+                        onEditPressed(menuItem)
+                    }
+                }
+            )
+            .background(Color("cardColor"))
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal)
+            
+            // NavigationLink для повноекранного редактора
+            if useFullScreenEditor {
+                NavigationLink(
+                    destination: FullScreenMenuItemEditor(
+                        viewModel: viewModel,
+                        menuGroup: menuGroup,
+                        menuItem: menuItem
+                    ),
+                    isActive: $isEditing
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+            }
+        }
+    }
+}
+
+// Ваш існуючий компонент MenuItemRowView залишається без змін
 struct MenuItemRowView: View {
     let menuItem: MenuItem
-        let menuGroupId: String
-        let onDelete: (String, String) -> Void
-        let onToggleAvailability: (String, String, Bool) -> Void
-        let onEdit: (MenuItem) -> Void
-        @State private var isAvailable: Bool
-        
-        // Стан для роботи з зображеннями
-        @State private var selectedImage: UIImage?
-        @State private var showImagePicker = false
-        @State private var showImagePickerDialog = false
-        @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
-        @State private var isUploadingImage = false
-        
-        // Джерело даних
-        @ObservedObject var viewModel: MenuItemsViewModel
-        
-        init(menuItem: MenuItem, menuGroupId: String, viewModel: MenuItemsViewModel, onDelete: @escaping (String, String) -> Void, onToggleAvailability: @escaping (String, String, Bool) -> Void, onEdit: @escaping (MenuItem) -> Void) {
-            self.menuItem = menuItem
-            self.menuGroupId = menuGroupId
-            self.viewModel = viewModel
-            self.onDelete = onDelete
-            self.onToggleAvailability = onToggleAvailability
-            self.onEdit = onEdit
-            self._isAvailable = State(initialValue: menuItem.isAvailable)
-        }
+    let menuGroupId: String
+    let onDelete: (String, String) -> Void
+    let onToggleAvailability: (String, String, Bool) -> Void
+    let onEdit: (MenuItem) -> Void
+    @State private var isAvailable: Bool
+    
+    // Джерело даних
+    @ObservedObject var viewModel: MenuItemsViewModel
+    
+    init(menuItem: MenuItem, menuGroupId: String, viewModel: MenuItemsViewModel, onDelete: @escaping (String, String) -> Void, onToggleAvailability: @escaping (String, String, Bool) -> Void, onEdit: @escaping (MenuItem) -> Void) {
+        self.menuItem = menuItem
+        self.menuGroupId = menuGroupId
+        self.viewModel = viewModel
+        self.onDelete = onDelete
+        self.onToggleAvailability = onToggleAvailability
+        self.onEdit = onEdit
+        self._isAvailable = State(initialValue: menuItem.isAvailable)
+    }
     
     var body: some View {
         HStack(spacing: 16) {
@@ -214,15 +277,6 @@ struct MenuItemRowView: View {
                         .font(.system(size: 20))
                         .foregroundColor(Color("primary"))
                 }
-                
-                // Кнопка завантаження зображення
-                if isUploadingImage {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: Color("primary")))
-                        .frame(width: 20, height: 20)
-                        .background(Color.white.opacity(0.8))
-                        .clipShape(Circle())
-                }
             }
             
             VStack(alignment: .leading, spacing: 4) {
@@ -235,6 +289,20 @@ struct MenuItemRowView: View {
                         .font(.subheadline)
                         .foregroundColor(Color("secondaryText"))
                         .lineLimit(2)
+                }
+                
+                // Показуємо, чи є кастомізація
+                if (menuItem.ingredients != nil && !menuItem.ingredients!.isEmpty) ||
+                   (menuItem.customizationOptions != nil && !menuItem.customizationOptions!.isEmpty) {
+                    HStack {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.caption)
+                            .foregroundColor(Color("primary"))
+                        
+                        Text("Можна кастомізувати")
+                            .font(.caption)
+                            .foregroundColor(Color("primary"))
+                    }
                 }
                 
                 // Ціна та перемикач доступності
@@ -251,16 +319,15 @@ struct MenuItemRowView: View {
                         .font(.caption)
                         .foregroundColor(isAvailable ? Color.green : Color.red)
                     
-                    // Перемикач доступності з сучасним синтаксисом
+                    // Перемикач доступності
                     Toggle(isOn: $isAvailable) {
                         EmptyView()
                     }
                     .labelsHidden()
                     .toggleStyle(SwitchToggleStyle(tint: Color("primary")))
                     .onChange(of: isAvailable) { oldValue, newValue in
-                        if oldValue != newValue {  // Додаємо перевірку на зміну значення
+                        if oldValue != newValue {
                             Task {
-                                // Асинхронний виклик всередині Task
                                 await onToggleAvailability(menuGroupId, menuItem.id, newValue)
                             }
                         }
@@ -270,84 +337,31 @@ struct MenuItemRowView: View {
             }
             
             // Меню управління
-            // Меню управління
-                        Menu {
-                            Button(action: {
-                                // Редагувати пункт меню
-                                onEdit(menuItem)
-                            }) {
-                                Label("Редагувати", systemImage: "pencil")
-                            }
-                            
-                            Button(role: .destructive, action: {
-                                onDelete(menuGroupId, menuItem.id)
-                            }) {
-                                Label("Видалити", systemImage: "trash")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.title3)
-                                .foregroundColor(Color("secondaryText"))
-                                .padding(8)
-                                .background(Color("inputField").opacity(0.5))
-                                .clipShape(Circle())
-                        }
+            Menu {
+                Button(action: {
+                    onEdit(menuItem)
+                }) {
+                    Label("Редагувати", systemImage: "pencil")
+                }
+                
+                Button(role: .destructive, action: {
+                    onDelete(menuGroupId, menuItem.id)
+                }) {
+                    Label("Видалити", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.title3)
+                    .foregroundColor(Color("secondaryText"))
+                    .padding(8)
+                    .background(Color("inputField").opacity(0.5))
+                    .clipShape(Circle())
+            }
         }
         .padding(16)
-        .sheet(isPresented: $showImagePicker) {
-            ImagePickerView(
-                selectedImage: $selectedImage,
-                isPresented: $showImagePicker,
-                sourceType: sourceType
-            )
-            .onChange(of: selectedImage) { newImage in
-                if let image = newImage {
-                    uploadImage(image)
-                }
-            }
-        }
-        .overlay(
-            Group {
-                if showImagePickerDialog {
-                    ImagePickerDialog(
-                        isPresented: $showImagePickerDialog,
-                        showImagePicker: $showImagePicker,
-                        sourceType: $sourceType
-                    )
-                }
-            }
-        )
-    }
-    
-    private func uploadImage(_ image: UIImage) {
-        guard let compressedImageData = NetworkService.shared.compressImage(image, format: .jpeg, compressionQuality: 0.7) else {
-            viewModel.error = "Не вдалося підготувати зображення"
-            return
-        }
-        
-        let uploadRequest = ImageUploadRequest(
-            imageData: compressedImageData,
-            fileName: "menu_item_\(menuItem.id).jpg",
-            mimeType: "image/jpeg"
-        )
-        
-        isUploadingImage = true
-        
-        Task {
-            do {
-                try await viewModel.uploadMenuItemImage(
-                    groupId: menuGroupId,
-                    itemId: menuItem.id,
-                    imageRequest: uploadRequest
-                )
-                
-                // Очищення стану
-                selectedImage = nil
-            } catch {
-                print("Помилка завантаження зображення: \(error)")
-            }
-            
-            isUploadingImage = false
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onEdit(menuItem)
         }
     }
     
