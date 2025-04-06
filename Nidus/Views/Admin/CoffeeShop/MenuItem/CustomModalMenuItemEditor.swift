@@ -1,3 +1,10 @@
+//
+//  CustomModalMenuItemEditor.swift
+//  Nidus
+//
+//  Updated by Andrii Liakhovych
+//
+
 import SwiftUI
 
 struct CustomModalMenuItemEditor: View {
@@ -7,14 +14,12 @@ struct CustomModalMenuItemEditor: View {
     let menuItem: MenuItem
     let viewModel: MenuItemsViewModel
     
-    // Власні стани для форми
-    @State private var name: String
-    @State private var price: String
-    @State private var description: String
-    @State private var isAvailable: Bool
+    // Використовуємо нову модель форми для кастомізації
+    @State private var menuItemForm: MenuItemFormModel
     @State private var isSubmitting = false
     
-    // Стан для роботи з зображеннями
+    // Стан для вкладок і зображення
+    @State private var selectedTab = 0
     @State private var selectedImage: UIImage?
     @State private var showImagePicker = false
     @State private var showImagePickerDialog = false
@@ -26,11 +31,8 @@ struct CustomModalMenuItemEditor: View {
         self.menuItem = menuItem
         self.viewModel = viewModel
         
-        // Використовуємо статичний метод для форматування ціни
-        self._name = State(initialValue: menuItem.name)
-        self._price = State(initialValue: Self.formatPrice(menuItem.price))
-        self._description = State(initialValue: menuItem.description ?? "")
-        self._isAvailable = State(initialValue: menuItem.isAvailable)
+        // Ініціалізуємо форму з існуючим меню-айтемом
+        self._menuItemForm = State(initialValue: MenuItemFormModel(from: menuItem))
     }
     
     var body: some View {
@@ -63,101 +65,31 @@ struct CustomModalMenuItemEditor: View {
                 .padding(.top)
                 .padding(.horizontal)
                 
+                // Вкладки для перемикання між розділами
+                Picker("", selection: $selectedTab) {
+                    Text("Основне").tag(0)
+                    Text("Кастомізація").tag(1)
+                    Text("Зображення").tag(2)
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .padding(.horizontal)
+                
                 ScrollView {
                     VStack(spacing: 16) {
-                        CustomTextField(
-                            iconName: "cup.and.saucer",
-                            placeholder: "Назва",
-                            text: $name
-                        )
-                        .padding(.horizontal)
-                        
-                        CustomTextField(
-                            iconName: "hryvniasign.circle",
-                            placeholder: "Ціна (₴)",
-                            text: $price,
-                            keyboardType: .decimalPad
-                        )
-                        .padding(.horizontal)
-                        
-                        CustomTextField(
-                            iconName: "text.alignleft",
-                            placeholder: "Опис (необов'язково)",
-                            text: $description
-                        )
-                        .padding(.horizontal)
-                        
-                        // Перемикач доступності
-                        HStack {
-                            Text("Доступний для замовлення:")
-                                .foregroundColor(Color("primaryText"))
-                            
-                            Spacer()
-                            
-                            Toggle("", isOn: $isAvailable)
-                                .labelsHidden()
-                        }
-                        .padding(.horizontal)
-                        
-                        // Зображення
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Зображення пункту меню")
-                                .font(.subheadline)
-                                .foregroundColor(Color("secondaryText"))
-                                .padding(.horizontal)
-                            
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color("inputField"))
-                                    .frame(height: 200)
-                                
-                                if let selectedImage = selectedImage {
-                                    Image(uiImage: selectedImage)
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(height: 200)
-                                        .cornerRadius(12)
-                                } else if let imageUrl = menuItem.imageUrl, let url = URL(string: imageUrl) {
-                                    AsyncImage(url: url) { phase in
-                                        switch phase {
-                                        case .success(let image):
-                                            image
-                                                .resizable()
-                                                .scaledToFit()
-                                                .frame(height: 200)
-                                                .cornerRadius(12)
-                                        case .failure(_), .empty:
-                                            Image(systemName: "photo")
-                                                .font(.system(size: 40))
-                                                .foregroundColor(Color("secondaryText"))
-                                        @unknown default:
-                                            EmptyView()
-                                        }
-                                    }
-                                } else {
-                                    VStack {
-                                        Image(systemName: "photo")
-                                            .font(.system(size: 40))
-                                            .foregroundColor(Color("secondaryText"))
-                                        Text("Немає зображення")
-                                            .foregroundColor(Color("secondaryText"))
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                            
-                            Button(action: { showImagePickerDialog = true }) {
-                                HStack {
-                                    Image(systemName: "photo.on.rectangle.angled")
-                                    Text("Змінити зображення")
-                                }
-                                .foregroundColor(.white)
-                                .padding(.vertical, 12)
-                                .frame(maxWidth: .infinity)
-                                .background(Color("primary"))
-                                .cornerRadius(8)
-                            }
-                            .padding(.horizontal)
+                        // Вміст вкладок
+                        if selectedTab == 0 {
+                            // Основна інформація
+                            basicInfoSection
+                        } else if selectedTab == 1 {
+                            // Кастомізація
+                            MenuItemCustomizationEditor(
+                                isCustomizable: $menuItemForm.isCustomizable,
+                                ingredients: $menuItemForm.ingredients,
+                                customizationOptions: $menuItemForm.customizationOptions
+                            )
+                        } else {
+                            // Зображення
+                            imageSection
                         }
                         
                         // Повідомлення про помилку
@@ -181,12 +113,12 @@ struct CustomModalMenuItemEditor: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(name.isEmpty || price.isEmpty ? Color.gray : Color("primary"))
+                        .background(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty ? Color.gray : Color("primary"))
                         .foregroundColor(.white)
                         .cornerRadius(12)
                         .padding(.horizontal)
                         .padding(.bottom, 20)
-                        .disabled(name.isEmpty || price.isEmpty || isSubmitting)
+                        .disabled(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty || isSubmitting)
                     }
                     .padding(.vertical)
                 }
@@ -222,6 +154,112 @@ struct CustomModalMenuItemEditor: View {
         )
     }
     
+    // MARK: - Компоненти інтерфейсу
+    
+    // Секція основної інформації
+    private var basicInfoSection: some View {
+        VStack(spacing: 16) {
+            CustomTextField(
+                iconName: "cup.and.saucer",
+                placeholder: "Назва",
+                text: $menuItemForm.name
+            )
+            .padding(.horizontal)
+            
+            CustomTextField(
+                iconName: "hryvniasign.circle",
+                placeholder: "Ціна (₴)",
+                text: $menuItemForm.price,
+                keyboardType: .decimalPad
+            )
+            .padding(.horizontal)
+            
+            CustomTextField(
+                iconName: "text.alignleft",
+                placeholder: "Опис (необов'язково)",
+                text: $menuItemForm.description
+            )
+            .padding(.horizontal)
+            
+            // Перемикач доступності
+            HStack {
+                Text("Доступний для замовлення:")
+                    .foregroundColor(Color("primaryText"))
+                
+                Spacer()
+                
+                Toggle("", isOn: $menuItemForm.isAvailable)
+                    .labelsHidden()
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    // Секція зображення
+    private var imageSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Зображення пункту меню")
+                .font(.subheadline)
+                .foregroundColor(Color("secondaryText"))
+                .padding(.horizontal)
+            
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color("inputField"))
+                    .frame(height: 200)
+                
+                if let selectedImage = selectedImage {
+                    Image(uiImage: selectedImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 200)
+                        .cornerRadius(12)
+                } else if let imageUrl = menuItem.imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 200)
+                                .cornerRadius(12)
+                        case .failure(_), .empty:
+                            Image(systemName: "photo")
+                                .font(.system(size: 40))
+                                .foregroundColor(Color("secondaryText"))
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                } else {
+                    VStack {
+                        Image(systemName: "photo")
+                            .font(.system(size: 40))
+                            .foregroundColor(Color("secondaryText"))
+                        Text("Немає зображення")
+                            .foregroundColor(Color("secondaryText"))
+                    }
+                }
+            }
+            .padding(.horizontal)
+            
+            Button(action: { showImagePickerDialog = true }) {
+                HStack {
+                    Image(systemName: "photo.on.rectangle.angled")
+                    Text("Змінити зображення")
+                }
+                .foregroundColor(.white)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(Color("primary"))
+                .cornerRadius(8)
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    // MARK: - Логіка роботи
+    
     private func dismissModal() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
             offset = 1000
@@ -234,7 +272,7 @@ struct CustomModalMenuItemEditor: View {
     }
     
     private func updateMenuItem() {
-        guard let priceDecimal = Decimal(string: price.replacingOccurrences(of: ",", with: ".")) else {
+        guard let priceDecimal = Decimal(string: menuItemForm.price.replacingOccurrences(of: ",", with: ".")) else {
             viewModel.error = "Вкажіть коректну ціну"
             return
         }
@@ -244,19 +282,25 @@ struct CustomModalMenuItemEditor: View {
         Task {
             // Збираємо оновлення для пункту меню
             var updates: [String: Any] = [
-                "name": name,
+                "name": menuItemForm.name,
                 "price": priceDecimal,
-                "isAvailable": isAvailable
+                "isAvailable": menuItemForm.isAvailable
             ]
             
             // Додаємо опис, якщо він не порожній
-            if !description.isEmpty {
-                updates["description"] = description
+            if !menuItemForm.description.isEmpty {
+                updates["description"] = menuItemForm.description
+            } else if menuItem.description != nil {
+                updates["description"] = NSNull()
+            }
+            
+            // Обробка кастомізації
+            if menuItemForm.isCustomizable {
+                updates["ingredients"] = menuItemForm.ingredients
+                updates["customizationOptions"] = menuItemForm.customizationOptions
             } else {
-                // Якщо опис порожній, але був раніше - встановлюємо null
-                if menuItem.description != nil {
-                    updates["description"] = NSNull()
-                }
+                updates["ingredients"] = NSNull()
+                updates["customizationOptions"] = NSNull()
             }
             
             do {
@@ -307,11 +351,5 @@ struct CustomModalMenuItemEditor: View {
             
             isSubmitting = false
         }
-    }
-    
-    // Статичний метод для форматування ціни,
-    // щоб його можна було використати при ініціалізації
-    private static func formatPrice(_ price: Decimal) -> String {
-        return price.description.replacingOccurrences(of: ".", with: ",")
     }
 }
