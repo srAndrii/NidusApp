@@ -255,10 +255,6 @@ struct MenuItemRowView: View {
                     Label("Редагувати", systemImage: "pencil")
                 }
                 
-                Button(action: { showImagePickerDialog = true }) {
-                    Label("Додати зображення", systemImage: "photo.fill")
-                }
-                
                 Button(role: .destructive, action: {
                     onDelete(menuGroupId, menuItem.id)
                 }) {

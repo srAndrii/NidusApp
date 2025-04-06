@@ -42,13 +42,17 @@ class MenuItemsViewModel: ObservableObject {
     // MARK: - Адміністративні методи для роботи з пунктами меню
     
     /// Створення нового пункту меню
+   
+    private let DEFAULT_MENU_ITEM_URL = "https://res.cloudinary.com/dlbbjiuco/image/upload/v1741643259/nidus/defaults/menu-item.png"
+
+    // Оновити метод createMenuItem в MenuItemsViewModel.swift для використання дефолтного зображення
     @MainActor
     func createMenuItem(groupId: String, name: String, price: Decimal, description: String?, isAvailable: Bool) async throws -> MenuItem {
         isLoading = true
         error = nil
         
         do {
-            // Створюємо запит з необхідними даними
+            // Створення структури запиту з необхідними даними
             let createRequest = CreateMenuItemRequest(
                 name: name,
                 price: price,
@@ -62,14 +66,32 @@ class MenuItemsViewModel: ObservableObject {
             // Створюємо пункт меню через репозиторій
             let newItem = try await repository.createMenuItem(groupId: groupId, item: createRequest)
             
-            // Додаємо новий пункт до списку
-            menuItems.append(newItem)
-            
-            // Показуємо повідомлення про успіх
-            showSuccessMessage("Пункт меню \"\(name)\" успішно створено!")
-            
-            isLoading = false
-            return newItem
+            // Встановлюємо дефолтне зображення, якщо воно не було встановлено при створенні
+            if newItem.imageUrl == nil {
+                // Оновлюємо інформацію про пункт меню, додавши дефолтне зображення
+                let updates: [String: Any] = ["imageUrl": DEFAULT_MENU_ITEM_URL]
+                
+                // Оновлюємо пункт меню з дефолтним зображенням
+                let updatedItem = try await repository.updateMenuItem(groupId: groupId, itemId: newItem.id, updates: updates)
+                
+                // Додаємо оновлений пункт до списку
+                menuItems.append(updatedItem)
+                
+                // Показуємо повідомлення про успіх
+                showSuccessMessage("Пункт меню \"\(name)\" успішно створено!")
+                
+                isLoading = false
+                return updatedItem
+            } else {
+                // Додаємо новий пункт до списку
+                menuItems.append(newItem)
+                
+                // Показуємо повідомлення про успіх
+                showSuccessMessage("Пункт меню \"\(name)\" успішно створено!")
+                
+                isLoading = false
+                return newItem
+            }
         } catch let apiError as APIError {
             handleError(apiError)
             isLoading = false
