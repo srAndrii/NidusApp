@@ -12,89 +12,94 @@ struct CoffeeShopRow: View {
     let coffeeShop: CoffeeShop
     
     var body: some View {
-        VStack {
-            HStack(alignment: .center, spacing: 12) {
-                // Логотип (зображення або заглушка)
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color("inputField"))
-                        .frame(width: 70, height: 70)
-                    
-                    if let logoUrl = coffeeShop.logoUrl, let url = URL(string: logoUrl) {
-                        KFImage(url)
-                            .resizable()
-                            .scaledToFill()
+        NavigationLink(destination: CoffeeShopDetailView(coffeeShop: coffeeShop)) {
+            VStack {
+                HStack(alignment: .center, spacing: 12) {
+                    // Логотип (зображення або заглушка)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color("inputField"))
                             .frame(width: 70, height: 70)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    } else {
-                        Image(systemName: "cup.and.saucer.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(Color("primary"))
-                    }
-                }
-                
-                // Інформація про кав'ярню
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(coffeeShop.name)
-                        .font(.headline)
-                        .foregroundColor(Color("primaryText"))
-                    
-                    if let address = coffeeShop.address {
-                        Text(address)
-                            .font(.subheadline)
-                            .foregroundColor(Color("secondaryText"))
-                            .lineLimit(1)
+                        
+                        if let logoUrl = coffeeShop.logoUrl, let url = URL(string: logoUrl) {
+                            KFImage(url)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 70, height: 70)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        } else {
+                            Image(systemName: "cup.and.saucer.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(Color("primary"))
+                        }
                     }
                     
-                    HStack(spacing: 12) {
-                        // Відстань
-                        if let distance = coffeeShop.distance {
+                    // Інформація про кав'ярню
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(coffeeShop.name)
+                            .font(.headline)
+                            .foregroundColor(Color("primaryText"))
+                        
+                        if let address = coffeeShop.address {
+                            Text(address)
+                                .font(.subheadline)
+                                .foregroundColor(Color("secondaryText"))
+                                .lineLimit(1)
+                        }
+                        
+                        HStack(spacing: 12) {
+                            // Відстань
+                            if let distance = coffeeShop.distance {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "location.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(Color("primary"))
+                                    
+                                    Text(formatDistance(distance))
+                                        .font(.caption)
+                                        .foregroundColor(Color("secondaryText"))
+                                }
+                            }
+                            
+                            // Робочі години
                             HStack(spacing: 2) {
-                                Image(systemName: "location.fill")
+                                Image(systemName: "clock.fill")
                                     .font(.system(size: 12))
                                     .foregroundColor(Color("primary"))
                                 
-                                Text(formatDistance(distance))
+                                Text(getWorkingHours())
+                                    .font(.caption)
+                                    .foregroundColor(Color("secondaryText"))
+                            }
+                            
+                            // Статус (відкрито/закрито) - тепер використовуємо обчислювану властивість
+                            HStack(spacing: 2) {
+                                Circle()
+                                    .fill(coffeeShop.isOpen ? Color.green : Color.red)
+                                    .frame(width: 8, height: 8)
+                                
+                                Text(coffeeShop.isOpen ? "Відкрито" : "Закрито")
                                     .font(.caption)
                                     .foregroundColor(Color("secondaryText"))
                             }
                         }
-                        
-                        // Робочі години
-                        HStack(spacing: 2) {
-                            Image(systemName: "clock.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(Color("primary"))
-                            
-                            Text(getWorkingHours())
-                                .font(.caption)
-                                .foregroundColor(Color("secondaryText"))
-                        }
-                        
-                        // Статус (відкрито/закрито) - тепер використовуємо обчислювану властивість
-                        HStack(spacing: 2) {
-                            Circle()
-                                .fill(coffeeShop.isOpen ? Color.green : Color.red)
-                                .frame(width: 8, height: 8)
-                            
-                            Text(coffeeShop.isOpen ? "Відкрито" : "Закрито")
-                                .font(.caption)
-                                .foregroundColor(Color("secondaryText"))
-                        }
                     }
+                    
+                    Spacer()
+                    
+                    // Стрілка "вперед"
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(Color("secondaryText"))
+                        .font(.system(size: 14, weight: .semibold))
+                        .padding(.trailing, 4)
                 }
-                
-                Spacer()
-                
-                // Стрілка "вперед"
-                Image(systemName: "chevron.right")
-                    .foregroundColor(Color("secondaryText"))
-                    .font(.system(size: 14, weight: .semibold))
-                    .padding(.trailing, 4)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 12)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 12)
+            .background(Color("cardColor"))
+            .cornerRadius(12)
         }
+        .buttonStyle(PlainButtonStyle()) // Щоб прибрати стандартне підсвічування NavigationLink
     }
     
     // Форматування відстані
@@ -135,6 +140,6 @@ struct CoffeeShopRow_Previews: PreviewProvider {
         ))
         .previewLayout(.sizeThatFits)
         .padding()
-        .background(Color("cardColor"))
+        .background(Color("backgroundColor"))
     }
 }

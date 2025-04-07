@@ -258,6 +258,8 @@ struct HomeView: View {
     ]
 }
 
+// УВАГА: Видалено дублікати структур, які перенесені в CoffeeShopDetailView.swift
+
 struct HomeView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
