@@ -8,7 +8,7 @@ struct CoffeeShopDetailView: View {
     @StateObject private var viewModel = CoffeeShopDetailViewModel(coffeeShopRepository: DIContainer.shared.coffeeShopRepository)
     
     // Темний фон
-    private let backgroundColor = Color(hex: "#121212")
+    private let backgroundColor = Color("backgroundColor") // замість Color(hex:)
     
     var body: some View {
         ZStack {
@@ -25,6 +25,7 @@ struct CoffeeShopDetailView: View {
                     // Якщо ще завантажуються дані
                     if viewModel.isLoading {
                         ProgressView("Завантаження меню...")
+                            .font(.subheadline)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.top, 40)
                             .foregroundColor(Color("primaryText"))
@@ -58,6 +59,7 @@ struct CoffeeShopDetailView: View {
             ToolbarItem(placement: .principal) {
                 Text(coffeeShop.name)
                     .font(.headline)
+                    .fontWeight(.semibold)
                     .foregroundColor(Color("primaryText"))
             }
         }
@@ -114,7 +116,7 @@ struct StretchableHeaderView: View {
                 } else {
                     ZStack {
                         Rectangle()
-                            .fill(Color(hex: "#2D3748"))
+                            .fill(Color("cardColor").opacity(0.7))
                             .frame(width: geometry.size.width, height: headerHeight)
                             .offset(y: -scrollYOffset/2)
                         
@@ -137,7 +139,7 @@ struct StretchableHeaderView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             // Назва кав'ярні
                             Text(coffeeShop.name)
-                                .font(.title)
+                                .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                                 .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
@@ -146,6 +148,7 @@ struct StretchableHeaderView: View {
                             if let address = coffeeShop.address {
                                 Text(address)
                                     .font(.subheadline)
+                                    .fontWeight(.medium)
                                     .foregroundColor(.white)
                                     .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
                             }
@@ -170,12 +173,12 @@ struct StretchableHeaderView: View {
                                     if let todayHours = workingHours[weekdayString] {
                                         if !todayHours.isClosed {
                                             Text("\(todayHours.open) - \(todayHours.close)")
-                                                .font(.footnote)
+                                                .font(.callout)
                                                 .foregroundColor(.white)
                                                 .shadow(color: Color.black.opacity(0.3), radius: 2, x: 0, y: 1)
                                         } else {
                                             Text("Сьогодні вихідний")
-                                                .font(.footnote)
+                                                .font(.callout)
                                                 .foregroundColor(.white)
                                                 .shadow(color: Color.black.opacity(0.3), radius: 2, x: 0, y: 1)
                                         }
@@ -193,7 +196,7 @@ struct StretchableHeaderView: View {
                                         .shadow(color: Color.black.opacity(0.3), radius: 2, x: 0, y: 1)
                                     
                                     Text("Можливе попереднє замовлення")
-                                        .font(.footnote)
+                                        .font(.subheadline)
                                         .foregroundColor(.white.opacity(0.9))
                                         .shadow(color: Color.black.opacity(0.3), radius: 2, x: 0, y: 1)
                     
@@ -224,7 +227,7 @@ struct CategoryButton: View {
             VStack(spacing: 8) {
                 Text(title)
                     .font(.callout)
-                    .fontWeight(isSelected ? .bold : .regular)
+                    .fontWeight(isSelected ? .bold : .medium)
                     .foregroundColor(isSelected ? Color("primary") : Color("secondaryText"))
                 
                 // Індикатор вибраної категорії
@@ -258,7 +261,7 @@ struct StatusBadge: View {
             
             Text(isActive ? activeText : inactiveText)
                 .font(.caption)
-                .fontWeight(.medium)
+                .fontWeight(.semibold)
                 .foregroundColor(isActive ? activeColor : inactiveColor)
         }
         .padding(.horizontal, 8)
@@ -286,8 +289,6 @@ struct CustomCornerShape: Shape {
     }
 }
 
-
-
 // MARK: - Компонент для відображення групи меню
 struct MenuGroupView: View {
     let group: MenuGroup
@@ -309,6 +310,7 @@ struct MenuGroupView: View {
                 }) {
                     Text("Всі")
                         .font(.subheadline)
+                        .fontWeight(.medium)
                         .foregroundColor(Color("primary"))
                 }
             }
@@ -333,7 +335,7 @@ struct MenuGroupView: View {
                         // Показати заглушку, якщо немає пунктів меню
                         ZStack {
                             RoundedRectangle(cornerRadius: 23)
-                                .fill(Color(hex: "#1A1D24"))
+                                .fill(Color("cardColor"))
                                 .frame(width: 170, height: 250)
                             
                             VStack(spacing: 12) {
@@ -343,6 +345,7 @@ struct MenuGroupView: View {
                                 
                                 Text("Немає доступних пунктів")
                                     .font(.subheadline)
+                                    .fontWeight(.medium)
                                     .foregroundColor(Color("secondaryText"))
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal, 20)
@@ -358,14 +361,13 @@ struct MenuGroupView: View {
     }
 }
 
-// MARK: - Компонент для відображення картки товару
 struct MenuItemCard: View {
     let item: MenuItem
     
     // Використовуємо визначені кольори з проекту
     private var cardGradient: LinearGradient {
         return LinearGradient(
-            gradient: Gradient(colors: [Color.cardTop, Color.cardBottom]),
+            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
             startPoint: .top,
             endPoint: .bottomTrailing
         )
@@ -374,8 +376,8 @@ struct MenuItemCard: View {
     // Градієнт для кнопки додавання (оранжевий)
     private let addButtonGradient = LinearGradient(
         gradient: Gradient(colors: [
-            Color(hex: "#E67E22"),  // Світліший оранжевий
-            Color(hex: "#D35400")   // Темніший оранжевий
+            Color("primary").opacity(0.8),
+            Color("primary")
         ]),
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -398,7 +400,7 @@ struct MenuItemCard: View {
                     } else {
                         ZStack {
                             RoundedRectangle(cornerRadius: 20)
-                                .fill(Color(hex: "#2D3748"))
+                                .fill(Color("cardColor").opacity(0.7))
                                 .frame(width: 150, height: 150)
                             
                             Image(systemName: "cup.and.saucer.fill")
@@ -407,32 +409,32 @@ struct MenuItemCard: View {
                         }
                     }
                 }
-                .frame(height: 125)
                 
                 // Назва та опис у фіксованій рамці
                 VStack(alignment: .leading, spacing: 4) {
                     // Назва товару
                     Text(item.name)
-                        .font(.title3)
+                        .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundColor(Color.white)
-                        .padding(.top, 8)
                     
                     // Опис (якщо є) з фіксованою висотою
                     if let description = item.description, !description.isEmpty {
                         Text(description)
-                            .font(.subheadline)
+                            .font(.caption)
+                            .fontWeight(.regular)
                             .foregroundColor(Color.gray)
                             .lineLimit(1)
                             .truncationMode(.tail)
                     } else {
                         // Пустий текст для збереження висоти
                         Text("")
-                            .font(.subheadline)
+                            .font(.caption)
                             .foregroundColor(.clear)
                     }
                 }
                 .frame(height: 55) // Фіксована висота для блоку назви та опису
+                .padding(.top, 5) // Додали паддінг між зображенням і текстом
                 
                 Spacer()
                 
@@ -440,7 +442,7 @@ struct MenuItemCard: View {
                 HStack {
                     // Ціна
                     Text("₴ \(formatPrice(item.price))")
-                        .font(.title3)
+                        .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(Color("primary"))
                     
@@ -462,11 +464,13 @@ struct MenuItemCard: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
-                .padding(.bottom, 8)
+                // Змінено нижній паддінг для балансу
+                .padding(.bottom, 6) // Було 8
             }
-            .padding(10)
+            // Однаковий паддінг зі всіх сторін
+            .padding(5)
             .frame(width: 135, height: 255) // Фіксована висота всієї карточки
-            .background(cardGradient) // Використовуємо ваш градієнт
+            .background(cardGradient) // Використовуємо градієнт
             .cornerRadius(25)
             .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
             // Якщо товар недоступний, робимо його напівпрозорим
@@ -476,7 +480,7 @@ struct MenuItemCard: View {
                     if !item.isAvailable {
                         Text("Недоступно")
                             .font(.caption)
-                            .fontWeight(.semibold)
+                            .fontWeight(.bold)
                             .foregroundColor(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -500,37 +504,6 @@ struct MenuItemCard: View {
     }
 }
 
-
-
-// MARK: - Допоміжні розширення
-// Розширення для створення Color з HEX
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (1, 1, 1, 0)
-        }
-        
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
-    }
-}
-
 // MARK: - Preview Provider з MockViewModel
 struct CoffeeShopDetailView_Previews: PreviewProvider {
     static var previews: some View {
@@ -545,7 +518,7 @@ struct CoffeeShopDetailView_Previews: PreviewProvider {
         let coffeeShop: CoffeeShop
         @StateObject private var viewModel = MockViewModel()
         
-        private let backgroundColor = Color(hex: "#121212")
+        private let backgroundColor = Color("backgroundColor")
         
         var body: some View {
             ZStack {
@@ -579,6 +552,7 @@ struct CoffeeShopDetailView_Previews: PreviewProvider {
                 ToolbarItem(placement: .principal) {
                     Text(coffeeShop.name)
                         .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(Color("primaryText"))
                 }
             }
