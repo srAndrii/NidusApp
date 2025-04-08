@@ -8,13 +8,12 @@
 import SwiftUI
 
 /// Компонент для відображення кнопки категорії в горизонтальному списку
+
 struct CategoryButton: View {
-    // MARK: - Властивості
     let title: String
     let isSelected: Bool
     let action: () -> Void
     
-    // MARK: - View
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
@@ -29,15 +28,18 @@ struct CategoryButton: View {
                     Circle()
                         .fill(Color("primary"))
                         .frame(width: 6, height: 6)
+                        .transition(.scale)
                 } else {
                     Circle()
                         .fill(Color.clear)
                         .frame(width: 6, height: 6)
                 }
             }
+            .padding(.horizontal, 8)
         }
     }
 }
+
 
 // MARK: - Preview
 struct CategoryButton_Previews: PreviewProvider {

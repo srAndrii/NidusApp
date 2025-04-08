@@ -1,12 +1,12 @@
 import SwiftUI
 import Kingfisher
 
-// MARK: - Головний View для екрану кав'ярні
 struct CoffeeShopDetailView: View {
     // MARK: - Властивості
     let coffeeShop: CoffeeShop
     @StateObject private var viewModel = CoffeeShopDetailViewModel(coffeeShopRepository: DIContainer.shared.coffeeShopRepository)
     @Environment(\.presentationMode) var presentationMode
+    @State private var selectedCategory: String? = nil
     
     // MARK: - Константи
     private let backgroundColor = Color("backgroundColor")
@@ -19,23 +19,38 @@ struct CoffeeShopDetailView: View {
                 .ignoresSafeArea()
             
             // Головний контент
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    // Розтягувана шапка з зображенням і накладеною інформацією
-                    StretchableHeaderView(coffeeShop: coffeeShop)
-                        .frame(height: 320)
-                    
-                    // Контент на основі стану завантаження
-                    contentView
+            ScrollViewReader { proxy in // Додаємо ScrollViewReader
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        // Розтягувана шапка з зображенням і накладеною інформацією
+                        StretchableHeaderView(coffeeShop: coffeeShop)
+                            .frame(height: 320)
+                            .id("top") // Ідентифікатор для прокрутки до верху
+                        
+                        // Контент на основі стану завантаження
+                        if viewModel.isLoading {
+                            loadingView
+                        } else if viewModel.menuGroups.isEmpty {
+                            emptyStateView
+                        } else {
+                            // Фільтр категорій - тепер із прокруткою
+                            categoryFilterView(proxy: proxy)
+                            
+                            // Меню кав'ярні - групи меню з ідентифікаторами
+                            ForEach(viewModel.menuGroups) { group in
+                                MenuGroupView(group: group)
+                                    .id(group.id) // Важливо: додаємо ідентифікатор для прокрутки
+                            }
+                        }
+                    }
                 }
             }
             
             // Кнопка "Назад"
             BackButtonView()
-                .padding(.top, 50) // Підняли кнопку, щоб не перекривалася статус-баром
+                .padding(.top, 50)
         }
         .ignoresSafeArea(edges: .top)
-        // Повністю ховаємо навігаційну панель
         .navigationBarHidden(true)
         .onAppear {
             viewModel.loadMenuGroups(coffeeShopId: coffeeShop.id)
@@ -44,17 +59,42 @@ struct CoffeeShopDetailView: View {
     
     // MARK: - Допоміжні компоненти
     
-    /// Відображає різний контент в залежності від стану завантаження
-    private var contentView: some View {
-        Group {
-            if viewModel.isLoading {
-                loadingView
-            } else if viewModel.menuGroups.isEmpty {
-                emptyStateView
-            } else {
-                menuContentView
+    // Мофікований фільтр категорій із прокруткою
+    private func categoryFilterView(proxy: ScrollViewProxy) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                // Кнопка "Всі"
+                CategoryButton(
+                    title: "Всі",
+                    isSelected: selectedCategory == nil,
+                    action: {
+                        withAnimation {
+                            selectedCategory = nil
+                            // Скролимо до початку
+                            proxy.scrollTo("top", anchor: .top)
+                        }
+                    }
+                )
+                
+                // Кнопки категорій з функцією прокрутки
+                ForEach(viewModel.menuGroups) { group in
+                    CategoryButton(
+                        title: group.name,
+                        isSelected: selectedCategory == group.id,
+                        action: {
+                            withAnimation(.spring()) {
+                                selectedCategory = group.id
+                                // Прокручуємо до відповідної групи
+                                proxy.scrollTo(group.id, anchor: .top)
+                            }
+                        }
+                    )
+                }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
+        .background(Color("backgroundColor"))
     }
     
     /// Показує індикатор завантаження
@@ -74,53 +114,5 @@ struct CoffeeShopDetailView: View {
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.top, 40)
     }
-    
-    /// Відображає меню кав'ярні
-    private var menuContentView: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Фільтр категорій
-            categoryFilterView
-            
-            // Меню кав'ярні - групи меню
-            ForEach(viewModel.menuGroups) { group in
-                MenuGroupView(group: group)
-            }
-        }
-        .padding(.top, 5)
-    }
-    
-    // Категорії для фільтрації
-    private var categoryFilterView: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                // Кнопка "Всі"
-                CategoryButton(
-                    title: "Всі",
-                    isSelected: true,
-                    action: { /* Фільтрація */ }
-                )
-                
-                // Кнопки категорій на основі груп меню
-                ForEach(viewModel.menuGroups) { group in
-                    CategoryButton(
-                        title: group.name,
-                        isSelected: false,
-                        action: { /* Фільтрація для групи */ }
-                    )
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-    }
 }
 
-// MARK: - Preview
-struct CoffeeShopDetailView_Previews: PreviewProvider {
-    static var previews: some View {
-        NavigationView {
-            CoffeeShopDetailView(coffeeShop: MockData.singleCoffeeShop)
-                .environmentObject(AuthenticationManager())
-                .preferredColorScheme(.dark)
-        }
-    }
-}
