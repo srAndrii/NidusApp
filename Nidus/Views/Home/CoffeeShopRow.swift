@@ -11,21 +11,40 @@ import Kingfisher
 struct CoffeeShopRow: View {
     let coffeeShop: CoffeeShop
     
+    // Додаємо градієнт як обчислювану властивість
+    private var cardGradient: LinearGradient {
+        return LinearGradient(
+            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
+            startPoint: .top,
+            endPoint: .bottomTrailing
+        )
+    }
+    
     var body: some View {
-        NavigationLink(destination: CoffeeShopDetailView(coffeeShop: coffeeShop)) {
+        // Використовуємо ZStack для створення структури з NavigationLink
+        ZStack {
+            // Прихований NavigationLink, який займає весь простір
+            NavigationLink(destination: CoffeeShopDetailView(coffeeShop: coffeeShop)) {
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .opacity(0) // Робимо посилання невидимим
+            
+            // Наша власна карточка (без NavigationLink)
             VStack {
                 HStack(alignment: .center, spacing: 12) {
                     // Логотип (зображення або заглушка)
                     ZStack {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color("inputField"))
-                            .frame(width: 70, height: 70)
+                            .frame(width: 80, height: 80)
                         
                         if let logoUrl = coffeeShop.logoUrl, let url = URL(string: logoUrl) {
                             KFImage(url)
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: 70, height: 70)
+                                .frame(width: 80, height: 80)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         } else {
                             Image(systemName: "cup.and.saucer.fill")
@@ -72,7 +91,7 @@ struct CoffeeShopRow: View {
                                     .foregroundColor(Color("secondaryText"))
                             }
                             
-                            // Статус (відкрито/закрито) - тепер використовуємо обчислювану властивість
+                            // Статус (відкрито/закрито)
                             HStack(spacing: 2) {
                                 Circle()
                                     .fill(coffeeShop.isOpen ? Color.green : Color.red)
@@ -87,19 +106,26 @@ struct CoffeeShopRow: View {
                     
                     Spacer()
                     
-                    // Стрілка "вперед"
+                    // Наша власна стрілка всередині карточки
                     Image(systemName: "chevron.right")
                         .foregroundColor(Color("secondaryText"))
                         .font(.system(size: 14, weight: .semibold))
-                        .padding(.trailing, 4)
+                        .padding(.trailing, 8)
                 }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .padding(.horizontal, 5)
             }
-            .background(Color("cardColor"))
-            .cornerRadius(12)
+            .background(cardGradient)
+            .cornerRadius(17)
         }
-        .buttonStyle(PlainButtonStyle()) // Щоб прибрати стандартне підсвічування NavigationLink
+        // Важливо: прибрати всі стилі кнопки та рядка, які можуть додавати зовнішню стрілку
+        .buttonStyle(PlainButtonStyle())
+        // Додаткові модифікатори, які допомагають прибрати зовнішні стрілки
+        .listRowInsets(EdgeInsets())
+        // Додаємо горизонтальні відступи до країв екрану
+        .padding(.horizontal, 6)
+        // Додаємо вертикальні відступи між карточками
+        .padding(.vertical, 6)
     }
     
     // Форматування відстані
