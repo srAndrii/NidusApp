@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Компонент для відображення групи меню
+/// Оновлений компонент для відображення групи меню з навігацією до деталей пунктів меню
 struct MenuGroupView: View {
     // MARK: - Властивості
     let group: MenuGroup
@@ -70,7 +70,8 @@ struct MenuGroupView: View {
             HStack(spacing: 12) {
                 if let menuItems = group.menuItems, !menuItems.isEmpty {
                     ForEach(menuItems) { item in
-                        MenuItemCard(item: item)
+                        // Використовуємо оновлену картку з навігацією
+                        MenuItemCardWithNavigation(item: item)
                     }
                 } else {
                     emptyStateView
