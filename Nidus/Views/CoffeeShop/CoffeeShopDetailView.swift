@@ -149,7 +149,7 @@ struct StretchableHeaderView: View {
                                 Text(address)
                                     .font(.subheadline)
                                     .fontWeight(.medium)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color("secondaryText"))
                                     .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
                             }
                             
@@ -433,7 +433,7 @@ struct MenuItemCard: View {
                             .foregroundColor(.clear)
                     }
                 }
-                .frame(height: 55) // Фіксована висота для блоку назви та опису
+                .frame(height: 45) // Фіксована висота для блоку назви та опису
                 .padding(.top, 5) // Додали паддінг між зображенням і текстом
                 
                 Spacer()
@@ -469,7 +469,7 @@ struct MenuItemCard: View {
             }
             // Однаковий паддінг зі всіх сторін
             .padding(5)
-            .frame(width: 135, height: 255) // Фіксована висота всієї карточки
+            .frame(width: 135, height: 245) // Фіксована висота всієї карточки
             .background(cardGradient) // Використовуємо градієнт
             .cornerRadius(25)
             .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
