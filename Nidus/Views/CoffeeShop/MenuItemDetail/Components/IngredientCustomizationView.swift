@@ -150,50 +150,50 @@ struct IngredientCustomizationView: View {
 }
 
 // MARK: - Preview
-struct IngredientCustomizationView_Previews: PreviewProvider {
-    static var previews: some View {
-        VStack(spacing: 16) {
-            // Приклад зі штуками
-            IngredientCustomizationView(
-                ingredient: Ingredient(
-                    name: "Еспресо шоти",
-                    amount: 1,
-                    unit: "шт.",
-                    isCustomizable: true,
-                    minAmount: 1,
-                    maxAmount: 3
-                ),
-                value: .constant(1)
-            )
-            
-            // Приклад з грамами
-            IngredientCustomizationView(
-                ingredient: Ingredient(
-                    name: "Цукор",
-                    amount: 10,
-                    unit: "г",
-                    isCustomizable: true,
-                    minAmount: 0,
-                    maxAmount: 20
-                ),
-                value: .constant(10)
-            )
-            
-            // Приклад з мілілітрами
-            IngredientCustomizationView(
-                ingredient: Ingredient(
-                    name: "Молоко",
-                    amount: 150,
-                    unit: "мл",
-                    isCustomizable: true,
-                    minAmount: 100,
-                    maxAmount: 200
-                ),
-                value: .constant(150)
-            )
-        }
-        .padding()
-        .background(Color("backgroundColor"))
-        .preferredColorScheme(.dark)
-    }
-}
+//struct IngredientCustomizationView_Previews: PreviewProvider {
+//    static var previews: some View {
+//        VStack(spacing: 16) {
+//            // Приклад зі штуками
+//            IngredientCustomizationView(
+//                ingredient: Ingredient(
+//                    name: "Еспресо шоти",
+//                    amount: 1,
+//                    unit: "шт.",
+//                    isCustomizable: true,
+//                    minAmount: 1,
+//                    maxAmount: 3
+//                ),
+//                value: .constant(1)
+//            )
+//            
+//            // Приклад з грамами
+//            IngredientCustomizationView(
+//                ingredient: Ingredient(
+//                    name: "Цукор",
+//                    amount: 10,
+//                    unit: "г",
+//                    isCustomizable: true,
+//                    minAmount: 0,
+//                    maxAmount: 20
+//                ),
+//                value: .constant(10)
+//            )
+//            
+//            // Приклад з мілілітрами
+//            IngredientCustomizationView(
+//                ingredient: Ingredient(
+//                    name: "Молоко",
+//                    amount: 150,
+//                    unit: "мл",
+//                    isCustomizable: true,
+//                    minAmount: 100,
+//                    maxAmount: 200
+//                ),
+//                value: .constant(150)
+//            )
+//        }
+//        .padding()
+//        .background(Color("backgroundColor"))
+//        .preferredColorScheme(.dark)
+//    }
+//}

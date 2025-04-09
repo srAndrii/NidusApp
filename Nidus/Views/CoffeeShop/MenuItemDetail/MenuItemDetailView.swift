@@ -374,9 +374,9 @@ struct MenuItemDetailView_Previews: PreviewProvider {
             isAvailable: true,
             menuGroupId: "group-1",
             ingredients: [
-                Ingredient(name: "Кава", amount: 7, unit: "г", isCustomizable: true, minAmount: 5, maxAmount: 12),
-                Ingredient(name: "Вода", amount: 150, unit: "мл", isCustomizable: true, minAmount: 100, maxAmount: 200),
-                Ingredient(name: "Цукор", amount: 10, unit: "г", isCustomizable: true, minAmount: 0, maxAmount: 20)
+//                Ingredient(name: "Кава", amount: 7, unit: "г", isCustomizable: true, minAmount: 5, maxAmount: 12),
+//                Ingredient(name: "Вода", amount: 150, unit: "мл", isCustomizable: true, minAmount: 100, maxAmount: 200),
+//                Ingredient(name: "Цукор", amount: 10, unit: "г", isCustomizable: true, minAmount: 0, maxAmount: 20)
             ],
             customizationOptions: [
                 CustomizationOption(

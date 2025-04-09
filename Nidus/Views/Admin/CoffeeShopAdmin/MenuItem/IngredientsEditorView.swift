@@ -1,10 +1,3 @@
-//
-//  IngredientsEditorView.swift
-//  Nidus
-//
-//  Created by Andrii Liakhovych
-//
-
 import SwiftUI
 
 struct IngredientsEditorView: View {
@@ -64,7 +57,9 @@ struct IngredientsEditorView: View {
                             unit: newIngredient.unit,
                             isCustomizable: newIngredient.isCustomizable,
                             minAmount: newIngredient.isCustomizable ? newIngredient.minAmount : nil,
-                            maxAmount: newIngredient.isCustomizable ? newIngredient.maxAmount : nil
+                            maxAmount: newIngredient.isCustomizable ? newIngredient.maxAmount : nil,
+                            freeAmount: newIngredient.isCustomizable ? newIngredient.freeAmount : nil,
+                            pricePerUnit: newIngredient.isCustomizable ? newIngredient.pricePerUnit : nil
                         )
                         self.editingIndex = nil
                     } else {
@@ -75,7 +70,9 @@ struct IngredientsEditorView: View {
                             unit: newIngredient.unit,
                             isCustomizable: newIngredient.isCustomizable,
                             minAmount: newIngredient.isCustomizable ? newIngredient.minAmount : nil,
-                            maxAmount: newIngredient.isCustomizable ? newIngredient.maxAmount : nil
+                            maxAmount: newIngredient.isCustomizable ? newIngredient.maxAmount : nil,
+                            freeAmount: newIngredient.isCustomizable ? newIngredient.freeAmount : nil,
+                            pricePerUnit: newIngredient.isCustomizable ? newIngredient.pricePerUnit : nil
                         ))
                     }
                     showingAddIngredientSheet = false
@@ -110,13 +107,9 @@ struct IngredientsEditorView: View {
                     }
                 }
                 
-                // Якщо інгредієнт можна кастомізувати, показуємо його межі
+                // Якщо інгредієнт можна кастомізувати, показуємо його межі та ціни
                 if ingredient.isCustomizable {
                     HStack {
-                        Text("Межі: ")
-                            .font(.caption)
-                            .foregroundColor(Color("secondaryText"))
-                        
                         if let minAmount = ingredient.minAmount {
                             Text("мін. \(String(format: "%.1f", minAmount))")
                                 .font(.caption)
@@ -133,6 +126,23 @@ struct IngredientsEditorView: View {
                             Text("макс. \(String(format: "%.1f", maxAmount))")
                                 .font(.caption)
                                 .foregroundColor(Color("secondaryText"))
+                        }
+                    }
+                    
+                    // Додано: інформація про безкоштовну кількість та ціну
+                    HStack {
+                        if let freeAmount = ingredient.freeAmount {
+                            Text("Безкоштовно: \(String(format: "%.1f", freeAmount)) \(ingredient.unit)")
+                                .font(.caption)
+                                .foregroundColor(Color("primary"))
+                        }
+                        
+                        Spacer()
+                        
+                        if let pricePerUnit = ingredient.pricePerUnit, pricePerUnit > 0 {
+                            Text("+\(pricePerUnit) ₴/\(ingredient.unit)")
+                                .font(.caption)
+                                .foregroundColor(Color("primary"))
                         }
                     }
                 }
@@ -166,7 +176,7 @@ struct IngredientsEditorView: View {
     }
 }
 
-// Допоміжна модель для форми інгредієнта
+// Оновлена модель форми інгредієнта
 struct IngredientFormModel {
     var name: String = ""
     var amount: Double = 1.0
@@ -174,6 +184,8 @@ struct IngredientFormModel {
     var isCustomizable: Bool = false
     var minAmount: Double? = nil
     var maxAmount: Double? = nil
+    var freeAmount: Double? = nil // Додано: безкоштовна кількість
+    var pricePerUnit: Decimal? = nil // Додано: ціна за одиницю
     
     // Ініціалізатор для створення форми з існуючого інгредієнта
     init(from ingredient: Ingredient? = nil) {
@@ -184,11 +196,13 @@ struct IngredientFormModel {
             isCustomizable = ingredient.isCustomizable
             minAmount = ingredient.minAmount
             maxAmount = ingredient.maxAmount
+            freeAmount = ingredient.freeAmount // Додано
+            pricePerUnit = ingredient.pricePerUnit // Додано
         }
     }
 }
 
-// Форма для додавання/редагування інгредієнта
+// Оновлена форма для додавання/редагування інгредієнта
 struct IngredientFormView: View {
     @Environment(\.presentationMode) var presentationMode
     @Binding var ingredient: IngredientFormModel
@@ -241,6 +255,70 @@ struct IngredientFormView: View {
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 80)
                         }
+                        
+                        // Додано: поле для безкоштовної кількості
+                        HStack {
+                            Text("Безкоштовна кількість:")
+                            Spacer()
+                            TextField("", value: $ingredient.freeAmount, formatter: NumberFormatter())
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 80)
+                        }
+                        
+                        // Додано: поле для ціни за одиницю
+                        HStack {
+                            Text("Ціна за додаткову одиницю:")
+                            Spacer()
+                            
+                            // Поле для введення десяткового числа
+                            let binding = Binding<String>(
+                                get: {
+                                    if let price = ingredient.pricePerUnit {
+                                        return "\(NSDecimalNumber(decimal: price))"
+                                    }
+                                    return ""
+                                },
+                                set: {
+                                    if let value = Decimal(string: $0.replacingOccurrences(of: ",", with: ".")) {
+                                        ingredient.pricePerUnit = value
+                                    } else {
+                                        ingredient.pricePerUnit = nil
+                                    }
+                                }
+                            )
+                            
+                            TextField("0", text: binding)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 80)
+                            
+                            Text("₴")
+                                .foregroundColor(Color("secondaryText"))
+                        }
+                    }
+                }
+                
+                // Додано: секція з інформацією про безкоштовні кількості
+                if ingredient.isCustomizable {
+                    Section(header: Text("Інформація про ціноутворення")) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Безкоштовні кількості:")
+                                .font(.subheadline)
+                            
+                            Text("• Якщо клієнт вибирає кількість не більше безкоштовної, додаткова плата не стягується")
+                                .font(.caption)
+                                .foregroundColor(Color("secondaryText"))
+                            
+                            Text("• Якщо клієнт вибирає більшу кількість, оплачується лише різниця")
+                                .font(.caption)
+                                .foregroundColor(Color("secondaryText"))
+                            
+                            Text("• Якщо ціна за одиницю не вказана, всі кількості будуть безкоштовними")
+                                .font(.caption)
+                                .foregroundColor(Color("secondaryText"))
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
                 
@@ -263,18 +341,5 @@ struct IngredientFormView: View {
                 presentationMode.wrappedValue.dismiss()
             })
         }
-    }
-}
-
-struct IngredientsEditorView_Previews: PreviewProvider {
-    static var previews: some View {
-        IngredientsEditorView(ingredients: .constant([
-            Ingredient(name: "Espresso", amount: 1.0, unit: "шт.", isCustomizable: true, minAmount: 1, maxAmount: 3),
-            Ingredient(name: "Молоко", amount: 150.0, unit: "мл", isCustomizable: false, minAmount: nil, maxAmount: nil)
-        ]))
-        .padding()
-        .previewLayout(.sizeThatFits)
-        .background(Color("backgroundColor"))
-        .preferredColorScheme(.dark)
     }
 }

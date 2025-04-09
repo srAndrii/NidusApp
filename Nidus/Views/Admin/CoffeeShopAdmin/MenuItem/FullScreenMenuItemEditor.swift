@@ -1,9 +1,3 @@
-//
-//  FullScreenMenuItemEditor.swift
-//  Nidus
-//
-//  Created by Andrii Liakhovych on 4/5/25.
-//
 import SwiftUI
 
 struct FullScreenMenuItemEditor: View {
@@ -119,9 +113,8 @@ struct FullScreenMenuItemEditor: View {
         }
     }
     
-    // MARK: - Секції інтерфейсу (аналогічно з вашого модального редактора)
+    // MARK: - Секції інтерфейсу
     var basicInfoSection: some View {
-        // Код секції основної інформації (скопіюйте з вашого модального редактора)
         VStack(spacing: 16) {
             CustomTextField(
                 iconName: "cup.and.saucer",
@@ -160,7 +153,6 @@ struct FullScreenMenuItemEditor: View {
     }
     
     var imageSection: some View {
-        // Код секції зображення (скопіюйте з вашого модального редактора)
         VStack(alignment: .leading, spacing: 8) {
             Text("Зображення пункту меню")
                 .font(.subheadline)

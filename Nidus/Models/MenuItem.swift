@@ -133,6 +133,8 @@ struct Ingredient: Codable, Hashable {
     let isCustomizable: Bool
     let minAmount: Double?
     let maxAmount: Double?
+    let freeAmount: Double? // Додано: безкоштовна кількість інгредієнта
+    let pricePerUnit: Decimal? // Додано: ціна за одиницю понад безкоштовну кількість
     
     // Потрібно для Hashable
     func hash(into hasher: inout Hasher) {

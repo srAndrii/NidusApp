@@ -1,9 +1,3 @@
-//
-//  CustomModalMenuItemEditor.swift
-//  Nidus
-//
-//  Updated by Andrii Liakhovych
-//
 import SwiftUI
 
 struct CustomModalMenuItemEditor: View {
@@ -39,7 +33,6 @@ struct CustomModalMenuItemEditor: View {
     }
     
     var body: some View {
-        // Ваш поточний код без змін
         ZStack {
             // Напівпрозорий фон
             Color.black.opacity(0.5)
@@ -160,7 +153,6 @@ struct CustomModalMenuItemEditor: View {
     
     // MARK: - Компоненти інтерфейсу
     
-    // Ваш поточний код basicInfoSection без змін
     private var basicInfoSection: some View {
         VStack(spacing: 16) {
             CustomTextField(
@@ -199,7 +191,6 @@ struct CustomModalMenuItemEditor: View {
         }
     }
     
-    // Ваш поточний код imageSection без змін
     private var imageSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Зображення пункту меню")
@@ -275,7 +266,6 @@ struct CustomModalMenuItemEditor: View {
         }
     }
     
-    // Змінений метод updateMenuItem
     private func updateMenuItem() {
         guard let priceDecimal = Decimal(string: menuItemForm.price.replacingOccurrences(of: ",", with: ".")) else {
             viewModel.error = "Вкажіть коректну ціну"

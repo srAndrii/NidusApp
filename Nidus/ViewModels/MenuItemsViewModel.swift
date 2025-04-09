@@ -135,6 +135,15 @@ class MenuItemsViewModel: ObservableObject {
                     dict["maxAmount"] = maxAmount
                 }
                 
+                // Додані нові поля freeAmount і pricePerUnit
+                if let freeAmount = ingredient.freeAmount {
+                    dict["freeAmount"] = freeAmount
+                }
+                
+                if let pricePerUnit = ingredient.pricePerUnit {
+                    dict["pricePerUnit"] = pricePerUnit
+                }
+                
                 return dict
             }
             

@@ -70,23 +70,29 @@ struct MenuItemCustomizationEditor: View {
                 .padding(.horizontal)
             }
             
-            // Інформаційний блок
+            // Оновлений інформаційний блок з поясненнями про нову систему
             if isCustomizable {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Рекомендації для кастомізації:")
+                    Text("Система ціноутворення кастомізацій:")
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(Color("primaryText"))
                     
-                    Text("• Інгредієнти - складові продукту, кількість яких можна змінювати (напр. цукор, кількість еспресо)")
+                    // Інформація про інгредієнти
+                    Text("• Інгредієнти можуть мати безкоштовну кількість та ціну за додаткові одиниці")
                         .font(.caption)
                         .foregroundColor(Color("secondaryText"))
                     
-                    Text("• Опції кастомізації - групи взаємовиключних варіантів, які можна додати (напр. тип молока, вибір сиропу)")
+                    Text("• Клієнт оплачує лише ту кількість, яка перевищує безкоштовний ліміт")
                         .font(.caption)
                         .foregroundColor(Color("secondaryText"))
                     
-                    Text("• Для опцій можна встановити додаткову ціну за вибір певного варіанту")
+                    // Інформація про опції
+                    Text("• Опції кастомізації можуть мати додаткову ціну для певних варіантів")
+                        .font(.caption)
+                        .foregroundColor(Color("secondaryText"))
+                    
+                    Text("• Стандартний вибір зазвичай безкоштовний, альтернативні - з доплатою")
                         .font(.caption)
                         .foregroundColor(Color("secondaryText"))
                 }
@@ -111,6 +117,8 @@ extension MenuItemCustomizationEditor {
         self._customizationOptions = menuItem.customizationOptions
     }
 }
+
+// Розширена модель форми меню-айтема для підтримки кастомізації залишається без змін
 
 // Розширена модель форми меню-айтема для підтримки кастомізації
 struct MenuItemFormModel {
@@ -167,8 +175,8 @@ struct MenuItemCustomizationEditor_Previews: PreviewProvider {
             MenuItemCustomizationEditor(
                 isCustomizable: .constant(true),
                 ingredients: .constant([
-                    Ingredient(name: "Еспресо", amount: 1, unit: "шт.", isCustomizable: true, minAmount: 1, maxAmount: 3),
-                    Ingredient(name: "Молоко", amount: 150, unit: "мл", isCustomizable: false, minAmount: nil, maxAmount: nil)
+//                    Ingredient(name: "Еспресо", amount: 1, unit: "шт.", isCustomizable: true, minAmount: 1, maxAmount: 3),
+//                    Ingredient(name: "Молоко", amount: 150, unit: "мл", isCustomizable: false, minAmount: nil, maxAmount: nil)
                 ]),
                 customizationOptions: .constant([
                     CustomizationOption(
