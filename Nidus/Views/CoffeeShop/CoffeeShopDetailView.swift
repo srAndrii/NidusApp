@@ -19,31 +19,18 @@ struct CoffeeShopDetailView: View {
                 .ignoresSafeArea()
             
             // Головний контент
-            ScrollViewReader { proxy in // Додаємо ScrollViewReader
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        // Розтягувана шапка з зображенням і накладеною інформацією
-                        StretchableHeaderView(coffeeShop: coffeeShop)
-                            .frame(height: 320)
-                            .id("top") // Ідентифікатор для прокрутки до верху
-                        
-                        // Контент на основі стану завантаження
-                        if viewModel.isLoading {
-                            loadingView
-                        } else if viewModel.menuGroups.isEmpty {
-                            emptyStateView
-                        } else {
-                            // Фільтр категорій - тепер із прокруткою
-                            categoryFilterView(proxy: proxy)
-                            
-                            // Меню кав'ярні - групи меню з ідентифікаторами
-                            ForEach(viewModel.menuGroups) { group in
-                                MenuGroupView(group: group)
-                                    .id(group.id) // Важливо: додаємо ідентифікатор для прокрутки
-                            }
+            if #available(iOS 16.0, *) {
+                // Використовуємо новий підхід до навігації для iOS 16+
+                NavigationStack {
+                    contentView
+                        .navigationDestination(for: MenuItem.self) { item in
+                            MenuItemDetailView(menuItem: item)
                         }
-                    }
                 }
+                .navigationBarHidden(true)
+            } else {
+                // Використовуємо старий підхід для iOS 15 і раніше
+                contentView
             }
             
             // Кнопка "Назад"
@@ -54,6 +41,36 @@ struct CoffeeShopDetailView: View {
         .navigationBarHidden(true)
         .onAppear {
             viewModel.loadMenuGroups(coffeeShopId: coffeeShop.id)
+        }
+    }
+    
+    // MARK: - Головний контент
+    private var contentView: some View {
+        ScrollViewReader { proxy in // Додаємо ScrollViewReader
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // Розтягувана шапка з зображенням і накладеною інформацією
+                    StretchableHeaderView(coffeeShop: coffeeShop)
+                        .frame(height: 320)
+                        .id("top") // Ідентифікатор для прокрутки до верху
+                    
+                    // Контент на основі стану завантаження
+                    if viewModel.isLoading {
+                        loadingView
+                    } else if viewModel.menuGroups.isEmpty {
+                        emptyStateView
+                    } else {
+                        // Фільтр категорій - тепер із прокруткою
+                        categoryFilterView(proxy: proxy)
+                        
+                        // Меню кав'ярні - групи меню з ідентифікаторами
+                        ForEach(viewModel.menuGroups) { group in
+                            MenuGroupView(group: group)
+                                .id(group.id) // Важливо: додаємо ідентифікатор для прокрутки
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -115,4 +132,3 @@ struct CoffeeShopDetailView: View {
             .padding(.top, 40)
     }
 }
-

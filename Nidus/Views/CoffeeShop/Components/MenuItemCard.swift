@@ -9,7 +9,7 @@ import SwiftUI
 import Kingfisher
 
 /// Оновлена картка пункту меню з навігацією до деталей
-struct MenuItemCardWithNavigation: View {
+struct MenuItemCard: View {
     // MARK: - Властивості
     let item: MenuItem
     @State private var navigateToDetails = false
@@ -40,73 +40,146 @@ struct MenuItemCardWithNavigation: View {
     // MARK: - View
     var body: some View {
         ZStack {
-            // Навігаційне посилання (приховане)
-            NavigationLink(
-                destination: MenuItemDetailView(menuItem: item),
-                isActive: $navigateToDetails
-            ) {
-                EmptyView()
-            }
-            .hidden()
-            
-            // Вміст картки
-            Button(action: {
-                navigateToDetails = true
-            }) {
-                VStack(alignment: .leading, spacing: 0) {
-                    // Зображення товару
-                    imageView
-                    
-                    // Інформація про товар
-                    infoView
-                    
-                    Spacer()
-                    
-                    // Ціна та кнопка додавання
-                    priceAndAddButtonView
+            if #available(iOS 16.0, *) {
+                // Новий стиль для iOS 16+
+                NavigationLink(value: item) {
+                    CardContentView(item: item, addAction: { navigateToDetails = true })
                 }
-                // Стилі всієї картки
-                .padding(5)
-                .frame(width: 135, height: 245)
-                .background(cardGradient)
-                .cornerRadius(25)
-                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
-                .opacity(item.isAvailable ? 1.0 : 0.5)
-                // Показуємо "Недоступно" для недоступних товарів
-                .overlay(unavailableOverlay, alignment: .center)
+                .buttonStyle(PlainButtonStyle())
+            } else {
+                // Старий стиль для iOS 15 і раніше
+                NavigationLink(
+                    destination: MenuItemDetailView(menuItem: item)
+                ) {
+                    CardContentView(item: item, addAction: { navigateToDetails = true })
+                }
+                .buttonStyle(PlainButtonStyle())
             }
-            .buttonStyle(PlainButtonStyle())
         }
     }
+}
+
+// Додаємо аліас для зворотної сумісності
+typealias MenuItemCardWithNavigation = MenuItemCard
+
+// Винесений контент картки в окремий компонент
+struct CardContentView: View {
+    let item: MenuItem
+    var addAction: () -> Void
     
-    // MARK: - Допоміжні компоненти
-    
-    /// Зображення товару
-    private var imageView: some View {
-        ZStack(alignment: .topTrailing) {
-            if let imageUrl = item.imageUrl, let url = URL(string: imageUrl) {
-                KFImage(url)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 125, height: 125)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-            } else {
-                defaultImageView
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Зображення товару
+            ZStack(alignment: .topTrailing) {
+                if let imageUrl = item.imageUrl, let url = URL(string: imageUrl) {
+                    KFImage(url)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 125, height: 125)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                } else {
+                    defaultImageView
+                }
+                
+                // Індикатори для кастомізації та статусу
+                HStack(spacing: 4) {
+                    // Індикатор кастомізації
+                    if hasCustomizationOptions {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 10))
+                            .foregroundColor(.white)
+                            .padding(4)
+                            .background(Circle().fill(Color("primary")))
+                    }
+                }
+                .padding(8)
             }
             
-            // Індикатори для кастомізації та статусу
-            HStack(spacing: 4) {
-                // Індикатор кастомізації
-                if hasCustomizationOptions {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 10))
-                        .foregroundColor(.white)
-                        .padding(4)
-                        .background(Circle().fill(Color("primary")))
+            // Інформація про товар (назва та опис)
+            VStack(alignment: .leading, spacing: 4) {
+                // Назва товару
+                Text(item.name)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color.white)
+                    .lineLimit(1)
+                
+                // Опис (якщо є)
+                if let description = item.description, !description.isEmpty {
+                    Text(description)
+                        .font(.caption)
+                        .fontWeight(.regular)
+                        .foregroundColor(Color.gray)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                } else {
+                    // Пустий текст для збереження висоти
+                    Text("")
+                        .font(.caption)
+                        .foregroundColor(.clear)
                 }
             }
-            .padding(8)
+            .frame(height: 45)
+            .padding(.top, 5)
+            
+            Spacer()
+            
+            // Ціна та кнопка додавання
+            HStack {
+                // Ціна
+                Text("₴ \(formatPrice(item.price))")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(Color("primary"))
+                
+                Spacer()
+                
+                // Кнопка додавання / деталей
+                Button(action: addAction) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(LinearGradient(
+                                gradient: Gradient(colors: [Color("primary").opacity(0.8), Color("primary")]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ))
+                            .frame(width: 40, height: 40)
+                        
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(.bottom, 6)
         }
+        // Стилі всієї картки
+        .padding(5)
+        .frame(width: 135, height: 245)
+        .background(LinearGradient(
+            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
+            startPoint: .top,
+            endPoint: .bottomTrailing
+        ))
+        .cornerRadius(25)
+        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+        .opacity(item.isAvailable ? 1.0 : 0.5)
+        // Показуємо "Недоступно" для недоступних товарів
+        .overlay(
+            Group {
+                if !item.isAvailable {
+                    Text("Недоступно")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(4)
+                }
+            }
+        )
     }
     
     /// Заглушка для зображення
@@ -114,90 +187,13 @@ struct MenuItemCardWithNavigation: View {
         ZStack {
             RoundedRectangle(cornerRadius: 20)
                 .fill(Color("cardColor").opacity(0.7))
-                .frame(width: 150, height: 150)
+                .frame(width: 125, height: 125)
             
             Image(systemName: "cup.and.saucer.fill")
                 .font(.system(size: 40))
                 .foregroundColor(Color("primary"))
         }
     }
-    
-    /// Інформація про товар (назва та опис)
-    private var infoView: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Назва товару
-            Text(item.name)
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(Color.white)
-                .lineLimit(1)
-            
-            // Опис (якщо є)
-            if let description = item.description, !description.isEmpty {
-                Text(description)
-                    .font(.caption)
-                    .fontWeight(.regular)
-                    .foregroundColor(Color.gray)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            } else {
-                // Пустий текст для збереження висоти
-                Text("")
-                    .font(.caption)
-                    .foregroundColor(.clear)
-            }
-        }
-        .frame(height: 45)
-        .padding(.top, 5)
-    }
-    
-    /// Ціна та кнопка додавання
-    private var priceAndAddButtonView: some View {
-        HStack {
-            // Ціна
-            Text("₴ \(formatPrice(item.price))")
-                .font(.headline)
-                .fontWeight(.bold)
-                .foregroundColor(Color("primary"))
-            
-            Spacer()
-            
-            // Кнопка додавання / деталей
-            Button(action: {
-                navigateToDetails = true
-            }) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(addButtonGradient)
-                        .frame(width: 40, height: 40)
-                    
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-            }
-            .buttonStyle(PlainButtonStyle())
-        }
-        .padding(.bottom, 6)
-    }
-    
-    /// Накладення "Недоступно" для недоступних товарів
-    private var unavailableOverlay: some View {
-        Group {
-            if !item.isAvailable {
-                Text("Недоступно")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.black.opacity(0.7))
-                    .cornerRadius(4)
-            }
-        }
-    }
-    
-    // MARK: - Допоміжні методи і властивості
     
     /// Перевірка наявності опцій кастомізації
     private var hasCustomizationOptions: Bool {
@@ -212,47 +208,5 @@ struct MenuItemCardWithNavigation: View {
         formatter.maximumFractionDigits = 0
         
         return formatter.string(from: NSDecimalNumber(decimal: price)) ?? "\(price)"
-    }
-}
-
-// MARK: - Preview
-struct MenuItemCardWithNavigation_Previews: PreviewProvider {
-    static var previews: some View {
-        Group {
-            // Доступний товар
-            MenuItemCardWithNavigation(item: MockData.mockCappuccino)
-                .previewDisplayName("Available Item")
-            
-            // Недоступний товар
-            MenuItemCardWithNavigation(item: MockData.mockIcedAmericano)
-                .previewDisplayName("Unavailable Item")
-            
-            // Товар з кастомізацією
-            let customizedItem = MenuItem(
-                id: "custom-1",
-                name: "Капучіно S",
-                price: 85.0,
-                description: "З кастомізацією",
-                imageUrl: nil,
-                isAvailable: true,
-                menuGroupId: "group-1",
-                ingredients: [Ingredient(name: "Кава", amount: 7, unit: "г", isCustomizable: true)],
-                customizationOptions: [CustomizationOption(
-                    id: "milk-type",
-                    name: "Тип молока",
-                    choices: [
-                        CustomizationChoice(id: "regular", name: "Звичайне", price: nil)
-                    ],
-                    required: true
-                )],
-                createdAt: Date(),
-                updatedAt: Date()
-            )
-            
-            MenuItemCardWithNavigation(item: customizedItem)
-                .previewDisplayName("With Customization")
-        }
-        .padding()
-        .background(Color("backgroundColor"))
     }
 }

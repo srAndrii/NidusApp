@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct MenuItem: Identifiable, Codable {
+struct MenuItem: Identifiable, Codable, Hashable {
     let id: String
     let name: String
     let price: Decimal
@@ -113,26 +113,64 @@ struct MenuItem: Identifiable, Codable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
+    
+    // MARK: - Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: MenuItem, rhs: MenuItem) -> Bool {
+        return lhs.id == rhs.id
+    }
 }
 
-struct Ingredient: Codable {
+// Також додаємо Hashable для інших структур, які використовуються в MenuItem
+
+struct Ingredient: Codable, Hashable {
     let name: String
     let amount: Double
     let unit: String
     let isCustomizable: Bool
     let minAmount: Double?
     let maxAmount: Double?
+    
+    // Потрібно для Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+    }
+    
+    static func == (lhs: Ingredient, rhs: Ingredient) -> Bool {
+        return lhs.name == rhs.name
+    }
 }
 
-struct CustomizationOption: Identifiable, Codable {
+struct CustomizationOption: Identifiable, Codable, Hashable {
     let id: String
     let name: String
     let choices: [CustomizationChoice]
     let required: Bool
+    
+    // Потрібно для Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: CustomizationOption, rhs: CustomizationOption) -> Bool {
+        return lhs.id == rhs.id
+    }
 }
 
-struct CustomizationChoice: Identifiable, Codable {
+struct CustomizationChoice: Identifiable, Codable, Hashable {
     let id: String
     let name: String
     let price: Decimal?
+    
+    // Потрібно для Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: CustomizationChoice, rhs: CustomizationChoice) -> Bool {
+        return lhs.id == rhs.id
+    }
 }

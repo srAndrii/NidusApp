@@ -5,6 +5,7 @@
 //  Created by Andrii Liakhovych on 4/8/25.
 //
 
+
 import SwiftUI
 
 /// Оновлений компонент для відображення групи меню з навігацією до деталей пунктів меню
@@ -70,8 +71,13 @@ struct MenuGroupView: View {
             HStack(spacing: 12) {
                 if let menuItems = group.menuItems, !menuItems.isEmpty {
                     ForEach(menuItems) { item in
-                        // Використовуємо оновлену картку з навігацією
-                        MenuItemCardWithNavigation(item: item)
+                        // Використовуємо виправлену картку з навігацією
+                        if #available(iOS 16.0, *) {
+                            MenuItemCard(item: item)
+                                .buttonStyle(PlainButtonStyle())
+                        } else {
+                            MenuItemCardWithNavigation(item: item)
+                        }
                     }
                 } else {
                     emptyStateView
