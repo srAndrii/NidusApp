@@ -10,14 +10,14 @@ struct CoffeeShopDetailView: View {
     
     // MARK: - View
     var body: some View {
-        ZStack(alignment: .topLeading) { // Змінено alignment на .topLeading
+        ZStack(alignment: .topLeading) {
             // Фон
             Color("backgroundColor")
                 .edgesIgnoringSafeArea(.all)
             
             // Головний контент
             if #available(iOS 16.0, *) {
-                // Для iOS 16+ з новою навігацією
+                // Використовуємо NavigationStack для iOS 16+
                 NavigationStack {
                     scrollContentView
                         .navigationDestination(for: MenuItem.self) { item in
@@ -30,8 +30,8 @@ struct CoffeeShopDetailView: View {
                 scrollContentView
             }
             
-            // Кнопка "Назад" - тепер з правильним вирівнюванням і кольором
-            BackButtonView(color: Color("primary"), backgroundColor: Color.black.opacity(0.4))
+            // Кнопка "Назад"
+            BackButtonView()
                 .padding(.top, getSafeAreaInsets().top + 10)
                 .padding(.leading, 16)
                 .zIndex(2) // Щоб кнопка була над всіма іншими елементами
@@ -52,38 +52,27 @@ struct CoffeeShopDetailView: View {
                     StretchableHeaderView(coffeeShop: coffeeShop)
                         .frame(height: 320)
                         .id("top") // Ідентифікатор для прокрутки до верху
+                        .registerGroupOffset(id: "top") // Додано для ScrollingManager
                     
                     // Контент на основі стану завантаження
-                    VStack(spacing: 0) {
-                        if viewModel.isLoading {
-                            loadingView
-                                .padding(.top, 20)
-                        } else if viewModel.menuGroups.isEmpty {
-                            emptyStateView
-                                .padding(.top, 20)
-                        } else {
-                            // Фільтр категорій із прокруткою
-                            categoryFilterView(proxy: proxy)
-                                .padding(.vertical, 8)
-                                .background(Color("backgroundColor"))
-                            
-                            // Меню кав'ярні - групи меню з ідентифікаторами
-                            VStack(spacing: 16) {
-                                ForEach(viewModel.menuGroups) { group in
-                                    MenuGroupView(group: group)
-                                        .id(group.id) // Для прокрутки
-                                }
-                            }
-                            .padding(.top, 8)
-                            .padding(.bottom, 16)
-                            .background(Color("backgroundColor"))
+                    if viewModel.isLoading {
+                        loadingView
+                    } else if viewModel.menuGroups.isEmpty {
+                        emptyStateView
+                    } else {
+                        // Фільтр категорій - тепер із прокруткою
+                        categoryFilterView(proxy: proxy)
+                        
+                        // Меню кав'ярні - групи меню з ідентифікаторами
+                        ForEach(viewModel.menuGroups) { group in
+                            MenuGroupView(group: group)
+                                .id(group.id) // Для стандартного scrollTo
+                                .registerGroupOffset(id: group.id) // Додано для ScrollingManager
                         }
                     }
-                    .background(Color("backgroundColor"))
                 }
             }
-            .edgesIgnoringSafeArea(.top)
-            .background(Color("backgroundColor"))
+            .findScrollView() // Додано для знаходження UIScrollView
         }
     }
     
@@ -98,8 +87,10 @@ struct CoffeeShopDetailView: View {
                     action: {
                         withAnimation {
                             selectedCategory = nil
-                            // Скролимо до початку
+                            
+                            // Використовуємо обидва підходи для надійності
                             proxy.scrollTo("top", anchor: .top)
+                            ScrollingManager.shared.scrollToGroup(id: "top")
                         }
                     }
                 )
@@ -112,8 +103,14 @@ struct CoffeeShopDetailView: View {
                         action: {
                             withAnimation(.spring()) {
                                 selectedCategory = group.id
-                                // Прокручуємо до відповідної групи
+                                
+                                // Використовуємо обидва підходи для надійності
                                 proxy.scrollTo(group.id, anchor: .top)
+                                
+                                // Використовуємо затримку для ScrollingManager
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    ScrollingManager.shared.scrollToGroup(id: group.id)
+                                }
                             }
                         }
                     )
@@ -144,10 +141,13 @@ struct CoffeeShopDetailView: View {
     
     // Функція для отримання відступів безпечної зони
     private func getSafeAreaInsets() -> EdgeInsets {
-        guard let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else {
+        // Виправлений доступ до windows для iOS 15+
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else {
             return EdgeInsets()
         }
-        let safeAreaInsets = keyWindow.safeAreaInsets
+        
+        let safeAreaInsets = window.safeAreaInsets
         return EdgeInsets(
             top: safeAreaInsets.top,
             leading: safeAreaInsets.left,
