@@ -8,45 +8,44 @@ struct CoffeeShopDetailView: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedCategory: String? = nil
     
-    // MARK: - Константи
-    private let backgroundColor = Color("backgroundColor")
-    
     // MARK: - View
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        ZStack(alignment: .topLeading) { // Змінено alignment на .topLeading
             // Фон
-            backgroundColor
-                .ignoresSafeArea()
+            Color("backgroundColor")
+                .edgesIgnoringSafeArea(.all)
             
             // Головний контент
             if #available(iOS 16.0, *) {
-                // Використовуємо новий підхід до навігації для iOS 16+
+                // Для iOS 16+ з новою навігацією
                 NavigationStack {
-                    contentView
+                    scrollContentView
                         .navigationDestination(for: MenuItem.self) { item in
                             MenuItemDetailView(menuItem: item)
                         }
                 }
                 .navigationBarHidden(true)
             } else {
-                // Використовуємо старий підхід для iOS 15 і раніше
-                contentView
+                // Для iOS 15 і раніше
+                scrollContentView
             }
             
-            // Кнопка "Назад"
-            BackButtonView()
-                .padding(.top, 50)
+            // Кнопка "Назад" - тепер з правильним вирівнюванням і кольором
+            BackButtonView(color: Color("primary"), backgroundColor: Color.black.opacity(0.4))
+                .padding(.top, getSafeAreaInsets().top + 10)
+                .padding(.leading, 16)
+                .zIndex(2) // Щоб кнопка була над всіма іншими елементами
         }
-        .ignoresSafeArea(edges: .top)
+        .edgesIgnoringSafeArea(.top)
         .navigationBarHidden(true)
         .onAppear {
             viewModel.loadMenuGroups(coffeeShopId: coffeeShop.id)
         }
     }
     
-    // MARK: - Головний контент
-    private var contentView: some View {
-        ScrollViewReader { proxy in // Додаємо ScrollViewReader
+    // MARK: - Головний скролабельний контент
+    private var scrollContentView: some View {
+        ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     // Розтягувана шапка з зображенням і накладеною інформацією
@@ -55,28 +54,40 @@ struct CoffeeShopDetailView: View {
                         .id("top") // Ідентифікатор для прокрутки до верху
                     
                     // Контент на основі стану завантаження
-                    if viewModel.isLoading {
-                        loadingView
-                    } else if viewModel.menuGroups.isEmpty {
-                        emptyStateView
-                    } else {
-                        // Фільтр категорій - тепер із прокруткою
-                        categoryFilterView(proxy: proxy)
-                        
-                        // Меню кав'ярні - групи меню з ідентифікаторами
-                        ForEach(viewModel.menuGroups) { group in
-                            MenuGroupView(group: group)
-                                .id(group.id) // Важливо: додаємо ідентифікатор для прокрутки
+                    VStack(spacing: 0) {
+                        if viewModel.isLoading {
+                            loadingView
+                                .padding(.top, 20)
+                        } else if viewModel.menuGroups.isEmpty {
+                            emptyStateView
+                                .padding(.top, 20)
+                        } else {
+                            // Фільтр категорій із прокруткою
+                            categoryFilterView(proxy: proxy)
+                                .padding(.vertical, 8)
+                                .background(Color("backgroundColor"))
+                            
+                            // Меню кав'ярні - групи меню з ідентифікаторами
+                            VStack(spacing: 16) {
+                                ForEach(viewModel.menuGroups) { group in
+                                    MenuGroupView(group: group)
+                                        .id(group.id) // Для прокрутки
+                                }
+                            }
+                            .padding(.top, 8)
+                            .padding(.bottom, 16)
+                            .background(Color("backgroundColor"))
                         }
                     }
+                    .background(Color("backgroundColor"))
                 }
             }
+            .edgesIgnoringSafeArea(.top)
+            .background(Color("backgroundColor"))
         }
     }
     
-    // MARK: - Допоміжні компоненти
-    
-    // Мофікований фільтр категорій із прокруткою
+    // MARK: - Фільтр категорій
     private func categoryFilterView(proxy: ScrollViewProxy) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
@@ -111,7 +122,6 @@ struct CoffeeShopDetailView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
-        .background(Color("backgroundColor"))
     }
     
     /// Показує індикатор завантаження
@@ -130,5 +140,28 @@ struct CoffeeShopDetailView: View {
             .foregroundColor(Color("secondaryText"))
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.top, 40)
+    }
+    
+    // Функція для отримання відступів безпечної зони
+    private func getSafeAreaInsets() -> EdgeInsets {
+        guard let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else {
+            return EdgeInsets()
+        }
+        let safeAreaInsets = keyWindow.safeAreaInsets
+        return EdgeInsets(
+            top: safeAreaInsets.top,
+            leading: safeAreaInsets.left,
+            bottom: safeAreaInsets.bottom,
+            trailing: safeAreaInsets.right
+        )
+    }
+}
+
+// MARK: - Preview
+struct CoffeeShopDetailView_Previews: PreviewProvider {
+    static var previews: some View {
+        CoffeeShopDetailView(coffeeShop: MockData.singleCoffeeShop)
+            .environmentObject(AuthenticationManager())
+            .preferredColorScheme(.dark)
     }
 }

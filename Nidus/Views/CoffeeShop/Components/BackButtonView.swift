@@ -11,8 +11,8 @@ import SwiftUI
 struct BackButtonView: View {
     // MARK: - Властивості
     @Environment(\.presentationMode) var presentationMode
-    var color: Color = .white
-    var backgroundColor: Color = Color.black.opacity(0.3)
+    var color: Color = Color("primary") // Змінено на оранжевий колір із теми
+    var backgroundColor: Color = Color.black.opacity(0.4)
     
     // MARK: - View
     var body: some View {
@@ -26,24 +26,15 @@ struct BackButtonView: View {
                 .background(Circle().fill(backgroundColor))
                 .shadow(color: Color.black.opacity(0.15), radius: 3, x: 0, y: 2)
         }
-        .padding(.leading, 16)
-        .padding(.top, 10)
     }
 }
 
 // MARK: - Preview
 struct BackButtonView_Previews: PreviewProvider {
     static var previews: some View {
-        Group {
-            // Світла кнопка на темному фоні
+        ZStack {
+            Color.black.edgesIgnoringSafeArea(.all)
             BackButtonView()
-                .previewDisplayName("Light on Dark")
-                .background(Color.black)
-            
-            // Темна кнопка на світлому фоні
-            BackButtonView(color: .black, backgroundColor: Color.white.opacity(0.8))
-                .previewDisplayName("Dark on Light")
-                .background(Color.white)
         }
         .previewLayout(.sizeThatFits)
         .padding()
