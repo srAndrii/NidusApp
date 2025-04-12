@@ -44,7 +44,7 @@ class MenuItemDetailViewModel: ObservableObject {
         if let ingredients = menuItem.ingredients {
             for ingredient in ingredients {
                 if ingredient.isCustomizable {
-                    ingredientCustomizations[ingredient.name] = ingredient.amount
+                    ingredientCustomizations[ingredient.id ?? ingredient.name] = ingredient.amount
                 }
             }
         }

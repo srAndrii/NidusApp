@@ -12,6 +12,7 @@ struct IngredientsEditorView: View {
     @State private var showingAddIngredientSheet = false
     @State private var newIngredient = IngredientFormModel()
     @State private var editingIndex: Int? = nil
+    @State private var showAlert = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -48,8 +49,10 @@ struct IngredientsEditorView: View {
                 .padding(.horizontal)
             } else {
                 // Список інгредієнтів
-                ForEach(Array(viewModel.ingredients.enumerated()), id: \.element.name) { index, ingredient in
+                
+               ForEach(Array(viewModel.ingredients.enumerated()), id: \.element.id) { index, ingredient in
                     ingredientRow(for: ingredient, index: index)
+                
                 }
             }
         }
@@ -75,7 +78,7 @@ struct IngredientsEditorView: View {
                     } else {
                         // Додавання нового інгредієнта
                         let newIngredientObj = Ingredient(
-                            id: UUID().uuidString,
+                            id: UUID().uuidString, // Завжди генеруємо новий ID
                             name: newIngredient.name,
                             amount: newIngredient.amount,
                             unit: newIngredient.unit,
@@ -89,7 +92,9 @@ struct IngredientsEditorView: View {
                         viewModel.addIngredient(newIngredientObj)
                     }
                     showingAddIngredientSheet = false
-                }
+                },
+                ingredients: viewModel.ingredients,
+                currentIndex: editingIndex
             )
         }
     }
@@ -226,6 +231,10 @@ struct IngredientFormView: View {
     @Environment(\.presentationMode) var presentationMode
     @Binding var ingredient: IngredientFormModel
     var onSave: () -> Void
+    var ingredients: [Ingredient]? // Необов'язковий масив інгредієнтів для перевірки
+    var currentIndex: Int? // Індекс поточного інгредієнта, якщо редагуємо
+    
+    @State private var showAlert = false
     
     // Доступні одиниці виміру
     let availableUnits = ["г", "мл", "шт.", "порція"]
@@ -342,7 +351,24 @@ struct IngredientFormView: View {
                 }
                 
                 Button(action: {
-                    onSave()
+                    // Перевірка на дублікат тільки якщо переданий масив інгредієнтів
+                    if let ingredients = ingredients {
+                        let exists = ingredients.contains(where: { 
+                            $0.name.lowercased() == ingredient.name.lowercased() && 
+                            (currentIndex == nil || ingredients.firstIndex(where: { $0.id == $0.id }) != currentIndex)
+                        })
+                        
+                        if exists {
+                            // Показати попередження, але не блокувати додавання
+                            showAlert = true
+                        } else {
+                            // Якщо немає дублікатів, просто зберігаємо
+                            onSave()
+                        }
+                    } else {
+                        // Якщо інгредієнти не передані, просто зберігаємо
+                        onSave()
+                    }
                 }) {
                     Text("Зберегти")
                         .frame(maxWidth: .infinity)
@@ -354,6 +380,17 @@ struct IngredientFormView: View {
                 .disabled(ingredient.name.isEmpty)
                 .listRowInsets(EdgeInsets())
                 .padding()
+                .alert(isPresented: $showAlert) {
+                    Alert(
+                        title: Text("Увага"),
+                        message: Text("Інгредієнт з назвою '\(ingredient.name)' вже існує в цьому пункті меню. Бажаєте додати ще один?"),
+                        primaryButton: .cancel(Text("Скасувати")),
+                        secondaryButton: .default(Text("Додати все одно"), action: {
+                            // При підтвердженні додаємо інгредієнт незважаючи на дублікат
+                            onSave()
+                        })
+                    )
+                }
             }
             .navigationTitle(Text("Інгредієнт"))
             .navigationBarItems(trailing: Button("Скасувати") {

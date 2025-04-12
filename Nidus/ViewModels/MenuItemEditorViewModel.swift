@@ -45,8 +45,9 @@ class MenuItemEditorViewModel: ObservableObject {
     // MARK: - Методи для роботи з інгредієнтами
     
     func addIngredient(_ ingredient: Ingredient) {
+        // Тут ми більше не перевіряємо на дублікат, а просто додаємо з унікальним ID
         ingredients.append(ingredient)
-        print("🔄 Додано інгредієнт: \(ingredient.name), всього: \(ingredients.count)")
+        print("🔄 Додано інгредієнт: \(ingredient.id ?? "без ID"), назва: \(ingredient.name), всього: \(ingredients.count)")
     }
     
     func updateIngredient(at index: Int, with ingredient: Ingredient) {
