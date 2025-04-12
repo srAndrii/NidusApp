@@ -112,8 +112,25 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
     
     // Використовуємо Dictionary для гнучкого оновлення полів
     func updateMenuItem(groupId: String, itemId: String, updates: [String: Any]) async throws -> MenuItem {
+        print("📡 MenuItemRepository.updateMenuItem - початок")
+            print("📡 groupId: \(groupId), itemId: \(itemId)")
+            print("📡 updates: \(updates)")
+            
+            // Створюємо безпечну копію оновлень для серіалізації
+            var safeUpdates = [String: Any]()
+            
+            // Копіюємо прості значення як є
+            for (key, value) in updates {
+                if key != "ingredients" && key != "customizationOptions" {
+                    safeUpdates[key] = value
+                    print("📡 Копіюємо просте значення: \(key): \(value)")
+                }
+            }
         // Перетворення Dictionary на JSON data
-        let jsonData = try JSONSerialization.data(withJSONObject: updates)
+        let jsonData = try JSONSerialization.data(withJSONObject: safeUpdates)
+        if let jsonString = String(data: jsonData, encoding: .utf8) {
+            print("📡 Серіалізований JSON для оновлення: \(jsonString)")
+        }
         
         print("JSON для оновлення: \(String(data: jsonData, encoding: .utf8) ?? "невідомо")")
         
@@ -122,6 +139,11 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
         urlRequest.httpBody = jsonData
         
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        
+        // Логуємо відповідь
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📡 Відповідь сервера: \(responseString)")
+        }
         
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw APIError.invalidResponse
@@ -210,6 +232,18 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
         
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return request
+    }
+    
+    // У класі `MenuItemRepository`, додайте метод для логування:
+    private func logApiRequest(endpoint: String, method: String, body: Data?) {
+        print("📡 API запит: \(method) \(endpoint)")
+        if let body = body, let bodyString = String(data: body, encoding: .utf8) {
+            print("📡 Тіло запиту: \(bodyString)")
+        } else if body != nil {
+            print("📡 Тіло запиту присутнє, але не може бути перетворене на рядок")
+        } else {
+            print("📡 Запит без тіла")
+        }
     }
     
     struct EmptyBody: Codable {}

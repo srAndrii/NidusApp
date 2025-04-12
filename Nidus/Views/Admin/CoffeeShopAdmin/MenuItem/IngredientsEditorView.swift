@@ -1,7 +1,14 @@
+//
+//  IngredientsEditorView.swift
+//  Nidus
+//
+//  Created by Andrii Liakhovych on 3/29/25.
+//
+
 import SwiftUI
 
 struct IngredientsEditorView: View {
-    @Binding var ingredients: [Ingredient]
+    @ObservedObject var viewModel: MenuItemEditorViewModel
     @State private var showingAddIngredientSheet = false
     @State private var newIngredient = IngredientFormModel()
     @State private var editingIndex: Int? = nil
@@ -18,6 +25,7 @@ struct IngredientsEditorView: View {
                 
                 Button(action: {
                     newIngredient = IngredientFormModel()
+                    editingIndex = nil
                     showingAddIngredientSheet = true
                 }) {
                     Label("Додати", systemImage: "plus")
@@ -26,7 +34,7 @@ struct IngredientsEditorView: View {
             }
             .padding(.horizontal)
             
-            if ingredients.isEmpty {
+            if viewModel.ingredients.isEmpty {
                 // Повідомлення, коли немає інгредієнтів
                 VStack {
                     Text("Інгредієнти відсутні")
@@ -40,8 +48,8 @@ struct IngredientsEditorView: View {
                 .padding(.horizontal)
             } else {
                 // Список інгредієнтів
-                ForEach(ingredients.indices, id: \.self) { index in
-                    ingredientRow(for: ingredients[index], index: index)
+                ForEach(Array(viewModel.ingredients.enumerated()), id: \.element.name) { index, ingredient in
+                    ingredientRow(for: ingredient, index: index)
                 }
             }
         }
@@ -51,7 +59,7 @@ struct IngredientsEditorView: View {
                 onSave: {
                     if let editingIndex = editingIndex {
                         // Оновлення існуючого інгредієнта
-                        ingredients[editingIndex] = Ingredient(
+                        let updatedIngredient = Ingredient(
                             name: newIngredient.name,
                             amount: newIngredient.amount,
                             unit: newIngredient.unit,
@@ -61,10 +69,11 @@ struct IngredientsEditorView: View {
                             freeAmount: newIngredient.isCustomizable ? newIngredient.freeAmount : nil,
                             pricePerUnit: newIngredient.isCustomizable ? newIngredient.pricePerUnit : nil
                         )
-                        self.editingIndex = nil
+                        
+                        viewModel.updateIngredient(at: editingIndex, with: updatedIngredient)
                     } else {
                         // Додавання нового інгредієнта
-                        ingredients.append(Ingredient(
+                        let newIngredientObj = Ingredient(
                             name: newIngredient.name,
                             amount: newIngredient.amount,
                             unit: newIngredient.unit,
@@ -73,7 +82,9 @@ struct IngredientsEditorView: View {
                             maxAmount: newIngredient.isCustomizable ? newIngredient.maxAmount : nil,
                             freeAmount: newIngredient.isCustomizable ? newIngredient.freeAmount : nil,
                             pricePerUnit: newIngredient.isCustomizable ? newIngredient.pricePerUnit : nil
-                        ))
+                        )
+                        
+                        viewModel.addIngredient(newIngredientObj)
                     }
                     showingAddIngredientSheet = false
                 }
@@ -82,6 +93,10 @@ struct IngredientsEditorView: View {
     }
     
     private func ingredientRow(for ingredient: Ingredient, index: Int) -> some View {
+        // Той самий код рядка інгредієнта з оригінального коду, але:
+        // - замість модифікації @Binding використовуються методи ViewModel
+        // - кнопки дій використовують методи ViewModel: updateIngredient, removeIngredient
+        
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(ingredient.name)
@@ -162,7 +177,7 @@ struct IngredientsEditorView: View {
                 }
                 
                 Button(action: {
-                    ingredients.remove(at: index)
+                    viewModel.removeIngredient(at: index)
                 }) {
                     Image(systemName: "trash")
                         .foregroundColor(.red)

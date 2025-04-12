@@ -2,13 +2,13 @@
 //  CustomizationOptionsEditorView.swift
 //  Nidus
 //
-//  Created by Andrii Liakhovych
+//  Created by Andrii Liakhovych on 3/29/25.
 //
 
 import SwiftUI
 
 struct CustomizationOptionsEditorView: View {
-    @Binding var customizationOptions: [CustomizationOption]
+    @ObservedObject var viewModel: MenuItemEditorViewModel
     @State private var showingAddOptionSheet = false
     @State private var showingAddChoiceSheet = false
     @State private var newOption = CustomizationOptionFormModel()
@@ -38,7 +38,7 @@ struct CustomizationOptionsEditorView: View {
             }
             .padding(.horizontal)
             
-            if customizationOptions.isEmpty {
+            if viewModel.customizationOptions.isEmpty {
                 // Повідомлення, коли немає опцій кастомізації
                 VStack {
                     Text("Опції кастомізації відсутні")
@@ -52,8 +52,8 @@ struct CustomizationOptionsEditorView: View {
                 .padding(.horizontal)
             } else {
                 // Список груп опцій кастомізації
-                ForEach(customizationOptions.indices, id: \.self) { optionIndex in
-                    optionGroupView(for: customizationOptions[optionIndex], optionIndex: optionIndex)
+                ForEach(Array(viewModel.customizationOptions.enumerated()), id: \.element.id) { optionIndex, option in
+                    optionGroupView(for: option, optionIndex: optionIndex)
                 }
             }
         }
@@ -62,23 +62,18 @@ struct CustomizationOptionsEditorView: View {
                 option: $newOption,
                 onSave: {
                     if let editingIndex = editingOptionIndex {
-                        // Оновлення існуючої групи опцій - створюємо нову з оновленими даними
-                        let updatedOption = CustomizationOption(
-                            id: customizationOptions[editingIndex].id,
+                        // Оновлення існуючої групи опцій
+                        viewModel.updateCustomizationOption(
+                            at: editingIndex,
                             name: newOption.name,
-                            choices: customizationOptions[editingIndex].choices,
                             required: newOption.required
                         )
-                        customizationOptions[editingIndex] = updatedOption
                     } else {
                         // Додавання нової групи опцій
-                        let newOptionObj = CustomizationOption(
-                            id: UUID().uuidString,
+                        viewModel.addCustomizationOption(
                             name: newOption.name,
-                            choices: [],
                             required: newOption.required
                         )
-                        customizationOptions.append(newOptionObj)
                     }
                     showingAddOptionSheet = false
                 }
@@ -90,41 +85,20 @@ struct CustomizationOptionsEditorView: View {
                 onSave: {
                     if let selectedIndex = selectedOptionIndex {
                         if let editingData = editingChoiceData, editingData.optionIndex == selectedIndex {
-                            // Оновлення існуючого варіанту вибору - створюємо новий масив з оновленим вибором
-                            var updatedChoices = customizationOptions[selectedIndex].choices
-                            updatedChoices[editingData.choiceIndex] = CustomizationChoice(
-                                id: updatedChoices[editingData.choiceIndex].id,
+                            // Оновлення існуючого варіанту вибору
+                            viewModel.updateChoiceInOption(
+                                optionIndex: editingData.optionIndex,
+                                choiceIndex: editingData.choiceIndex,
                                 name: newChoice.name,
                                 price: newChoice.price
                             )
-                            
-                            // Створюємо нову опцію з оновленими варіантами вибору
-                            let updatedOption = CustomizationOption(
-                                id: customizationOptions[selectedIndex].id,
-                                name: customizationOptions[selectedIndex].name,
-                                choices: updatedChoices,
-                                required: customizationOptions[selectedIndex].required
-                            )
-                            customizationOptions[selectedIndex] = updatedOption
                         } else {
                             // Додавання нового варіанту вибору
-                            let newChoiceObj = CustomizationChoice(
-                                id: UUID().uuidString,
+                            viewModel.addChoiceToOption(
+                                at: selectedIndex,
                                 name: newChoice.name,
                                 price: newChoice.price
                             )
-                            
-                            // Створюємо нову опцію з доданим варіантом вибору
-                            var updatedChoices = customizationOptions[selectedIndex].choices
-                            updatedChoices.append(newChoiceObj)
-                            
-                            let updatedOption = CustomizationOption(
-                                id: customizationOptions[selectedIndex].id,
-                                name: customizationOptions[selectedIndex].name,
-                                choices: updatedChoices,
-                                required: customizationOptions[selectedIndex].required
-                            )
-                            customizationOptions[selectedIndex] = updatedOption
                         }
                     }
                     showingAddChoiceSheet = false
@@ -174,7 +148,7 @@ struct CustomizationOptionsEditorView: View {
                 
                 // Кнопка видалення групи
                 Button(action: {
-                    customizationOptions.remove(at: optionIndex)
+                    viewModel.removeCustomizationOption(at: optionIndex)
                 }) {
                     Label("", systemImage: "trash")
                         .foregroundColor(.red)
@@ -188,9 +162,9 @@ struct CustomizationOptionsEditorView: View {
                     .foregroundColor(Color("secondaryText"))
                     .padding(.vertical, 8)
             } else {
-                ForEach(option.choices.indices, id: \.self) { choiceIndex in
+                ForEach(Array(option.choices.enumerated()), id: \.element.id) { choiceIndex, choice in
                     choiceRow(
-                        for: option.choices[choiceIndex],
+                        for: choice,
                         optionIndex: optionIndex,
                         choiceIndex: choiceIndex
                     )
@@ -232,18 +206,10 @@ struct CustomizationOptionsEditorView: View {
             
             // Кнопка видалення варіанту вибору
             Button(action: {
-                // Створюємо копію варіантів вибору без вибраного варіанту
-                var updatedChoices = customizationOptions[optionIndex].choices
-                updatedChoices.remove(at: choiceIndex)
-                
-                // Створюємо нову опцію з оновленими варіантами вибору
-                let updatedOption = CustomizationOption(
-                    id: customizationOptions[optionIndex].id,
-                    name: customizationOptions[optionIndex].name,
-                    choices: updatedChoices,
-                    required: customizationOptions[optionIndex].required
+                viewModel.removeChoiceFromOption(
+                    optionIndex: optionIndex,
+                    choiceIndex: choiceIndex
                 )
-                customizationOptions[optionIndex] = updatedOption
             }) {
                 Image(systemName: "trash")
                     .foregroundColor(.red)
@@ -261,8 +227,7 @@ struct CustomizationOptionsEditorView: View {
     }
 }
 
-// Допоміжні моделі для форм
-
+// Ці структури залишаються незмінними
 struct CustomizationOptionFormModel {
     var name: String = ""
     var required: Bool = false
@@ -343,7 +308,7 @@ struct CustomizationChoiceFormView: View {
                         TextField("0.00", text: $priceString)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
-                            .onChange(of: priceString) { _, newValue in
+                            .onChange(of: priceString) { oldValue, newValue in
                                 if let price = Decimal(string: newValue.replacingOccurrences(of: ",", with: ".")) {
                                     choice.price = price
                                 } else if newValue.isEmpty {
@@ -377,36 +342,5 @@ struct CustomizationChoiceFormView: View {
                 presentationMode.wrappedValue.dismiss()
             })
         }
-    }
-}
-
-struct CustomizationOptionsEditorView_Previews: PreviewProvider {
-    static var previews: some View {
-        let sampleOptions: [CustomizationOption] = [
-            CustomizationOption(
-                id: "1",
-                name: "Сироп",
-                choices: [
-                    CustomizationChoice(id: "1-1", name: "Ванільний", price: 10),
-                    CustomizationChoice(id: "1-2", name: "Карамельний", price: 10)
-                ],
-                required: false
-            ),
-            CustomizationOption(
-                id: "2",
-                name: "Тип молока",
-                choices: [
-                    CustomizationChoice(id: "2-1", name: "Звичайне", price: nil),
-                    CustomizationChoice(id: "2-2", name: "Соєве", price: 15)
-                ],
-                required: true
-            )
-        ]
-        
-        CustomizationOptionsEditorView(customizationOptions: .constant(sampleOptions))
-            .padding()
-            .previewLayout(.sizeThatFits)
-            .background(Color("backgroundColor"))
-            .preferredColorScheme(.dark)
     }
 }

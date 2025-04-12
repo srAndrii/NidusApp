@@ -106,6 +106,18 @@ class MenuItemsViewModel: ObservableObject {
     /// Оновлення пункту меню
     @MainActor
     func updateMenuItem(groupId: String, itemId: String, updates: [String: Any]) async throws -> MenuItem {
+        print("🔄 MenuItemsViewModel.updateMenuItem - початок")
+            print("🔄 groupId: \(groupId), itemId: \(itemId)")
+            print("🔄 updates: \(updates)")
+            
+            // Перевіряємо наявність customizationOptions в оновленнях
+            if let customOptions = updates["customizationOptions"] {
+                print("🔄 customizationOptions присутні в updates:")
+                print("🔄 тип: \(type(of: customOptions))")
+                print("🔄 значення: \(customOptions)")
+            } else {
+                print("🔄 customizationOptions ВІДСУТНІ в updates!")
+            }
         // Створюємо безпечну копію оновлень для серіалізації
         var safeUpdates = [String: Any]()
         
@@ -152,7 +164,12 @@ class MenuItemsViewModel: ObservableObject {
         
         // Обробляємо опції кастомізації якщо вони є
         if let customOptions = updates["customizationOptions"] as? [CustomizationOption] {
+            print("🔄 Перетворення customizationOptions з [CustomizationOption]")
+            print("🔄 Кількість опцій: \(customOptions.count)")
+            
             let safeOptions = customOptions.map { option -> [String: Any] in
+                print("🔄   Обробка опції: \(option.id) - \(option.name)")
+                
                 var optionDict: [String: Any] = [
                     "id": option.id,
                     "name": option.name,
@@ -161,6 +178,8 @@ class MenuItemsViewModel: ObservableObject {
                 
                 // Конвертуємо вибори
                 let safeChoices = option.choices.map { choice -> [String: Any] in
+                    print("🔄     Обробка вибору: \(choice.id) - \(choice.name)")
+                    
                     var choiceDict: [String: Any] = [
                         "id": choice.id,
                         "name": choice.name
@@ -169,15 +188,20 @@ class MenuItemsViewModel: ObservableObject {
                     // Додаємо ціну, тільки якщо вона не nil
                     if let price = choice.price {
                         choiceDict["price"] = price
+                        print("🔄       Ціна: \(price)")
+                    } else {
+                        print("🔄       Без ціни")
                     }
                     
                     return choiceDict
                 }
                 
+                print("🔄   Варіанти вибору: \(safeChoices.count)")
                 optionDict["choices"] = safeChoices
                 return optionDict
             }
             
+            print("🔄 Перетворені customizationOptions: \(safeOptions)")
             safeUpdates["customizationOptions"] = safeOptions
         }
         

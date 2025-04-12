@@ -1,35 +1,40 @@
+//
+//  CustomModalMenuItemEditor.swift
+//  Nidus
+//
+//  Created by Andrii Liakhovych on 3/29/25.
+//
+
 import SwiftUI
 
 struct CustomModalMenuItemEditor: View {
     @Binding var isPresented: Bool
     @State private var offset: CGFloat = 1000
-    let menuGroup: MenuGroup
-    let menuItem: MenuItem
-    let viewModel: MenuItemsViewModel
     
-    // Додаємо цей рядок - функція для оновлення батьківського компонента
+    // Зовнішні залежності
+    private let menuGroup: MenuGroup
+    private let menuItem: MenuItem
+    @ObservedObject private var menuItemsViewModel: MenuItemsViewModel
+    
+    // Функція для оновлення батьківського компонента
     var onUpdate: ((MenuItem) -> Void)? = nil
     
-    // Використовуємо нову модель форми для кастомізації
-    @State private var menuItemForm: MenuItemFormModel
-    @State private var isSubmitting = false
-    
-    // Стан для вкладок і зображення
-    @State private var selectedTab = 0
-    @State private var selectedImage: UIImage?
+    // Внутрішній стан
+    @StateObject private var editorViewModel: MenuItemEditorViewModel
     @State private var showImagePicker = false
     @State private var showImagePickerDialog = false
     @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
+    @State private var isSubmitting = false
     
     init(isPresented: Binding<Bool>, menuGroup: MenuGroup, menuItem: MenuItem, viewModel: MenuItemsViewModel, onUpdate: ((MenuItem) -> Void)? = nil) {
         self._isPresented = isPresented
         self.menuGroup = menuGroup
         self.menuItem = menuItem
-        self.viewModel = viewModel
+        self.menuItemsViewModel = viewModel
         self.onUpdate = onUpdate
         
-        // Ініціалізуємо форму з існуючим меню-айтемом
-        self._menuItemForm = State(initialValue: MenuItemFormModel(from: menuItem))
+        // Створюємо StateObject для відстеження змін пункту меню
+        _editorViewModel = StateObject(wrappedValue: MenuItemEditorViewModel(from: menuItem))
     }
     
     var body: some View {
@@ -63,7 +68,7 @@ struct CustomModalMenuItemEditor: View {
                 .padding(.horizontal)
                 
                 // Вкладки для перемикання між розділами
-                Picker("", selection: $selectedTab) {
+                Picker("", selection: $editorViewModel.selectedTab) {
                     Text("Основне").tag(0)
                     Text("Кастомізація").tag(1)
                     Text("Зображення").tag(2)
@@ -74,23 +79,19 @@ struct CustomModalMenuItemEditor: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         // Вміст вкладок
-                        if selectedTab == 0 {
+                        if editorViewModel.selectedTab == 0 {
                             // Основна інформація
                             basicInfoSection
-                        } else if selectedTab == 1 {
+                        } else if editorViewModel.selectedTab == 1 {
                             // Кастомізація
-                            MenuItemCustomizationEditor(
-                                isCustomizable: $menuItemForm.isCustomizable,
-                                ingredients: $menuItemForm.ingredients,
-                                customizationOptions: $menuItemForm.customizationOptions
-                            )
+                            MenuItemCustomizationEditor(viewModel: editorViewModel)
                         } else {
                             // Зображення
                             imageSection
                         }
                         
                         // Повідомлення про помилку
-                        if let error = viewModel.error {
+                        if let error = editorViewModel.error {
                             Text(error)
                                 .foregroundColor(.red)
                                 .padding()
@@ -110,12 +111,12 @@ struct CustomModalMenuItemEditor: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty ? Color.gray : Color("primary"))
+                        .background(editorViewModel.name.isEmpty || editorViewModel.price.isEmpty ? Color.gray : Color("primary"))
                         .foregroundColor(.white)
                         .cornerRadius(12)
                         .padding(.horizontal)
                         .padding(.bottom, 20)
-                        .disabled(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty || isSubmitting)
+                        .disabled(editorViewModel.name.isEmpty || editorViewModel.price.isEmpty || isSubmitting)
                     }
                     .padding(.vertical)
                 }
@@ -133,7 +134,7 @@ struct CustomModalMenuItemEditor: View {
         }
         .sheet(isPresented: $showImagePicker) {
             ImagePickerView(
-                selectedImage: $selectedImage,
+                selectedImage: $editorViewModel.selectedImage,
                 isPresented: $showImagePicker,
                 sourceType: sourceType
             )
@@ -151,21 +152,21 @@ struct CustomModalMenuItemEditor: View {
         )
     }
     
-    // MARK: - Компоненти інтерфейсу
+    // MARK: - UI Sections
     
     private var basicInfoSection: some View {
         VStack(spacing: 16) {
             CustomTextField(
                 iconName: "cup.and.saucer",
                 placeholder: "Назва",
-                text: $menuItemForm.name
+                text: $editorViewModel.name
             )
             .padding(.horizontal)
             
             CustomTextField(
                 iconName: "hryvniasign.circle",
                 placeholder: "Ціна (₴)",
-                text: $menuItemForm.price,
+                text: $editorViewModel.price,
                 keyboardType: .decimalPad
             )
             .padding(.horizontal)
@@ -173,7 +174,7 @@ struct CustomModalMenuItemEditor: View {
             CustomTextField(
                 iconName: "text.alignleft",
                 placeholder: "Опис (необов'язково)",
-                text: $menuItemForm.description
+                text: $editorViewModel.description
             )
             .padding(.horizontal)
             
@@ -184,7 +185,7 @@ struct CustomModalMenuItemEditor: View {
                 
                 Spacer()
                 
-                Toggle("", isOn: $menuItemForm.isAvailable)
+                Toggle("", isOn: $editorViewModel.isAvailable)
                     .labelsHidden()
             }
             .padding(.horizontal)
@@ -203,13 +204,13 @@ struct CustomModalMenuItemEditor: View {
                     .fill(Color("inputField"))
                     .frame(height: 200)
                 
-                if let selectedImage = selectedImage {
+                if let selectedImage = editorViewModel.selectedImage {
                     Image(uiImage: selectedImage)
                         .resizable()
                         .scaledToFit()
                         .frame(height: 200)
                         .cornerRadius(12)
-                } else if let imageUrl = menuItem.imageUrl, let url = URL(string: imageUrl) {
+                } else if let imageUrl = editorViewModel.imageUrl, let url = URL(string: imageUrl) {
                     AsyncImage(url: url) { phase in
                         switch phase {
                         case .success(let image):
@@ -253,7 +254,7 @@ struct CustomModalMenuItemEditor: View {
         }
     }
     
-    // MARK: - Логіка роботи
+    // MARK: - Actions
     
     private func dismissModal() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -267,71 +268,73 @@ struct CustomModalMenuItemEditor: View {
     }
     
     private func updateMenuItem() {
-        guard let priceDecimal = Decimal(string: menuItemForm.price.replacingOccurrences(of: ",", with: ".")) else {
-            viewModel.error = "Вкажіть коректну ціну"
+        guard let updatedMenuItem = editorViewModel.toMenuItem(groupId: menuGroup.id, itemId: menuItem.id) else {
+            editorViewModel.error = "Некоректні дані для оновлення"
             return
         }
         
         isSubmitting = true
         
         Task {
-            // Збираємо оновлення для пункту меню
-            var updates: [String: Any] = [
-                "name": menuItemForm.name,
-                "price": priceDecimal,
-                "isAvailable": menuItemForm.isAvailable
-            ]
-            
-            // Додаємо опис, якщо він не порожній
-            if !menuItemForm.description.isEmpty {
-                updates["description"] = menuItemForm.description
-            } else if menuItem.description != nil {
-                updates["description"] = NSNull()
-            }
-            
-            // Обробка кастомізації
-            if menuItemForm.isCustomizable {
-                updates["ingredients"] = menuItemForm.ingredients
-                updates["customizationOptions"] = menuItemForm.customizationOptions
-            } else {
-                updates["ingredients"] = NSNull()
-                updates["customizationOptions"] = NSNull()
-            }
-            
             do {
-                // Оновлення пункту меню
-                let updatedItem = try await viewModel.updateMenuItem(
+                // Підготовка даних для оновлення
+                var updates: [String: Any] = [
+                    "name": updatedMenuItem.name,
+                    "price": updatedMenuItem.price,
+                    "isAvailable": updatedMenuItem.isAvailable
+                ]
+                
+                // Додавання опису
+                if let description = updatedMenuItem.description {
+                    updates["description"] = description
+                } else {
+                    updates["description"] = NSNull()
+                }
+                
+                // Обробка кастомізації
+                if editorViewModel.isCustomizable {
+                    updates["ingredients"] = updatedMenuItem.ingredients
+                    updates["customizationOptions"] = updatedMenuItem.customizationOptions
+                    
+                    print("🚀 Додавання кастомізації в оновлення")
+                    print("🚀 Опції: \(editorViewModel.customizationOptions.count)")
+                    
+                    for (i, option) in editorViewModel.customizationOptions.enumerated() {
+                        print("🚀 Опція \(i): \(option.name), виборів: \(option.choices.count)")
+                        for (j, choice) in option.choices.enumerated() {
+                            print("🚀 -- Вибір \(j): \(choice.name)")
+                        }
+                    }
+                } else {
+                    updates["ingredients"] = NSNull()
+                    updates["customizationOptions"] = NSNull()
+                }
+                
+                // Відправка оновлення на сервер
+                let updatedItem = try await menuItemsViewModel.updateMenuItem(
                     groupId: menuGroup.id,
                     itemId: menuItem.id,
                     updates: updates
                 )
                 
-                print("Пункт меню успішно оновлено з ID: \(updatedItem.id)")
+                print("✓ Пункт меню успішно оновлено")
                 
-                // Якщо є нове зображення, завантажуємо його
-                if let selectedImage = selectedImage {
+                // Завантаження нового зображення, якщо воно було вибране
+                if let selectedImage = editorViewModel.selectedImage {
                     if let compressedImageData = NetworkService.shared.compressImage(selectedImage, format: .jpeg, compressionQuality: 0.7) {
-                        print("Зображення успішно стиснуто: \(compressedImageData.count) байт")
-                        
                         let uploadRequest = ImageUploadRequest(
                             imageData: compressedImageData,
                             fileName: "menu_item_\(menuItem.id).jpg",
                             mimeType: "image/jpeg"
                         )
                         
-                        // Додаємо затримку у 0.5 секунди, щоб переконатися, що запис у БД завершився
-                        try await Task.sleep(nanoseconds: 500_000_000)
-                        
-                        try await viewModel.uploadMenuItemImage(
+                        try await menuItemsViewModel.uploadMenuItemImage(
                             groupId: menuGroup.id,
                             itemId: menuItem.id,
                             imageRequest: uploadRequest
                         )
                         
-                        print("Зображення успішно завантажено")
-                    } else {
-                        print("Помилка стиснення зображення")
-                        viewModel.error = "Помилка при підготовці зображення для завантаження"
+                        print("✓ Зображення успішно завантажено")
                     }
                 }
                 
@@ -341,12 +344,12 @@ struct CustomModalMenuItemEditor: View {
                 }
                 
                 // Показуємо успішне повідомлення
-                viewModel.showSuccessMessage("Пункт меню успішно оновлено")
+                menuItemsViewModel.showSuccessMessage("Пункт меню успішно оновлено")
                 dismissModal()
                 
             } catch {
-                print("Помилка при оновленні пункту меню: \(error)")
-                viewModel.error = error.localizedDescription
+                print("❌ Помилка при оновленні пункту меню: \(error)")
+                editorViewModel.error = error.localizedDescription
             }
             
             isSubmitting = false

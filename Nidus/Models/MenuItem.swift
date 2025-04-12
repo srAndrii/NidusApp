@@ -149,7 +149,7 @@ struct Ingredient: Codable, Hashable {
 struct CustomizationOption: Identifiable, Codable, Hashable {
     let id: String
     let name: String
-    let choices: [CustomizationChoice]
+    var choices: [CustomizationChoice]
     let required: Bool
     
     // Потрібно для Hashable
