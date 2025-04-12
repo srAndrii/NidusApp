@@ -127,22 +127,64 @@ struct MenuItem: Identifiable, Codable, Hashable {
 // Також додаємо Hashable для інших структур, які використовуються в MenuItem
 
 struct Ingredient: Codable, Hashable {
+    let id: String? // Змінити з обов'язкового на опціональне
     let name: String
     let amount: Double
     let unit: String
     let isCustomizable: Bool
     let minAmount: Double?
     let maxAmount: Double?
-    let freeAmount: Double? // Додано: безкоштовна кількість інгредієнта
-    let pricePerUnit: Decimal? // Додано: ціна за одиницю понад безкоштовну кількість
+    let freeAmount: Double?
+    let pricePerUnit: Decimal?
     
-    // Потрібно для Hashable
+    // Змінити функцію hash
     func hash(into hasher: inout Hasher) {
-        hasher.combine(name)
+        if let id = id {
+            hasher.combine(id)
+        } else {
+            hasher.combine(name) // Запасний варіант - використовуємо назву
+        }
     }
     
     static func == (lhs: Ingredient, rhs: Ingredient) -> Bool {
-        return lhs.name == rhs.name
+        if let lhsId = lhs.id, let rhsId = rhs.id {
+            return lhsId == rhsId
+        }
+        return lhs.name == rhs.name // Запасний варіант
+    }
+    
+    // Додайте кастомний ініціалізатор для декодування
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Спроба декодувати id, але це необов'язково
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        
+        // Інші обов'язкові поля
+        name = try container.decode(String.self, forKey: .name)
+        amount = try container.decode(Double.self, forKey: .amount)
+        unit = try container.decode(String.self, forKey: .unit)
+        isCustomizable = try container.decode(Bool.self, forKey: .isCustomizable)
+        
+        // Опціональні поля
+        minAmount = try container.decodeIfPresent(Double.self, forKey: .minAmount)
+        maxAmount = try container.decodeIfPresent(Double.self, forKey: .maxAmount)
+        freeAmount = try container.decodeIfPresent(Double.self, forKey: .freeAmount)
+        pricePerUnit = try container.decodeIfPresent(Decimal.self, forKey: .pricePerUnit)
+    }
+    
+    // Додаємо власний ініціалізатор для створення з коду
+    init(id: String? = nil, name: String, amount: Double, unit: String, isCustomizable: Bool,
+         minAmount: Double? = nil, maxAmount: Double? = nil, freeAmount: Double? = nil, pricePerUnit: Decimal? = nil) {
+        self.id = id ?? UUID().uuidString // Генеруємо ID, якщо не передано
+        self.name = name
+        self.amount = amount
+        self.unit = unit
+        self.isCustomizable = isCustomizable
+        self.minAmount = minAmount
+        self.maxAmount = maxAmount
+        self.freeAmount = freeAmount
+        self.pricePerUnit = pricePerUnit
     }
 }
 

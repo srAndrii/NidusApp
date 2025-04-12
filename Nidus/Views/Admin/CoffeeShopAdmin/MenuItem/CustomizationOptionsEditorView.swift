@@ -38,7 +38,7 @@ struct CustomizationOptionsEditorView: View {
             }
             .padding(.horizontal)
             
-            if viewModel.customizationOptions.isEmpty {
+            if viewModel.customizationOptions.isEmpty == true {
                 // Повідомлення, коли немає опцій кастомізації
                 VStack {
                     Text("Опції кастомізації відсутні")

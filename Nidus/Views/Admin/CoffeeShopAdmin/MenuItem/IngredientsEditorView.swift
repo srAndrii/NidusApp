@@ -34,7 +34,7 @@ struct IngredientsEditorView: View {
             }
             .padding(.horizontal)
             
-            if viewModel.ingredients.isEmpty {
+            if viewModel.ingredients.isEmpty == true {
                 // Повідомлення, коли немає інгредієнтів
                 VStack {
                     Text("Інгредієнти відсутні")
@@ -60,6 +60,7 @@ struct IngredientsEditorView: View {
                     if let editingIndex = editingIndex {
                         // Оновлення існуючого інгредієнта
                         let updatedIngredient = Ingredient(
+                            id: viewModel.ingredients[editingIndex].id,
                             name: newIngredient.name,
                             amount: newIngredient.amount,
                             unit: newIngredient.unit,
@@ -74,6 +75,7 @@ struct IngredientsEditorView: View {
                     } else {
                         // Додавання нового інгредієнта
                         let newIngredientObj = Ingredient(
+                            id: UUID().uuidString,
                             name: newIngredient.name,
                             amount: newIngredient.amount,
                             unit: newIngredient.unit,
@@ -193,6 +195,7 @@ struct IngredientsEditorView: View {
 
 // Оновлена модель форми інгредієнта
 struct IngredientFormModel {
+    var id: String = UUID().uuidString
     var name: String = ""
     var amount: Double = 1.0
     var unit: String = "шт."
@@ -205,6 +208,7 @@ struct IngredientFormModel {
     // Ініціалізатор для створення форми з існуючого інгредієнта
     init(from ingredient: Ingredient? = nil) {
         if let ingredient = ingredient {
+            id = ingredient.id ?? UUID().uuidString
             name = ingredient.name
             amount = ingredient.amount
             unit = ingredient.unit

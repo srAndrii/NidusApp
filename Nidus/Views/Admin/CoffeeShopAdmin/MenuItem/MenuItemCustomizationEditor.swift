@@ -25,7 +25,7 @@ struct MenuItemCustomizationEditor: View {
             
             if viewModel.isCustomizable {
                 // Вкладки
-                Picker("", selection: $viewModel.selectedTab) {
+                Picker("", selection: $viewModel.customizationTabIndex) {
                     Text("Інгредієнти").tag(0)
                     Text("Опції").tag(1)
                 }
@@ -34,13 +34,13 @@ struct MenuItemCustomizationEditor: View {
                 
                 // Вміст вкладок
                 VStack {
-                    if viewModel.selectedTab == 0 {
+                    if viewModel.customizationTabIndex == 0 {
                         IngredientsEditorView(viewModel: viewModel)
                     } else {
                         CustomizationOptionsEditorView(viewModel: viewModel)
                     }
                 }
-                .animation(.default, value: viewModel.selectedTab)
+                .animation(.default, value: viewModel.customizationTabIndex)
                 .transition(.slide)
             } else {
                 // Повідомлення про вимкнену кастомізацію

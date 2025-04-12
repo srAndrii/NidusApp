@@ -18,6 +18,7 @@ class MenuItemEditorViewModel: ObservableObject {
     @Published var isCustomizable: Bool
     @Published var imageUrl: String?
     @Published var selectedImage: UIImage?
+    @Published var customizationTabIndex: Int = 0
     
     // Вкладені дані для кастомізації
     @Published var ingredients: [Ingredient]
