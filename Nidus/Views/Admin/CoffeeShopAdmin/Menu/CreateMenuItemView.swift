@@ -7,6 +7,14 @@ struct CreateMenuItemView: View {
     
     // Стан форми з використанням розширеної моделі
     @State private var menuItemForm = MenuItemFormModel()
+    @StateObject private var editorViewModel = MenuItemEditorViewModel(from: MenuItem(
+        id: UUID().uuidString,
+        name: "",
+        price: 0,
+        isAvailable: true,
+        createdAt: Date(),
+        updatedAt: Date()
+    ))
     @State private var selectedImage: UIImage?
     @State private var isSubmitting = false
     
@@ -20,99 +28,87 @@ struct CreateMenuItemView: View {
     
     var body: some View {
         NavigationView {
-            ZStack {
-                Color("backgroundColor")
-                    .edgesIgnoringSafeArea(.all)
-                
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        // Вкладки для перемикання між розділами
-                        Picker("", selection: $selectedTab) {
-                            Text("Основне").tag(0)
-                            Text("Кастомізація").tag(1)
-                            Text("Зображення").tag(2)
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .padding(.horizontal)
-                        
-                        // Вміст вкладок
-                        if selectedTab == 0 {
-                            // Основна інформація
-                            basicInfoSection
-                        } else if selectedTab == 1 {
-                            // Кастомізація
-                            MenuItemCustomizationEditor(
-                                isCustomizable: $menuItemForm.isCustomizable,
-                                ingredients: $menuItemForm.ingredients,
-                                customizationOptions: $menuItemForm.customizationOptions
-                            )
-                        } else {
-                            // Зображення
-                            imageSection
-                        }
-                        
-                        // Кнопка створення
-                        Button(action: createMenuItem) {
-                            if isSubmitting {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Text("Створити пункт меню")
-                                    .font(.headline)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty ? Color.gray : Color("primary"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                        .padding(.horizontal)
-                        .disabled(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty || isSubmitting)
-                        
-                        if let error = viewModel.error {
-                            Text(error)
-                                .foregroundColor(.red)
-                                .padding()
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-                    .padding(.vertical)
-                }
-            }
-            .navigationTitle("Новий пункт меню")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(trailing: Button("Скасувати") {
-                presentationMode.wrappedValue.dismiss()
-            })
-            .onChange(of: viewModel.showSuccess) { newValue in
-                if newValue {
-                    presentationMode.wrappedValue.dismiss()
-                }
-            }
-            .sheet(isPresented: $showImagePicker) {
-                ImagePickerView(
-                    selectedImage: $selectedImage,
-                    isPresented: $showImagePicker,
-                    sourceType: sourceType
-                )
-            }
-            .overlay(
-                Group {
-                    if showImagePickerDialog {
-                        ImagePickerDialog(
-                            isPresented: $showImagePickerDialog,
-                            showImagePicker: $showImagePicker,
-                            sourceType: $sourceType
-                        )
-                    }
-                }
+            mainContentView
+        }
+        .sheet(isPresented: $showImagePicker) {
+            ImagePickerView(
+                selectedImage: $selectedImage,
+                isPresented: $showImagePicker,
+                sourceType: sourceType
             )
+        }
+        .overlay(
+            Group {
+                if showImagePickerDialog {
+                    ImagePickerDialog(
+                        isPresented: $showImagePickerDialog,
+                        showImagePicker: $showImagePicker,
+                        sourceType: $sourceType
+                    )
+                }
+            }
+        )
+    }
+    
+    // MARK: - Основний контент
+    
+    private var mainContentView: some View {
+        ZStack {
+            Color("backgroundColor")
+                .edgesIgnoringSafeArea(.all)
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Вкладки для перемикання між розділами
+                    tabSelectorView
+                    
+                    // Вміст вкладок
+                    selectedTabContent
+                    
+                    // Кнопка створення
+                    createButtonView
+                    
+                    // Помилка
+                    errorView
+                }
+                .padding(.vertical)
+            }
+        }
+        .navigationTitle("Новий пункт меню")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarItems(trailing: Button("Скасувати") {
+            presentationMode.wrappedValue.dismiss()
+        })
+        .onChange(of: viewModel.showSuccess) { oldValue, newValue in
+            if newValue {
+                presentationMode.wrappedValue.dismiss()
+            }
         }
     }
     
     // MARK: - Компоненти інтерфейсу
     
-    // Секція основної інформації
+    private var tabSelectorView: some View {
+        Picker("", selection: $selectedTab) {
+            Text("Основне").tag(0)
+            Text("Кастомізація").tag(1)
+            Text("Зображення").tag(2)
+        }
+        .pickerStyle(SegmentedPickerStyle())
+        .padding(.horizontal)
+    }
+    
+    @ViewBuilder
+    private var selectedTabContent: some View {
+        if selectedTab == 0 {
+            basicInfoSection
+        } else if selectedTab == 1 {
+            customizationSection
+        } else {
+            imageSection
+        }
+    }
+    
     private var basicInfoSection: some View {
         VStack(spacing: 16) {
             CustomTextField(
@@ -120,6 +116,7 @@ struct CreateMenuItemView: View {
                 placeholder: "Назва",
                 text: $menuItemForm.name
             )
+            .padding(.horizontal)
             
             CustomTextField(
                 iconName: "hryvniasign.circle",
@@ -127,12 +124,14 @@ struct CreateMenuItemView: View {
                 text: $menuItemForm.price,
                 keyboardType: .decimalPad
             )
+            .padding(.horizontal)
             
             CustomTextField(
                 iconName: "text.alignleft",
                 placeholder: "Опис (необов'язково)",
                 text: $menuItemForm.description
             )
+            .padding(.horizontal)
             
             // Перемикач доступності
             HStack {
@@ -150,9 +149,48 @@ struct CreateMenuItemView: View {
         .background(Color("cardColor"))
         .cornerRadius(12)
         .padding(.horizontal)
+        .onAppear {
+            // Синхронізуємо значення з editorViewModel
+            editorViewModel.name = menuItemForm.name
+            editorViewModel.price = menuItemForm.price
+            editorViewModel.description = menuItemForm.description
+            editorViewModel.isAvailable = menuItemForm.isAvailable
+        }
+        .onChange(of: menuItemForm.name) { oldValue, newValue in
+            editorViewModel.name = newValue
+        }
+        .onChange(of: menuItemForm.price) { oldValue, newValue in
+            editorViewModel.price = newValue
+        }
+        .onChange(of: menuItemForm.description) { oldValue, newValue in
+            editorViewModel.description = newValue
+        }
+        .onChange(of: menuItemForm.isAvailable) { oldValue, newValue in
+            editorViewModel.isAvailable = newValue
+        }
     }
     
-    // Секція зображення
+    private var customizationSection: some View {
+        // Використовуємо нову структуру MenuItemCustomizationEditor,
+        // яка тепер приймає viewModel замість окремих властивостей
+        MenuItemCustomizationEditor(viewModel: editorViewModel)
+            .onAppear {
+                // Синхронізуємо isCustomizable між формою та viewModel
+                editorViewModel.isCustomizable = menuItemForm.isCustomizable
+                editorViewModel.ingredients = menuItemForm.ingredients
+                editorViewModel.customizationOptions = menuItemForm.customizationOptions
+            }
+            .onChange(of: editorViewModel.isCustomizable) { oldValue, newValue in
+                menuItemForm.isCustomizable = newValue
+            }
+            .onChange(of: editorViewModel.ingredients) { oldValue, newValue in
+                menuItemForm.ingredients = newValue
+            }
+            .onChange(of: editorViewModel.customizationOptions) { oldValue, newValue in
+                menuItemForm.customizationOptions = newValue
+            }
+    }
+    
     private var imageSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Зображення пункту меню")
@@ -202,6 +240,35 @@ struct CreateMenuItemView: View {
         .padding(.horizontal)
     }
     
+    private var createButtonView: some View {
+        Button(action: createMenuItem) {
+            if isSubmitting {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+            } else {
+                Text("Створити пункт меню")
+                    .font(.headline)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty ? Color.gray : Color("primary"))
+        .foregroundColor(.white)
+        .cornerRadius(12)
+        .padding(.horizontal)
+        .disabled(menuItemForm.name.isEmpty || menuItemForm.price.isEmpty || isSubmitting)
+    }
+    
+    @ViewBuilder
+    private var errorView: some View {
+        if let error = viewModel.error {
+            Text(error)
+                .foregroundColor(.red)
+                .padding()
+                .multilineTextAlignment(.center)
+        }
+    }
+    
     // MARK: - Логіка створення пункту меню
     
     private func createMenuItem() {
@@ -216,6 +283,11 @@ struct CreateMenuItemView: View {
             do {
                 // Підготовка даних меню-айтема
                 var updatedMenuItemForm = menuItemForm
+                
+                // Оновлюємо значення з editorViewModel
+                updatedMenuItemForm.isCustomizable = editorViewModel.isCustomizable
+                updatedMenuItemForm.ingredients = editorViewModel.ingredients
+                updatedMenuItemForm.customizationOptions = editorViewModel.customizationOptions
                 
                 // Якщо кастомізація вимкнена, очищаємо відповідні поля
                 if !updatedMenuItemForm.isCustomizable {
@@ -248,7 +320,7 @@ struct CreateMenuItemView: View {
                 
                 // Якщо є кастомізація, оновлюємо пункт меню з даними про кастомізацію
                 if updatedMenuItemForm.isCustomizable {
-                    try await viewModel.updateMenuItem(
+                    let updateResult = try await viewModel.updateMenuItem(
                         groupId: menuGroup.id,
                         itemId: createdMenuItem.id,
                         updates: [
