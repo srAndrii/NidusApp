@@ -25,7 +25,12 @@ struct MenuGroupView: View {
             // Горизонтальний скрол з пунктами меню
             menuItemsScrollView
         }
+        .onAppear {
+            print("📋 MenuGroupView.body з'явився для групи: \(group.id), назва: \(group.name)")
+        }
     }
+       
+    
     
     // MARK: - Допоміжні компоненти
     
