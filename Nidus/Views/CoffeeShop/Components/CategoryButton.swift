@@ -28,7 +28,6 @@ struct CategoryButton: View {
                     Circle()
                         .fill(Color("primary"))
                         .frame(width: 6, height: 6)
-                        .transition(.scale)
                 } else {
                     Circle()
                         .fill(Color.clear)

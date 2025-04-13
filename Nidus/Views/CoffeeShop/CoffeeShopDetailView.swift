@@ -19,21 +19,15 @@ struct CoffeeShopDetailView: View {
             if #available(iOS 16.0, *) {
                 // Для iOS 16+ з новою навігацією
                 NavigationStack {
-                    // Обгортаємо в додатковий координатор для стабільності скролінгу
-                    ScrollingCoordinatorView {
-                        scrollContentView
-                    }
-                    .navigationDestination(for: MenuItem.self) { item in
-                        MenuItemDetailView(menuItem: item)
-                    }
+                    mainContentView
+                        .navigationDestination(for: MenuItem.self) { item in
+                            MenuItemDetailView(menuItem: item)
+                        }
                 }
                 .navigationBarHidden(true)
             } else {
                 // Для iOS 15 і раніше
-                // Обгортаємо в додатковий координатор для стабільності скролінгу
-                ScrollingCoordinatorView {
-                    scrollContentView
-                }
+                mainContentView
             }
             
             // Кнопка "Назад" - тепер з правильним вирівнюванням і кольором
@@ -47,78 +41,49 @@ struct CoffeeShopDetailView: View {
         .onAppear {
             print("📱 CoffeeShopDetailView з'явився")
             viewModel.loadMenuGroups(coffeeShopId: coffeeShop.id)
-            
-            // Додаємо затримку для перевірки готовності груп
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                print("📊 Перевірка завантажених груп:")
-                for group in viewModel.menuGroups {
-                    print("📊 Группа доступна: \(group.id), назва: \(group.name)")
-                }
-            }
         }
     }
     
-    // MARK: - Головний скролабельний контент
-    private var scrollContentView: some View {
-        // Додаємо @EnvironmentObject для отримання стану скролінгу
-        ScrollViewReader { proxy in
-            print("🔍 ScrollViewReader створено")
-            
-            // Отримуємо стан скролінгу з середовища
-            return GeometryReader { geometry in
-                ScrollView(showsIndicators: false) {
-                    // Об'єднано весь контент в один VStack
-                    VStack(spacing: 0) {
-                        // Розтягувана шапка з зображенням і накладеною інформацією
-                        StretchableHeaderView(coffeeShop: coffeeShop)
-                            .frame(height: 320)
-                            .id("top") // Ідентифікатор для прокрутки до верху
-                            .onAppear {
-                                print("🔍 StretchableHeaderView з'явився")
+    // MARK: - Основний контент
+    private var mainContentView: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                // Розтягувана шапка з зображенням і накладеною інформацією
+                StretchableHeaderView(coffeeShop: coffeeShop)
+                    .frame(height: 320)
+                
+                // Контент на основі стану завантаження
+                if viewModel.isLoading {
+                    loadingView
+                        .padding(.top, 20)
+                } else if viewModel.menuGroups.isEmpty {
+                    emptyStateView
+                        .padding(.top, 20)
+                } else {
+                    // Фільтр категорій
+                    categoryFilterView()
+                    
+                    // Меню кав'ярні - групи меню з фільтрацією
+                    VStack(spacing: 24) {
+                        ForEach(viewModel.menuGroups) { group in
+                            if selectedCategory == nil || selectedCategory == group.id {
+                                MenuGroupView(group: group)
+                                    .transition(.opacity)
                             }
-
-                        // Контент на основі стану завантаження
-                        if viewModel.isLoading {
-                            loadingView
-                                .padding(.top, 20)
-                        } else if viewModel.menuGroups.isEmpty {
-                            emptyStateView
-                                .padding(.top, 20)
-                        } else {
-                            // Фільтр категорій
-                            categoryFilterView(proxy: proxy, geometry: geometry)
-
-                            // Меню кав'ярні - групи меню з ідентифікаторами
-                            VStack(spacing: 24) { // Збільшений відступ між групами для кращої візуальної ієрархії
-                                ForEach(viewModel.menuGroups) { group in
-                                    MenuGroupView(group: group)
-                                        .id(group.id) // ID переміщено сюди для більш стабільної роботи ScrollViewReader
-                                        .onAppear {
-                                            print("🔍 MenuGroupView з'явився для групи: \(group.id)")
-                                        }
-                                }
-                                
-                                // Додаємо невидимий спейсер внизу для забезпечення додаткового місця під останньою групою
-                                // особливо важливо для пристроїв з різними розмірами екрану
-                                Spacer()
-                                    .frame(height: 100) // Висота приблизно дорівнює висоті таб-бару з запасом
-                                    .id("bottom_spacer")
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.top, 8)
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .animation(.easeInOut(duration: 0.3), value: selectedCategory)
                 }
-                .edgesIgnoringSafeArea(.top)
-                .background(Color("backgroundColor"))
-                // Додаємо прослуховувач для ScrollState
-                .onScrollStateChange(proxy: proxy)
             }
         }
+        .edgesIgnoringSafeArea(.top)
+        .background(Color("backgroundColor"))
     }
     
     // MARK: - Фільтр категорій
-    private func categoryFilterView(proxy: ScrollViewProxy, geometry: GeometryProxy) -> some View {
+    private func categoryFilterView() -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 // Кнопка "Всі"
@@ -126,68 +91,27 @@ struct CoffeeShopDetailView: View {
                     title: "Всі",
                     isSelected: selectedCategory == nil,
                     action: {
-                        // Спершу змінюємо стан без анімації
-                        selectedCategory = nil
-                        
-                        print("🔍 Скролінг до верху (Всі категорії)")
-                        
-                        // Використовуємо EnvironmentObject для координації скролінгу
-                        scrollToTop(proxy: proxy)
+                        withAnimation {
+                            selectedCategory = nil
+                        }
                     }
                 )
                 
-                // Кнопки категорій з функцією прокрутки
+                // Кнопки категорій для фільтрації
                 ForEach(viewModel.menuGroups) { group in
                     CategoryButton(
                         title: group.name,
                         isSelected: selectedCategory == group.id,
                         action: {
-                            // Спершу змінюємо стан без анімації
-                            selectedCategory = group.id
-                            
-                            print("🚀 Натиснуто кнопку для групи: \(group.id), назва: \(group.name)")
-                            
-                            // Використовуємо EnvironmentObject для координації скролінгу
-                            scrollToGroup(id: group.id, proxy: proxy, geometry: geometry)
+                            withAnimation {
+                                selectedCategory = group.id
+                            }
                         }
                     )
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-        }
-    }
-    
-    // MARK: - Допоміжні методи скролінгу
-    
-    // Скрол до верху
-    private func scrollToTop(proxy: ScrollViewProxy) {
-        withAnimation {
-            proxy.scrollTo("top", anchor: .top)
-        }
-    }
-    
-    // Скрол до групи
-    private func scrollToGroup(id: String, proxy: ScrollViewProxy, geometry: GeometryProxy) {
-        let isLastGroup = id == viewModel.menuGroups.last?.id
-        let anchor: UnitPoint = isLastGroup ? .bottom : .top
-        
-        // Скролінг з анімацією
-        withAnimation(.easeInOut(duration: 0.5)) {
-            proxy.scrollTo(id, anchor: anchor)
-        }
-        
-        // Додаємо резервну логіку через невелику затримку для надійності
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            if isLastGroup {
-                // Для останньої групи скролимо до нашого спейсера
-                proxy.scrollTo("bottom_spacer", anchor: .top)
-            } else {
-                // Для інших груп робимо резервний скрол
-                withAnimation {
-                    proxy.scrollTo(id, anchor: .top)
-                }
-            }
         }
     }
     
@@ -233,68 +157,5 @@ struct CoffeeShopDetailView_Previews: PreviewProvider {
         CoffeeShopDetailView(coffeeShop: MockData.singleCoffeeShop)
             .environmentObject(AuthenticationManager())
             .preferredColorScheme(.dark)
-    }
-}
-
-// MARK: - Координатор скролінгу
-struct ScrollingCoordinatorView<Content: View>: View {
-    let content: Content
-    @State private var selectedGroupId: String? = nil
-    
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-    
-    var body: some View {
-        content
-            .environmentObject(ScrollState())
-    }
-}
-
-// Стан скролінгу, який можна передавати через середовище
-class ScrollState: ObservableObject {
-    @Published var scrollToGroupId: String? = nil
-    
-    func scrollTo(groupId: String) {
-        print("🌟 ScrollState: Запит на скроліг до групи \(groupId)")
-        self.scrollToGroupId = groupId
-        
-        // Скидаємо ID після короткої затримки
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.scrollToGroupId = nil
-        }
-    }
-}
-
-// MARK: - Модифікатор для реагування на зміни в ScrollState
-extension View {
-    func onScrollStateChange(proxy: ScrollViewProxy) -> some View {
-        self.modifier(ScrollStateChangeModifier(proxy: proxy))
-    }
-}
-
-struct ScrollStateChangeModifier: ViewModifier {
-    @EnvironmentObject private var scrollState: ScrollState
-    let proxy: ScrollViewProxy
-    
-    func body(content: Content) -> some View {
-        content
-            .onChange(of: scrollState.scrollToGroupId) { id in
-                if let groupId = id {
-                    print("📜 ScrollStateChangeModifier: прокрутка до \(groupId)")
-                    
-                    // Спроба 1: негайна прокрутка
-                    withAnimation {
-                        proxy.scrollTo(groupId, anchor: .top)
-                    }
-                    
-                    // Спроба 2: з затримкою для надійності
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation {
-                            proxy.scrollTo(groupId, anchor: .top)
-                        }
-                    }
-                }
-            }
     }
 }
