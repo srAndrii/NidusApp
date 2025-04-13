@@ -20,11 +20,23 @@ struct IngredientCustomizationView: View {
     
     /// Відсоток заповнення слайдера (для візуалізації)
     private var sliderFillPercentage: Double {
-        let min = ingredient.minAmount ?? 0
-        let max = ingredient.maxAmount ?? (ingredient.amount * 2)
-        let range = max - min
+        let minValue = ingredient.minAmount ?? 0
+        let maxValue = ingredient.maxAmount ?? (ingredient.amount * 2)
+        let range = maxValue - minValue
         
-        return range > 0 ? (value - min) / range : 0.5
+        if range > 0 {
+            return Swift.min(1.0, (value - minValue) / range)
+        } else {
+            return 0.5
+        }
+    }
+    
+    private var cardGradient: LinearGradient {
+        return LinearGradient(
+            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
+            startPoint: .bottomTrailing,
+            endPoint:.top
+        )
     }
     
     // MARK: - View
@@ -44,20 +56,23 @@ struct IngredientCustomizationView: View {
                     .foregroundColor(Color("primary"))
             }
             
-            // Слайдер з візуальним заповненням
-            ZStack(alignment: .leading) {
-                // Фон слайдера
-                Rectangle()
-                    .fill(Color("inputField"))
-                    .frame(height: 8)
-                    .cornerRadius(4)
-                
-                // Заповнена частина слайдера
-                Rectangle()
-                    .fill(Color("primary"))
-                    .frame(width: max(0, min(sliderFillPercentage * UIScreen.main.bounds.width - 32, UIScreen.main.bounds.width - 32)), height: 8)
-                    .cornerRadius(4)
+            // Слайдер з візуальним заповненням - новий підхід з GeometryReader
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // Фон слайдера - тепер має фіксовану ширину
+                    Rectangle()
+                        .fill(Color("inputField"))
+                        .frame(width: geometry.size.width, height: 8)
+                        .cornerRadius(4)
+                    
+                    // Заповнена частина слайдера - обмежена шириною контейнера
+                    Rectangle()
+                        .fill(Color("primary"))
+                        .frame(width: sliderFillPercentage * geometry.size.width, height: 8)
+                        .cornerRadius(4)
+                }
             }
+            .frame(height: 8) // Фіксована висота для GeometryReader
             
             // Контроль для налаштування значення
             HStack {
@@ -95,11 +110,13 @@ struct IngredientCustomizationView: View {
             .padding(.top, 4)
         }
         .padding(12)
-        .background(Color("cardColor").opacity(0.5))
+//        .background(Color("cardColor").opacity(0.5))
+        .background(cardGradient)
         .cornerRadius(8)
+        .frame(maxWidth: UIScreen.main.bounds.width - 32) // Фіксована максимальна ширина
     }
     
-    // MARK: - Методи
+    // MARK: - Методи - залишаються без змін
     
     /// Перевірка можливості зменшення значення
     private func canDecrease() -> Bool {
@@ -134,9 +151,9 @@ struct IngredientCustomizationView: View {
             return 1 // Для штук крок завжди 1
         } else {
             // Для інших одиниць виміру визначаємо крок залежно від діапазону
-            let min = ingredient.minAmount ?? 0
-            let max = ingredient.maxAmount ?? (ingredient.amount * 2)
-            let range = max - min
+            let minValue = ingredient.minAmount ?? 0
+            let maxValue = ingredient.maxAmount ?? (ingredient.amount * 2)
+            let range = maxValue - minValue
             
             if range <= 10 {
                 return 0.5 // Малий діапазон - менший крок
@@ -150,50 +167,50 @@ struct IngredientCustomizationView: View {
 }
 
 // MARK: - Preview
-//struct IngredientCustomizationView_Previews: PreviewProvider {
-//    static var previews: some View {
-//        VStack(spacing: 16) {
-//            // Приклад зі штуками
-//            IngredientCustomizationView(
-//                ingredient: Ingredient(
-//                    name: "Еспресо шоти",
-//                    amount: 1,
-//                    unit: "шт.",
-//                    isCustomizable: true,
-//                    minAmount: 1,
-//                    maxAmount: 3
-//                ),
-//                value: .constant(1)
-//            )
-//            
-//            // Приклад з грамами
-//            IngredientCustomizationView(
-//                ingredient: Ingredient(
-//                    name: "Цукор",
-//                    amount: 10,
-//                    unit: "г",
-//                    isCustomizable: true,
-//                    minAmount: 0,
-//                    maxAmount: 20
-//                ),
-//                value: .constant(10)
-//            )
-//            
-//            // Приклад з мілілітрами
-//            IngredientCustomizationView(
-//                ingredient: Ingredient(
-//                    name: "Молоко",
-//                    amount: 150,
-//                    unit: "мл",
-//                    isCustomizable: true,
-//                    minAmount: 100,
-//                    maxAmount: 200
-//                ),
-//                value: .constant(150)
-//            )
-//        }
-//        .padding()
-//        .background(Color("backgroundColor"))
-//        .preferredColorScheme(.dark)
-//    }
-//}
+struct IngredientCustomizationView_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack(spacing: 16) {
+            // Приклад зі штуками
+            IngredientCustomizationView(
+                ingredient: Ingredient(
+                    name: "Еспресо шоти",
+                    amount: 1,
+                    unit: "шт.",
+                    isCustomizable: true,
+                    minAmount: 1,
+                    maxAmount: 3
+                ),
+                value: .constant(1)
+            )
+            
+            // Приклад з грамами
+            IngredientCustomizationView(
+                ingredient: Ingredient(
+                    name: "Цукор",
+                    amount: 10,
+                    unit: "г",
+                    isCustomizable: true,
+                    minAmount: 0,
+                    maxAmount: 20
+                ),
+                value: .constant(10)
+            )
+            
+            // Приклад з мілілітрами
+            IngredientCustomizationView(
+                ingredient: Ingredient(
+                    name: "Молоко",
+                    amount: 150,
+                    unit: "мл",
+                    isCustomizable: true,
+                    minAmount: 100,
+                    maxAmount: 200
+                ),
+                value: .constant(150)
+            )
+        }
+        .padding()
+        .background(Color("backgroundColor"))
+        .preferredColorScheme(.dark)
+    }
+}

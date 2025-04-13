@@ -83,6 +83,7 @@ class MenuItemDetailViewModel: ObservableObject {
     }
     
     /// Обчислення додаткової ціни за кастомізацію
+    /// Обчислення додаткової ціни за кастомізацію
     func calculateCustomizationPrice() {
         var extraPrice: Decimal = 0
         
@@ -93,6 +94,25 @@ class MenuItemDetailViewModel: ObservableObject {
                    let selectedChoice = option.choices.first(where: { $0.id == selectedChoiceId }),
                    let price = selectedChoice.price {
                     extraPrice += price
+                }
+            }
+        }
+        
+        // Додаємо ціну за додаткові інгредієнти понад безкоштовну кількість
+        if let ingredients = menuItem.ingredients {
+            for ingredient in ingredients {
+                if ingredient.isCustomizable {
+                    let currentAmount = ingredientCustomizations[ingredient.id ?? ingredient.name] ?? ingredient.amount
+                    let freeAmount = ingredient.freeAmount ?? 0
+                    let pricePerUnit = ingredient.pricePerUnit ?? 0
+                    
+                    // Якщо поточна кількість перевищує безкоштовну
+                    if currentAmount > freeAmount {
+                        // Обчислюємо додаткову ціну за кожну одиницю понад безкоштовну кількість
+                        let extraUnits = currentAmount - freeAmount
+                        let ingredientExtraPrice = Decimal(Double(extraUnits)) * pricePerUnit
+                        extraPrice += ingredientExtraPrice
+                    }
                 }
             }
         }

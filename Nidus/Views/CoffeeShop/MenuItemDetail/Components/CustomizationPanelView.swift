@@ -78,7 +78,7 @@ struct CustomizationPanelView: View {
                                 .font(.caption)
                                 .foregroundColor(Color("secondaryText"))
                             
-                            ForEach(ingredients.filter { !$0.isCustomizable }, id: \.name) { ingredient in
+                            ForEach(ingredients.filter { !$0.isCustomizable }, id: \.id) { ingredient in
                                 HStack {
                                     Text(ingredient.name)
                                         .font(.caption)

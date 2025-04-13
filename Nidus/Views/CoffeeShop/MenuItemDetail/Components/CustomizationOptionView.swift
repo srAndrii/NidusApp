@@ -14,6 +14,17 @@ struct CustomizationOptionView: View {
     @Binding var selectedChoiceId: String
     @State private var isExpanded = true
     
+    
+    private var cardGradient: LinearGradient {
+        return LinearGradient(
+            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
+            startPoint: .top,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    
+    
     // MARK: - View
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -73,7 +84,8 @@ struct CustomizationOptionView: View {
             }
         }
         .padding(12)
-        .background(Color("cardColor").opacity(0.5))
+//        .background(Color("cardColor").opacity(0.5))
+        .background(cardGradient)
         .cornerRadius(8)
     }
 }

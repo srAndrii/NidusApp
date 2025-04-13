@@ -13,8 +13,9 @@ struct SizeSelectorView: View {
     @Binding var selectedSize: String
     let availableSizes: [String]
     let onSizeChanged: (String) -> Void
+    var showTitle: Bool = false // Новий параметр для показу/приховування заголовка
     
-    /// Описи розмірів для підказок
+    /// Описи розмірів для підписів
     private let sizeDescriptions: [String: String] = [
         "S": "Малий",
         "M": "Середній",
@@ -24,43 +25,48 @@ struct SizeSelectorView: View {
     
     // MARK: - View
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Заголовок секції
-            HStack {
+        HStack(alignment: .center) {
+            // Заголовок секції (тільки якщо showTitle=true)
+            if showTitle {
                 Text("Розмір")
                     .font(.headline)
                     .foregroundColor(Color("primaryText"))
                 
                 Spacer()
-                
-                // Підказка про вибраний розмір
-                if let description = sizeDescriptions[selectedSize] {
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundColor(Color("secondaryText"))
-                }
             }
             
-            // Селектор розмірів
-            HStack(spacing: 12) {
+            // Кнопки розмірів у горизонтальному ряду
+            HStack(spacing: 16) {
                 ForEach(availableSizes, id: \.self) { size in
-                    SizeButton(
-                        size: size,
-                        isSelected: selectedSize == size,
-                        onSelect: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                if selectedSize != size {
-                                    selectedSize = size
-                                    onSizeChanged(size)
+                    VStack(spacing: 4) {
+                        // Кнопка розміру
+                        SizeButton(
+                            size: size,
+                            isSelected: selectedSize == size,
+                            onSelect: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    if selectedSize != size {
+                                        selectedSize = size
+                                        onSizeChanged(size)
+                                    }
                                 }
                             }
-                        }
-                    )
+                        )
+                        
+                        // Підпис під кнопкою з фіксованою шириною
+                        Text(sizeDescriptions[size] ?? "")
+                            .font(.caption)
+                            .foregroundColor(selectedSize == size ? Color("primary") : Color("secondaryText"))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(minWidth: 60)
+                            .multilineTextAlignment(.center)
+                    }
                 }
-                
-                Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .center)
         }
+        .padding(5)
+        // Не використовуємо фон тут, оскільки він буде у батьківському компоненті
     }
 }
 
@@ -74,8 +80,8 @@ struct SizeButton: View {
     /// Діаметр кнопки залежно від розміру екрана
     private var buttonDiameter: CGFloat {
         let screenWidth = UIScreen.main.bounds.width
-        // Адаптивний розмір: маленькі екрани - менші кнопки
-        return screenWidth < 375 ? 50 : 60
+        // Адаптивний розмір для мобільних екранів
+        return screenWidth < 375 ? 45 : 50
     }
     
     // MARK: - View
@@ -99,7 +105,6 @@ struct SizeButton: View {
         .scaleEffect(isSelected ? 1.05 : 1.0) // Невелике збільшення при виборі
     }
 }
-
 // MARK: - Preview
 struct SizeSelectorView_Previews: PreviewProvider {
     static var previews: some View {

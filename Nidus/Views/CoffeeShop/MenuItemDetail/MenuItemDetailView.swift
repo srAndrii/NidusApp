@@ -151,6 +151,14 @@ struct MenuItemDetailView: View {
         }
     }
     
+    private var cardGradient: LinearGradient {
+        return LinearGradient(
+            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
+            startPoint: .top,
+            endPoint: .bottomTrailing
+        )
+    }
+    
     /// Секція з описом товару
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -172,29 +180,41 @@ struct MenuItemDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color("cardColor"))
+        .background(cardGradient) // Застосовуємо градієнт замість одного кольору
         .cornerRadius(12)
     }
     
     /// Секція з вибором розміру
     private var sizeSelectionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Розмір")
-                .font(.headline)
-                .foregroundColor(Color("primaryText"))
+            HStack {
+                Text("Розмір")
+                    .font(.headline)
+                    .foregroundColor(Color("primaryText"))
+                
+                Spacer()
+            }
             
-            // Селектор розміру
+            // Селектор розміру (без заголовка)
             SizeSelectorView(
                 selectedSize: $selectedSize,
                 availableSizes: ["S", "M", "L"],
                 onSizeChanged: { size in
                     viewModel.updatePrice(for: size)
-                }
+                },
+                showTitle: false
             )
+            .padding(.top, 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color("cardColor"))
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
+                startPoint: .top,
+                endPoint: .bottomTrailing
+            )
+        )
         .cornerRadius(12)
     }
     
@@ -217,7 +237,7 @@ struct MenuItemDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color("cardColor"))
+        .background(cardGradient) // Застосовуємо градієнт замість одного кольору
         .cornerRadius(12)
     }
     
@@ -228,13 +248,13 @@ struct MenuItemDetailView: View {
                 .font(.subheadline)
                 .foregroundColor(Color("secondaryText"))
             
-            ForEach(menuItem.ingredients?.filter { $0.isCustomizable } ?? [], id: \.name) { ingredient in
+            ForEach(menuItem.ingredients?.filter { $0.isCustomizable } ?? [], id: \.id) { ingredient in
                 IngredientCustomizationView(
                     ingredient: ingredient,
                     value: Binding(
-                        get: { viewModel.ingredientCustomizations[ingredient.name] ?? ingredient.amount },
+                        get: { viewModel.ingredientCustomizations[ingredient.id ?? ingredient.name] ?? ingredient.amount },
                         set: { newValue in
-                            viewModel.ingredientCustomizations[ingredient.name] = newValue
+                            viewModel.ingredientCustomizations[ingredient.id ?? ingredient.name] = newValue
                             viewModel.updateCustomization()
                         }
                     )
@@ -263,6 +283,8 @@ struct MenuItemDetailView: View {
                 )
             }
         }
+//        .background(cardGradient)
+        
     }
     
     /// Секція з кількістю та кнопкою замовлення
@@ -305,7 +327,7 @@ struct MenuItemDetailView: View {
                 }
             }
             .padding(16)
-            .background(Color("cardColor"))
+            .background(cardGradient)
             .cornerRadius(12)
             
             // Кнопка "Додати до кошика"
