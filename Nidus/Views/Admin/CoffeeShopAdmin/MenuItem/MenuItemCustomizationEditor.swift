@@ -59,12 +59,6 @@ struct MenuItemCustomizationEditor: View {
                 .padding(.horizontal)
                 .padding(.vertical, 10)
             }
-            
-            Divider()
-                .padding(.vertical, 15)
-            
-            // Розділ для розмірів продукту
-            SizesEditorView(viewModel: viewModel)
         }
     }
 }

@@ -8,6 +8,7 @@ enum APIError: Error, LocalizedError {
     case decodingFailed(Error)
     case unauthorized
     case serverError(statusCode: Int, message: String?)
+    case simpleServerError(message: String)
     
     var errorDescription: String? {
         switch self {
@@ -21,8 +22,10 @@ enum APIError: Error, LocalizedError {
             return "Не вдалося декодувати відповідь: \(error.localizedDescription)"
         case .unauthorized:
             return "Необхідна авторизація для доступу до цього ресурсу"
-        case .serverError(let statusCode, let message):
+        case .serverError(statusCode: let statusCode, message: let message):
             return "Помилка сервера (\(statusCode)): \(message ?? "Невідома помилка")"
+        case .simpleServerError(message: let message):
+            return "Помилка сервера: \(message)"
         }
     }
 }
@@ -380,7 +383,7 @@ class NetworkService {
                 } catch let jsonError as APIError {
                     throw jsonError
                 } catch {
-                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка обробки відповіді сервера")
+                    throw APIError.simpleServerError(message: "Помилка обробки відповіді сервера")
                 }
             }
         }

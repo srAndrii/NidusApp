@@ -61,6 +61,8 @@ class CoffeeShopDetailViewModel: ObservableObject {
         switch apiError {
         case .serverError(_, let message):
             self.error = message ?? "Невідома помилка сервера"
+        case .simpleServerError(message: let message):
+            self.error = message
         case .unauthorized:
             self.error = "Необхідна авторизація для перегляду меню"
         default:

@@ -374,6 +374,8 @@ class AdminViewModel: ObservableObject {
         switch apiError {
         case .serverError(_, let message):
             self.error = message ?? "Невідома помилка сервера"
+        case .simpleServerError(message: let message):
+            self.error = message
         case .unauthorized:
             self.error = "Необхідна авторизація для виконання цієї дії"
         default:
