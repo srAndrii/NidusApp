@@ -12,8 +12,10 @@ struct MenuItemFormModel {
     var description: String = ""
     var isAvailable: Bool = true
     var isCustomizable: Bool = false
+    var hasMultipleSizes: Bool = false
     var ingredients: [Ingredient] = []
     var customizationOptions: [CustomizationOption] = []
+    var sizes: [Size] = []
     
     // Ініціалізатор з існуючого пункту меню
     init(from menuItem: MenuItem? = nil) {
@@ -27,9 +29,13 @@ struct MenuItemFormModel {
             isCustomizable = (item.ingredients != nil && !item.ingredients!.isEmpty) ||
                              (item.customizationOptions != nil && !item.customizationOptions!.isEmpty)
             
-            // Копіюємо інгредієнти та опції
+            // Підтримка розмірів
+            hasMultipleSizes = item.hasMultipleSizes ?? false
+            
+            // Копіюємо інгредієнти, опції та розміри
             ingredients = item.ingredients ?? []
             customizationOptions = item.customizationOptions ?? []
+            sizes = item.sizes ?? []
         }
     }
     
@@ -48,6 +54,8 @@ struct MenuItemFormModel {
             menuGroupId: groupId,
             ingredients: isCustomizable ? ingredients : nil,
             customizationOptions: isCustomizable ? customizationOptions : nil,
+            hasMultipleSizes: hasMultipleSizes,
+            sizes: hasMultipleSizes && !sizes.isEmpty ? sizes : nil,
             createdAt: Date(),
             updatedAt: Date()
         )

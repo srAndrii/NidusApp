@@ -47,7 +47,11 @@ class MenuItemsViewModel: ObservableObject {
 
     // Оновити метод createMenuItem в MenuItemsViewModel.swift для використання дефолтного зображення
     @MainActor
-    func createMenuItem(groupId: String, name: String, price: Decimal, description: String?, isAvailable: Bool) async throws -> MenuItem {
+    func createMenuItem(groupId: String, name: String, price: Decimal, description: String?, 
+                       isAvailable: Bool, hasMultipleSizes: Bool = false,
+                       ingredients: [Ingredient]? = nil, 
+                       customizationOptions: [CustomizationOption]? = nil,
+                       sizes: [Size]? = nil) async throws -> MenuItem {
         isLoading = true
         error = nil
         
@@ -58,8 +62,10 @@ class MenuItemsViewModel: ObservableObject {
                 price: price,
                 description: description,
                 isAvailable: isAvailable,
-                ingredients: nil,
-                customizationOptions: nil,
+                ingredients: ingredients,
+                customizationOptions: nil, // Наразі backend не підтримує передачу customizationOptions при створенні
+                hasMultipleSizes: hasMultipleSizes,
+                sizes: sizes,
                 menuGroupId: groupId  // Встановлюємо groupId
             )
             
@@ -203,6 +209,29 @@ class MenuItemsViewModel: ObservableObject {
             
             print("🔄 Перетворені customizationOptions: \(safeOptions)")
             safeUpdates["customizationOptions"] = safeOptions
+        }
+        
+        // Обробляємо розміри, якщо вони є
+        if let sizes = updates["sizes"] as? [Size] {
+            print("🔄 Перетворення sizes з [Size]")
+            print("🔄 Кількість розмірів: \(sizes.count)")
+            
+            let safeSizes = sizes.map { size -> [String: Any] in
+                print("🔄   Обробка розміру: \(size.id) - \(size.name)")
+                
+                var sizeDict: [String: Any] = [
+                    "id": size.id,
+                    "name": size.name,
+                    "abbreviation": size.abbreviation,
+                    "additionalPrice": size.additionalPrice,
+                    "isDefault": size.isDefault
+                ]
+                
+                return sizeDict
+            }
+            
+            print("🔄 Перетворені sizes: \(safeSizes)")
+            safeUpdates["sizes"] = safeSizes
         }
         
         do {

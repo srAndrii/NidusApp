@@ -33,6 +33,8 @@ struct CreateMenuItemRequest: Codable {
     let isAvailable: Bool
     let ingredients: [Ingredient]?
     let customizationOptions: [String: [String]]?
+    let hasMultipleSizes: Bool?
+    let sizes: [Size]?
     var menuGroupId: String
     
     // Додаємо кастомний кодер для уникнення проблем з форматом price
@@ -47,11 +49,13 @@ struct CreateMenuItemRequest: Codable {
         try container.encode(isAvailable, forKey: .isAvailable)
         try container.encodeIfPresent(ingredients, forKey: .ingredients)
         try container.encodeIfPresent(customizationOptions, forKey: .customizationOptions)
+        try container.encodeIfPresent(hasMultipleSizes, forKey: .hasMultipleSizes)
+        try container.encodeIfPresent(sizes, forKey: .sizes)
         try container.encode(menuGroupId, forKey: .menuGroupId)
     }
     
     enum CodingKeys: String, CodingKey {
-        case name, price, description, isAvailable, ingredients, customizationOptions, menuGroupId
+        case name, price, description, isAvailable, ingredients, customizationOptions, hasMultipleSizes, sizes, menuGroupId
     }
 }
 

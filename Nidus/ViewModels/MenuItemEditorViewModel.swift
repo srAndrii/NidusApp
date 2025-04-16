@@ -19,10 +19,12 @@ class MenuItemEditorViewModel: ObservableObject {
     @Published var imageUrl: String?
     @Published var selectedImage: UIImage?
     @Published var customizationTabIndex: Int = 0
+    @Published var hasMultipleSizes: Bool
     
     // Вкладені дані для кастомізації
     @Published var ingredients: [Ingredient]
     @Published var customizationOptions: [CustomizationOption]
+    @Published var sizes: [Size]
     
     // Стан для UI
     @Published var selectedTab: Int = 0
@@ -40,6 +42,8 @@ class MenuItemEditorViewModel: ObservableObject {
                              (menuItem.customizationOptions != nil && !menuItem.customizationOptions!.isEmpty)
         self.ingredients = menuItem.ingredients ?? []
         self.customizationOptions = menuItem.customizationOptions ?? []
+        self.hasMultipleSizes = menuItem.hasMultipleSizes ?? false
+        self.sizes = menuItem.sizes ?? []
     }
     
     // MARK: - Методи для роботи з інгредієнтами
@@ -217,6 +221,116 @@ class MenuItemEditorViewModel: ObservableObject {
         logCustomizationOptions()
     }
     
+    // MARK: - Методи для роботи з розмірами
+    
+    func addSize(name: String, abbreviation: String, additionalPrice: Decimal, isDefault: Bool) {
+        // Перевірка чи є вже розмір за замовчуванням
+        if isDefault {
+            // Якщо додається новий розмір за замовчуванням, переконайтесь що інші розміри не є за замовчуванням
+            for i in 0..<sizes.count {
+                if sizes[i].isDefault {
+                    let updatedSize = Size(
+                        id: sizes[i].id,
+                        name: sizes[i].name,
+                        abbreviation: sizes[i].abbreviation,
+                        additionalPrice: sizes[i].additionalPrice,
+                        isDefault: false
+                    )
+                    sizes[i] = updatedSize
+                }
+            }
+        } else if sizes.isEmpty || !sizes.contains(where: { $0.isDefault }) {
+            // Якщо розмірів немає або немає розміру за замовчуванням, встановлюємо поточний як за замовчуванням
+            let newSize = Size(
+                name: name,
+                abbreviation: abbreviation,
+                additionalPrice: additionalPrice,
+                isDefault: true
+            )
+            sizes.append(newSize)
+            return
+        }
+        
+        // Додавання нового розміру
+        let newSize = Size(
+            name: name,
+            abbreviation: abbreviation,
+            additionalPrice: additionalPrice,
+            isDefault: isDefault
+        )
+        sizes.append(newSize)
+        print("🔄 Додано розмір: \(name), всього: \(sizes.count)")
+    }
+    
+    func updateSize(at index: Int, name: String, abbreviation: String, additionalPrice: Decimal, isDefault: Bool) {
+        guard index >= 0 && index < sizes.count else {
+            print("❌ Неможливо оновити розмір: індекс за межами масиву")
+            return
+        }
+        
+        // Якщо оновлений розмір стає розміром за замовчуванням, знімаємо цей статус з інших розмірів
+        if isDefault {
+            for i in 0..<sizes.count {
+                if i != index && sizes[i].isDefault {
+                    let updatedSize = Size(
+                        id: sizes[i].id,
+                        name: sizes[i].name,
+                        abbreviation: sizes[i].abbreviation,
+                        additionalPrice: sizes[i].additionalPrice,
+                        isDefault: false
+                    )
+                    sizes[i] = updatedSize
+                }
+            }
+        }
+        
+        // Якщо знімаємо статус за замовчуванням з єдиного розміру за замовчуванням, не дозволяємо це
+        if !isDefault && sizes[index].isDefault && !sizes.contains(where: { $0.isDefault && $0.id != sizes[index].id }) {
+            print("❌ Неможливо видалити єдиний розмір за замовчуванням")
+            return
+        }
+        
+        // Оновлення розміру
+        let updatedSize = Size(
+            id: sizes[index].id,
+            name: name,
+            abbreviation: abbreviation,
+            additionalPrice: additionalPrice,
+            isDefault: isDefault
+        )
+        sizes[index] = updatedSize
+        print("🔄 Оновлено розмір[\(index)]: \(name)")
+    }
+    
+    func removeSize(at index: Int) {
+        guard index >= 0 && index < sizes.count else {
+            print("❌ Неможливо видалити розмір: індекс за межами масиву")
+            return
+        }
+        
+        // Перевірка чи це розмір за замовчуванням
+        let isDefaultSize = sizes[index].isDefault
+        let sizeName = sizes[index].name
+        
+        // Видалення розміру
+        sizes.remove(at: index)
+        print("🔄 Видалено розмір: \(sizeName), залишилось: \(sizes.count)")
+        
+        // Якщо був видалений розмір за замовчуванням і є інші розміри, встановлюємо перший як за замовчуванням
+        if isDefaultSize && !sizes.isEmpty && !sizes.contains(where: { $0.isDefault }) {
+            let firstSize = sizes[0]
+            let updatedSize = Size(
+                id: firstSize.id,
+                name: firstSize.name,
+                abbreviation: firstSize.abbreviation,
+                additionalPrice: firstSize.additionalPrice,
+                isDefault: true
+            )
+            sizes[0] = updatedSize
+            print("🔄 Встановлено розмір за замовчуванням: \(updatedSize.name)")
+        }
+    }
+    
     // MARK: - Конверсія даних форми в MenuItem
     
     func toMenuItem(groupId: String, itemId: String) -> MenuItem? {
@@ -228,6 +342,7 @@ class MenuItemEditorViewModel: ObservableObject {
         print("📊 Конвертація MenuItemEditorViewModel -> MenuItem")
         print("📊 id: \(itemId), name: \(name), price: \(priceDecimal)")
         print("📊 isCustomizable: \(isCustomizable)")
+        print("📊 hasMultipleSizes: \(hasMultipleSizes)")
         
         if isCustomizable {
             print("📊 ingredients: \(ingredients.count)")
@@ -235,6 +350,13 @@ class MenuItemEditorViewModel: ObservableObject {
             
             for (i, option) in customizationOptions.enumerated() {
                 print("📊 опція[\(i)]: \(option.name), choices: \(option.choices.count)")
+            }
+        }
+        
+        if hasMultipleSizes {
+            print("📊 sizes: \(sizes.count)")
+            for (i, size) in sizes.enumerated() {
+                print("📊 розмір[\(i)]: \(size.name), isDefault: \(size.isDefault)")
             }
         }
         
@@ -248,6 +370,8 @@ class MenuItemEditorViewModel: ObservableObject {
             menuGroupId: groupId,
             ingredients: isCustomizable ? ingredients : nil,
             customizationOptions: isCustomizable ? customizationOptions : nil,
+            hasMultipleSizes: hasMultipleSizes,
+            sizes: hasMultipleSizes && !sizes.isEmpty ? sizes : nil,
             createdAt: Date(),
             updatedAt: Date()
         )

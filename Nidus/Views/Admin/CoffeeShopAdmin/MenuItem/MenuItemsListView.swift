@@ -211,9 +211,9 @@ struct MenuItemRowWithNavigation: View {
             if useFullScreenEditor {
                 NavigationLink(
                     destination: FullScreenMenuItemEditor(
-                        viewModel: viewModel,
-                        menuGroup: menuGroup,
-                        menuItem: menuItem
+                        groupId: menuGroup.id,
+                        item: menuItem,
+                        menuItemsViewModel: viewModel
                     ),
                     isActive: $isEditing
                 ) {

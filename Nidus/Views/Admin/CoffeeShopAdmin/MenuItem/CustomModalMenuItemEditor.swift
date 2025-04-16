@@ -281,7 +281,8 @@ struct CustomModalMenuItemEditor: View {
                 var updates: [String: Any] = [
                     "name": updatedMenuItem.name,
                     "price": updatedMenuItem.price,
-                    "isAvailable": updatedMenuItem.isAvailable
+                    "isAvailable": updatedMenuItem.isAvailable,
+                    "hasMultipleSizes": updatedMenuItem.hasMultipleSizes ?? false
                 ]
                 
                 // Додавання опису
@@ -308,6 +309,20 @@ struct CustomModalMenuItemEditor: View {
                 } else {
                     updates["ingredients"] = NSNull()
                     updates["customizationOptions"] = NSNull()
+                }
+                
+                // Обробка розмірів
+                if editorViewModel.hasMultipleSizes && !editorViewModel.sizes.isEmpty {
+                    updates["sizes"] = updatedMenuItem.sizes
+                    
+                    print("🚀 Додавання розмірів в оновлення")
+                    print("🚀 Розміри: \(editorViewModel.sizes.count)")
+                    
+                    for (i, size) in editorViewModel.sizes.enumerated() {
+                        print("🚀 Розмір \(i): \(size.name), додаткова ціна: \(size.additionalPrice), за замовчуванням: \(size.isDefault)")
+                    }
+                } else {
+                    updates["sizes"] = NSNull()
                 }
                 
                 // Відправка оновлення на сервер

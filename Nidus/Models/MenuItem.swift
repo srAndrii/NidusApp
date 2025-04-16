@@ -18,11 +18,14 @@ struct MenuItem: Identifiable, Codable, Hashable {
     var menuGroup: MenuGroup?       // Додано для підтримки JSON формату з API
     var ingredients: [Ingredient]?
     var customizationOptions: [CustomizationOption]?
+    var hasMultipleSizes: Bool?     // Вказує, чи має продукт різні розміри
+    var sizes: [Size]?              // Доступні розміри продукту
     var createdAt: Date
     var updatedAt: Date
     
     enum CodingKeys: String, CodingKey {
-        case id, name, price, description, imageUrl, isAvailable, menuGroupId, menuGroup, ingredients, customizationOptions, createdAt, updatedAt
+        case id, name, price, description, imageUrl, isAvailable, menuGroupId, menuGroup, ingredients
+        case customizationOptions, hasMultipleSizes, sizes, createdAt, updatedAt
     }
     
     init(from decoder: Decoder) throws {
@@ -92,14 +95,17 @@ struct MenuItem: Identifiable, Codable, Hashable {
         } else {
             updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
         }
+        
+        hasMultipleSizes = try container.decodeIfPresent(Bool.self, forKey: .hasMultipleSizes)
+        sizes = try container.decodeIfPresent([Size].self, forKey: .sizes)
     }
     
     // Стандартний ініціалізатор
     init(id: String, name: String, price: Decimal, description: String? = nil,
          imageUrl: String? = nil, isAvailable: Bool = true, menuGroupId: String? = nil,
          menuGroup: MenuGroup? = nil, ingredients: [Ingredient]? = nil,
-         customizationOptions: [CustomizationOption]? = nil, createdAt: Date = Date(),
-         updatedAt: Date = Date()) {
+         customizationOptions: [CustomizationOption]? = nil, hasMultipleSizes: Bool? = nil,
+         sizes: [Size]? = nil, createdAt: Date = Date(), updatedAt: Date = Date()) {
         self.id = id
         self.name = name
         self.price = price
@@ -110,6 +116,8 @@ struct MenuItem: Identifiable, Codable, Hashable {
         self.menuGroup = menuGroup
         self.ingredients = ingredients
         self.customizationOptions = customizationOptions
+        self.hasMultipleSizes = hasMultipleSizes
+        self.sizes = sizes
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -216,5 +224,29 @@ struct CustomizationChoice: Identifiable, Codable, Hashable {
     
     static func == (lhs: CustomizationChoice, rhs: CustomizationChoice) -> Bool {
         return lhs.id == rhs.id
+    }
+}
+
+struct Size: Identifiable, Codable, Hashable {
+    let id: String
+    let name: String
+    let abbreviation: String
+    let additionalPrice: Decimal
+    let isDefault: Bool
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: Size, rhs: Size) -> Bool {
+        return lhs.id == rhs.id
+    }
+    
+    init(id: String? = nil, name: String, abbreviation: String, additionalPrice: Decimal, isDefault: Bool) {
+        self.id = id ?? UUID().uuidString
+        self.name = name
+        self.abbreviation = abbreviation
+        self.additionalPrice = additionalPrice
+        self.isDefault = isDefault
     }
 }
