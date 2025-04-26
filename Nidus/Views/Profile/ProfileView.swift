@@ -77,34 +77,6 @@ struct ProfileView: View {
                     ProfileMenuRow(icon: "questionmark.circle.fill", title: "Підтримка")
                     ProfileMenuRow(icon: "gear", title: "Налаштування")
                     
-                    // Розділювач перед адмін-панеллю
-                    Divider()
-                        .background(Color("secondaryText").opacity(0.2))
-                        .padding(.leading, 56)
-                    
-                    // Додаємо пункт Адмін панель
-                    NavigationLink(destination: AdminPanelView()) {
-                        HStack {
-                            Image(systemName: "shield.fill")
-                                .font(.system(size: 18))
-                                .foregroundColor(Color("primary"))
-                                .frame(width: 24, height: 24)
-                                .padding(.trailing, 8)
-                            
-                            Text("Адмін панель")
-                                .font(.body)
-                                .foregroundColor(Color("primaryText"))
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14))
-                                .foregroundColor(Color("secondaryText"))
-                        }
-                        .padding(.vertical, 16)
-                        .padding(.horizontal, 20)
-                    }
-                    .background(Color("cardColor"))
                 }
                 .background(Color("cardColor"))
                 .cornerRadius(16)

@@ -120,6 +120,7 @@ class NetworkService {
         return try await performRequestWithBody(urlRequest, body: body)
     }
     
+    // Залишаємо метод patch для клієнтських запитів (оновлення профілю, скасування замовлення)
     func patch<T: Encodable, U: Decodable>(endpoint: String, body: T, requiresAuth: Bool = true) async throws -> U {
         var urlRequest = try createRequest(for: endpoint, method: "PATCH", requiresAuth: requiresAuth)
         
@@ -195,21 +196,6 @@ class NetworkService {
         }
     }
     
-    func put<T: Encodable, U: Decodable>(endpoint: String, body: T, requiresAuth: Bool = true) async throws -> U {
-        var urlRequest = try createRequest(for: endpoint, method: "PUT", requiresAuth: requiresAuth)
-        return try await performRequestWithBody(urlRequest, body: body)
-    }
-    
-    func delete<U: Decodable>(endpoint: String, requiresAuth: Bool = true) async throws -> U {
-        var urlRequest = try createRequest(for: endpoint, method: "DELETE", requiresAuth: requiresAuth)
-        return try await performRequest(urlRequest)
-    }
-    
-    func deleteWithoutResponse(endpoint: String, requiresAuth: Bool = true) async throws {
-        var urlRequest = try createRequest(for: endpoint, method: "DELETE", requiresAuth: requiresAuth)
-        _ = try await performRequestWithoutResponse(urlRequest)
-    }
-    
     // MARK: - Helper Methods
     
     private func createRequest(for endpoint: String, method: String, requiresAuth: Bool) throws -> URLRequest {
@@ -258,23 +244,6 @@ class NetworkService {
             throw error
         } catch {
             throw APIError.requestFailed(error)
-        }
-    }
-    
-    private func performRequestWithoutResponse(_ request: URLRequest) async throws {
-        let (_, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-        
-        switch httpResponse.statusCode {
-        case 200...299:
-            return
-        case 401:
-            throw APIError.unauthorized
-        default:
-            throw APIError.serverError(statusCode: httpResponse.statusCode, message: nil)
         }
     }
     
@@ -389,61 +358,36 @@ class NetworkService {
         }
     }
     
+    // MARK: - File Upload Helper Methods
 
-    // Додайте ці методи, якщо вони відсутні, або оновіть існуючі
-    func createUploadRequest(
-        endpoint: String,
-        data: Data,
-        fieldName: String,
-        fileName: String,
-        mimeType: String
-    ) async throws -> (Data, URLResponse) {
-        let request = try createMultipartRequest(for: endpoint, data: data, fieldName: fieldName, fileName: fileName, mimeType: mimeType)
-        return try await URLSession.shared.data(for: request)
+    func mimeType(for extension: String) -> String {
+        switch `extension`.lowercased() {
+        case "jpg", "jpeg":
+            return "image/jpeg"
+        case "png":
+            return "image/png"
+        case "gif":
+            return "image/gif"
+        case "pdf":
+            return "application/pdf"
+        default:
+            return "application/octet-stream"
+        }
     }
 
-    func createDeleteRequest(endpoint: String) async throws -> (Data, URLResponse) {
-        let request = try createRequest(for: endpoint, method: "DELETE", requiresAuth: true)
-        return try await URLSession.shared.data(for: request)
+    /// Конвертує UIImage в Data з визначеним форматом і якістю
+    func compressImage(_ image: UIImage, format: ImageFormat = .jpeg, compressionQuality: CGFloat = 0.8) -> Data? {
+        switch format {
+        case .jpeg:
+            return image.jpegData(compressionQuality: compressionQuality)
+        case .png:
+            return image.pngData()
+        }
     }
 
-    // Перевірте, чи є цей метод, і додайте його, якщо відсутній
-    private func createMultipartRequest(for endpoint: String, data: Data, fieldName: String, fileName: String, mimeType: String) throws -> URLRequest {
-        // Формуємо URL
-        guard let url = URL(string: baseURL + endpoint) else {
-            throw APIError.invalidURL
-        }
-        
-        // Створюємо boundary - унікальний розділювач для частин multipart запиту
-        let boundary = "Boundary-\(UUID().uuidString)"
-        
-        // Створюємо запит
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        
-        // Додаємо токен, якщо потрібна авторизація
-        if let token = accessToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        
-        // Створюємо тіло запиту
-        var body = Data()
-        
-        // Додаємо файл
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n".data(using: .utf8)!)
-        
-        // Додаємо закриваючий boundary
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        
-        // Встановлюємо тіло запиту
-        request.httpBody = body
-        
-        return request
+    enum ImageFormat {
+        case jpeg
+        case png
     }
     
     // MARK: - Token Refresh
@@ -471,124 +415,5 @@ class NetworkService {
             clearTokens()
             return false
         }
-    }
-    
-    // MARK: - File Upload Helper Methods
-
-   
-    /// Завантажує файл на сервер і повертає результат
-    func uploadFile<T: Decodable>(endpoint: String, data: Data, fieldName: String = "file", fileName: String, mimeType: String) async throws -> T {
-        do {
-            let request = try createMultipartRequest(for: endpoint, data: data, fieldName: fieldName, fileName: fileName, mimeType: mimeType)
-            
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            // Для відладки, виводимо отриманий JSON
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("Відповідь сервера при завантаженні файлу: \(responseString)")
-            }
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw APIError.invalidResponse
-            }
-            
-            // Перевіряємо статус код
-            if !(200...299).contains(httpResponse.statusCode) {
-                print("Статус код відповіді: \(httpResponse.statusCode)")
-                print("Повні заголовки відповіді: \(httpResponse.allHeaderFields)")
-                // Безпечно обробляємо помилку серверу
-                do {
-                    // Спробуємо спочатку стандартний формат помилки
-                    let errorResponse = try JSONDecoder().decode(ErrorResponse.self, from: data)
-                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: errorResponse.message)
-                } catch DecodingError.dataCorrupted(let context),
-                       DecodingError.keyNotFound(_, let context),
-                       DecodingError.typeMismatch(_, let context),
-                       DecodingError.valueNotFound(_, let context) {
-                    print("Помилка декодування відповіді: \(context.debugDescription)")
-                    
-                    // Якщо не вдалося декодувати стандартний формат, спробуємо вручну дістати повідомлення
-                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let message = json["message"] as? String {
-                        throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
-                    } else {
-                        throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка завантаження файлу")
-                    }
-                } catch let apiError as APIError {
-                    throw apiError
-                } catch {
-                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: "Помилка завантаження файлу")
-                }
-            }
-            
-            // Декодуємо відповідь
-            do {
-                let decoder = JSONDecoder()
-                return try decoder.decode(T.self, from: data)
-            } catch {
-                print("Помилка декодування відповіді при завантаженні файлу: \(error)")
-                
-                // Якщо сервер повернув успішний статус але некоректний формат даних
-                if let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let url = dict["url"] as? String,
-                   let success = dict["success"] as? Bool {
-                    
-                    // Створюємо JSON з очікуваним форматом
-                    let fixedDict = ["success": success, "url": url] as [String: Any]
-                    let fixedData = try JSONSerialization.data(withJSONObject: fixedDict)
-                    
-                    // Повторно пробуємо декодувати
-                    return try JSONDecoder().decode(T.self, from: fixedData)
-                }
-                
-                throw APIError.decodingFailed(error)
-            }
-        } catch let error as APIError {
-            throw error
-        } catch {
-            throw APIError.requestFailed(error)
-        }
-    }
-
-    /// Визначає MIME-тип за розширенням файлу
-    func mimeType(for extension: String) -> String {
-        switch `extension`.lowercased() {
-        case "jpg", "jpeg":
-            return "image/jpeg"
-        case "png":
-            return "image/png"
-        case "gif":
-            return "image/gif"
-        case "pdf":
-            return "application/pdf"
-        default:
-            return "application/octet-stream"
-        }
-    }
-    
-    func createPatchRequest<T: Encodable>(endpoint: String, body: T) async throws -> (Data, URLResponse) {
-        var urlRequest = try createRequest(for: endpoint, method: "PATCH", requiresAuth: true)
-        
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        
-        urlRequest.httpBody = try encoder.encode(body)
-        
-        return try await URLSession.shared.data(for: urlRequest)
-    }
-
-    /// Конвертує UIImage в Data з визначеним форматом і якістю
-    func compressImage(_ image: UIImage, format: ImageFormat = .jpeg, compressionQuality: CGFloat = 0.8) -> Data? {
-        switch format {
-        case .jpeg:
-            return image.jpegData(compressionQuality: compressionQuality)
-        case .png:
-            return image.pngData()
-        }
-    }
-
-    enum ImageFormat {
-        case jpeg
-        case png
     }
 }

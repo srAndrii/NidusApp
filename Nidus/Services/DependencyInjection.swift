@@ -38,9 +38,4 @@ class DIContainer {
     func makeHomeViewModel() -> HomeViewModel {
         return HomeViewModel(coffeeShopRepository: coffeeShopRepository)
     }
-    
-    // Метод для отримання AdminViewModel
-    func makeAdminViewModel() -> AdminViewModel {
-        return AdminViewModel(userRepository: userRepository)
-    }
 }
