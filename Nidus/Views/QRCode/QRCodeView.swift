@@ -17,14 +17,55 @@ import CoreImage.CIFilterBuiltins
 
 struct QRCodeView: View {
     @EnvironmentObject var authManager: AuthenticationManager
+    @Environment(\.colorScheme) private var colorScheme
     
     let context = CIContext()
     let filter = CIFilter.qrCodeGenerator()
     
     var body: some View {
         ZStack {
-            Color("backgroundColor")
-                .ignoresSafeArea()
+            // Фон за аналогією з ProfileView
+            Group {
+                if colorScheme == .light {
+                    // Для світлої теми використовуємо нові кольори: nidusCoolGray, nidusMistyBlue та nidusLightBlueGray
+                    ZStack {
+                        // Основний горизонтальний градієнт
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color("nidusCoolGray").opacity(0.9),
+                                Color("nidusLightBlueGray").opacity(0.8)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        
+                        // Додатковий вертикальний градієнт для текстури
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color("nidusCoolGray").opacity(0.15),
+                                Color.clear
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        
+                        // Тонкий шар кольору для затінення в кутах
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                Color("nidusCoolGray").opacity(0.2)
+                            ]),
+                            center: .bottomTrailing,
+                            startRadius: UIScreen.main.bounds.width * 0.2,
+                            endRadius: UIScreen.main.bounds.width
+                        )
+                    }
+                } else {
+                    // Для темного режиму використовуємо існуючий колір
+                    Color("backgroundColor")
+                }
+            }
+            .ignoresSafeArea()
             
             VStack(spacing: 30) {
                 VStack(spacing: 12) {
@@ -38,7 +79,7 @@ struct QRCodeView: View {
                         .foregroundColor(Color("secondaryText"))
                 }
                 
-                // Карточка з QR-кодом
+                // Карточка з QR-кодом зі скляним ефектом
                 VStack(spacing: 16) {
                     // QR-код
                     Image(uiImage: generateQRCode(from: getUserId()))
@@ -57,8 +98,54 @@ struct QRCodeView: View {
                         .foregroundColor(Color("primaryText"))
                 }
                 .padding(20)
-                .background(Color("cardColor"))
+                .background(
+                    ZStack {
+                        // Основний ефект скла
+                        BlurView(
+                            style: colorScheme == .light ? .systemThinMaterialDark : .systemMaterialDark,
+                            opacity: colorScheme == .light ? 0.7 : 0.95
+                        )
+                        // Додатково тонуємо під кольори застосунку
+                        Group {
+                            if colorScheme == .light {
+                                // Тонування для світлої теми
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color("nidusMistyBlue").opacity(0.25),
+                                        Color("nidusCoolGray").opacity(0.1)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                
+                                // Додаткове тонування для ефекту глибини
+                                Color("nidusLightBlueGray").opacity(0.12)
+                            } else {
+                                // Додатковий шар для глибини у темному режимі
+                                Color.black.opacity(0.15)
+                            }
+                        }
+                    }
+                )
                 .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    colorScheme == .light 
+                                        ? Color("nidusCoolGray").opacity(0.4)
+                                        : Color.black.opacity(0.35),
+                                    colorScheme == .light
+                                        ? Color("nidusLightBlueGray").opacity(0.25)
+                                        : Color.black.opacity(0.1)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
                 .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
                 
                 VStack(spacing: 8) {
@@ -78,7 +165,6 @@ struct QRCodeView: View {
             }
             .padding(.top, 40)
         }
-        .navigationTitle("Мій QR-код")
         .navigationBarTitleDisplayMode(.inline)
     }
     

@@ -156,6 +156,5 @@ struct CoffeeShopDetailView_Previews: PreviewProvider {
     static var previews: some View {
         CoffeeShopDetailView(coffeeShop: MockData.singleCoffeeShop)
             .environmentObject(AuthenticationManager())
-            .preferredColorScheme(.dark)
     }
 }

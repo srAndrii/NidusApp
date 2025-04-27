@@ -21,7 +21,7 @@ struct NidusApp: App {
                 }
             }
             .environmentObject(authManager)
-            .preferredColorScheme(.dark) // Фіксує темний режим
+      
         }
     }
 }

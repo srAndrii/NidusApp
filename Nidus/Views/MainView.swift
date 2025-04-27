@@ -9,34 +9,91 @@ import SwiftUI
 
 struct MainView: View {
     @EnvironmentObject var authManager: AuthenticationManager
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        TabView {
-            // Вкладка "Кав'ярні"
-            NavigationView {
-                HomeView()
+        ZStack {
+            // Спочатку встановлюємо базовий колір фону
+            Group {
+                if colorScheme == .light {
+                    // Для світлої теми використовуємо нові кольори: nidusCoolGray, nidusMistyBlue та nidusLightBlueGray
+                    ZStack {
+                        // Основний горизонтальний градієнт з більшим акцентом на сірі відтінки
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color("nidusCoolGray").opacity(0.9),
+                                Color("nidusLightBlueGray").opacity(0.8)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        
+                        // Додатковий вертикальний градієнт для текстури
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color("nidusCoolGray").opacity(0.15),
+                                Color.clear
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        
+                        // Тонкий шар кольору для затінення в кутах
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                Color("nidusCoolGray").opacity(0.2)
+                            ]),
+                            center: .bottomTrailing,
+                            startRadius: UIScreen.main.bounds.width * 0.2,
+                            endRadius: UIScreen.main.bounds.width
+                        )
+                    }
+                } else {
+                    // Для темного режиму використовуємо існуючий колір
+                    Color("backgroundColor")
+                }
             }
-            .tabItem {
-                Label("Кав'ярні", systemImage: "cup.and.saucer.fill")
-            }
+            .edgesIgnoringSafeArea(.all)
             
-            // Вкладка "QR-код"
-            NavigationView {
-                QRCodeView()
-            }
-            .tabItem {
-                Label("Мій код", systemImage: "qrcode")
-            }
+            // Логотип як фон
+            Image("Logo")
+                .resizable()
+                .renderingMode(.original)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: UIScreen.main.bounds.width * 0.7)
+                .saturation(1.5)
+                .opacity(1)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // Вкладка "Профіль"
-            NavigationView {
-                ProfileView()
+            // TabView - основний контент
+            TabView {
+                // Вкладка "Кав'ярні"
+                NavigationView {
+                    HomeView()
+                }
+                .tabItem {
+                    Label("Кав'ярні", systemImage: "cup.and.saucer.fill")
+                }
+                
+                // Вкладка "QR-код"
+                NavigationView {
+                    QRCodeView()
+                }
+                .tabItem {
+                    Label("Мій код", systemImage: "qrcode")
+                }
+                
+                // Вкладка "Профіль"
+                NavigationView {
+                    ProfileView()
+                }
+                .tabItem {
+                    Label("Профіль", systemImage: "person.fill")
+                }
             }
-            .tabItem {
-                Label("Профіль", systemImage: "person.fill")
-            }
+            .accentColor(Color("primary")) // Оранжевий колір для активних елементів
         }
-        .accentColor(Color("primary")) // Оранжевий колір для активних елементів
     }
 }
 
@@ -44,6 +101,5 @@ struct MainView_Previews: PreviewProvider {
     static var previews: some View {
         MainView()
             .environmentObject(AuthenticationManager())
-            .preferredColorScheme(.dark)
     }
 }

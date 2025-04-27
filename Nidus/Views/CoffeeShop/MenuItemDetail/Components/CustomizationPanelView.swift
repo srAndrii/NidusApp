@@ -200,6 +200,5 @@ struct CustomizationPanelView_Previews: PreviewProvider {
                 .padding()
         }
         .background(Color("backgroundColor"))
-        .preferredColorScheme(.dark)
     }
 }

@@ -10,42 +10,55 @@ import SwiftUI
 struct ProfileMenuRow: View {
     let icon: String
     let title: String
-    var action: (() -> Void)? = nil
+    let action: (() -> Void)?
+    
+    init(icon: String, title: String, action: (() -> Void)? = nil) {
+        self.icon = icon
+        self.title = title
+        self.action = action
+    }
     
     var body: some View {
         Button(action: {
-            // Виконується дія при натисканні
-            action?()
+            if let action = action {
+                action()
+            }
         }) {
             HStack {
                 Image(systemName: icon)
-                    .font(.system(size: 18))
+                    .font(.system(size: 16))
                     .foregroundColor(Color("primary"))
                     .frame(width: 24, height: 24)
-                    .padding(.trailing, 8)
                 
                 Text(title)
                     .font(.body)
+                    .fontWeight(.medium)
                     .foregroundColor(Color("primaryText"))
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14))
-                    .foregroundColor(Color("secondaryText"))
+                    .foregroundColor(Color("secondary"))
             }
-            .padding(.vertical, 16)
-            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(Color.clear)
         }
-        .background(Color("cardColor"))
     }
 }
 
 struct ProfileMenuRow_Previews: PreviewProvider {
     static var previews: some View {
+        ZStack {
+            Color("backgroundColor")
+                .edgesIgnoringSafeArea(.all)
+            
         ProfileMenuRow(icon: "person.fill", title: "Особисті дані")
             .previewLayout(.sizeThatFits)
-            .background(Color("cardColor"))
-            .preferredColorScheme(.dark)
+                .background(BlurView(style: .systemMaterialDark, opacity: 0.95))
+                .cornerRadius(12)
+                .padding()
+        }
     }
 }

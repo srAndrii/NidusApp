@@ -10,29 +10,63 @@ import Kingfisher
 
 struct CoffeeShopRow: View {
     let coffeeShop: CoffeeShop
-    
-    // Додаємо градієнт як обчислювану властивість
-    private var cardGradient: LinearGradient {
-        return LinearGradient(
-            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
-            startPoint: .top,
-            endPoint: .bottomTrailing
-        )
-    }
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        // Використовуємо ZStack для створення структури з NavigationLink
-        ZStack {
-            // Прихований NavigationLink, який займає весь простір
-            NavigationLink(destination: CoffeeShopDetailView(coffeeShop: coffeeShop)) {
-                Rectangle()
+        NavigationLink(destination: CoffeeShopDetailView(coffeeShop: coffeeShop)) {
+            // Наша власна карточка
+            ZStack {
+                // Скляний фон
+                RoundedRectangle(cornerRadius: 17)
                     .fill(Color.clear)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .opacity(0) // Робимо посилання невидимим
-            
-            // Наша власна карточка (без NavigationLink)
-            VStack {
+                    .overlay(
+                        BlurView(
+                            style: colorScheme == .light ? .systemThinMaterialDark : .systemMaterialDark,
+                            opacity: colorScheme == .light ? 0.7 : 0.95
+                        )
+                    )
+                    .overlay(
+                        Group {
+                            if colorScheme == .light {
+                                // Тонування для світлої теми
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color("nidusMistyBlue").opacity(0.25),
+                                        Color("nidusCoolGray").opacity(0.1)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                .opacity(0.4)
+                                
+                                Color("nidusLightBlueGray").opacity(0.12)
+                            } else {
+                                // Темна тема
+                                Color.black.opacity(0.15)
+                            }
+                        }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 17))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 17)
+                            .stroke(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        colorScheme == .light 
+                                            ? Color("nidusCoolGray").opacity(0.4)
+                                            : Color.black.opacity(0.35),
+                                        colorScheme == .light
+                                            ? Color("nidusLightBlueGray").opacity(0.25)
+                                            : Color.black.opacity(0.1)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                
+                // Контент картки
                 HStack(alignment: .center, spacing: 12) {
                     // Логотип (зображення або заглушка)
                     ZStack {
@@ -112,20 +146,15 @@ struct CoffeeShopRow: View {
                         .font(.system(size: 14, weight: .semibold))
                         .padding(.trailing, 8)
                 }
-                .padding(.vertical, 5)
-                .padding(.horizontal, 5)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 10)
             }
-            .background(cardGradient)
-            .cornerRadius(17)
         }
         // Важливо: прибрати всі стилі кнопки та рядка, які можуть додавати зовнішню стрілку
         .buttonStyle(PlainButtonStyle())
-        // Додаткові модифікатори, які допомагають прибрати зовнішні стрілки
-        .listRowInsets(EdgeInsets())
-        // Додаємо горизонтальні відступи до країв екрану
-        .padding(.horizontal, 6)
         // Додаємо вертикальні відступи між карточками
         .padding(.vertical, 6)
+        .frame(height: 100)
     }
     
     // Форматування відстані
@@ -150,22 +179,26 @@ struct CoffeeShopRow: View {
 
 struct CoffeeShopRow_Previews: PreviewProvider {
     static var previews: some View {
-        CoffeeShopRow(coffeeShop: CoffeeShop(
-            id: "mock-1",
-            name: "Кава на Подолі",
-            address: "вул. Сагайдачного 15, Київ",
-            logoUrl: nil,
-            ownerId: nil,
-            allowScheduledOrders: true,
-            minPreorderTimeMinutes: 15,
-            maxPreorderTimeMinutes: 120,
-            workingHours: ["1": WorkingHoursPeriod(open: "08:00", close: "22:00", isClosed: false)],
-            createdAt: Date(),
-            updatedAt: Date(),
-            distance: 350
-        ))
-        .previewLayout(.sizeThatFits)
-        .padding()
-        .background(Color("backgroundColor"))
+        ZStack {
+            Color("backgroundColor")
+                .edgesIgnoringSafeArea(.all)
+                
+            CoffeeShopRow(coffeeShop: CoffeeShop(
+                id: "mock-1",
+                name: "Кава на Подолі",
+                address: "вул. Сагайдачного 15, Київ",
+                logoUrl: nil,
+                ownerId: nil,
+                allowScheduledOrders: true,
+                minPreorderTimeMinutes: 15,
+                maxPreorderTimeMinutes: 120,
+                workingHours: ["1": WorkingHoursPeriod(open: "08:00", close: "22:00", isClosed: false)],
+                createdAt: Date(),
+                updatedAt: Date(),
+                distance: 350
+            ))
+            .previewLayout(.sizeThatFits)
+            .padding()
+        }
     }
 }

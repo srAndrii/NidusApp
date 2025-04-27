@@ -1,7 +1,27 @@
 {
   "images" : [
     {
-      "filename" : "18FEC092-821C-46AF-A237-B7F02D58AC08.png",
+      "filename" : "NidusLogoNoBG.png",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "light"
+        }
+      ],
+      "filename" : "NidusLogoNoBG 1.png",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "NidusLogoNoBG 2.png",
       "idiom" : "universal"
     }
   ],

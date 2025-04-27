@@ -25,6 +25,5 @@ extension CoffeeShopDetailView {
         
         return CoffeeShopDetailView(coffeeShop: MockData.singleCoffeeShop)
             .environmentObject(AuthenticationManager())
-            .preferredColorScheme(.dark)
     }
 }

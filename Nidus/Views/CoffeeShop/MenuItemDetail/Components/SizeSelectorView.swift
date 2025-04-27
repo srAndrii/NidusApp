@@ -127,6 +127,5 @@ struct SizeSelectorView_Previews: PreviewProvider {
         }
         .padding()
         .background(Color("backgroundColor"))
-        .preferredColorScheme(.dark)
     }
 }
