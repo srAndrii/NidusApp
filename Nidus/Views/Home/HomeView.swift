@@ -18,174 +18,161 @@ struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Базовий фон
-                Group {
-                    if colorScheme == .light {
-                        // Для світлої теми використовуємо нові кольори: nidusCoolGray, nidusMistyBlue та nidusLightBlueGray
-                        ZStack {
-                            // Основний горизонтальний градієнт з більшим акцентом на сірі відтінки
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color("nidusCoolGray").opacity(0.9),
-                                    Color("nidusLightBlueGray").opacity(0.8)
-                                ]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                            
-                            // Додатковий вертикальний градієнт для текстури
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color("nidusCoolGray").opacity(0.15),
-                                    Color.clear
-                                ]),
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                            
-                            // Тонкий шар кольору для затінення в кутах
-                            RadialGradient(
-                                gradient: Gradient(colors: [
-                                    Color.clear,
-                                    Color("nidusCoolGray").opacity(0.2)
-                                ]),
-                                center: .bottomTrailing,
-                                startRadius: UIScreen.main.bounds.width * 0.2,
-                                endRadius: UIScreen.main.bounds.width
-                            )
-                        }
-                    } else {
-                        // Для темного режиму використовуємо існуючий колір
-                        Color("backgroundColor")
-                    }
-                }
-                .edgesIgnoringSafeArea(.all)
-                
-                // Логотип як фон
-                Image("Logo")
-                    .resizable()
-                    .renderingMode(.original)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: UIScreen.main.bounds.width * 0.7)
-                    .saturation(1.5)
-                    .opacity(1)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
-                VStack(spacing: 0) {
-                    // Карта у вигляді картки з заокругленнями
-                    ZStack(alignment: .topTrailing) {
-                        // Карта
-                        if #available(iOS 18.0, *) {
-                            // Для iOS 18 використовуємо новий синтаксис з Marker
-                            Map(position: Binding(
-                                get: { MapCameraPosition.region(region) },
-                                set: { _ in }
-                            )) {
-                                ForEach(viewModel.coffeeShops.filter { $0.coordinate != nil }) { shop in
-                                    Marker(shop.name, coordinate: shop.coordinate!)
-                                        .tint(Color("primary"))
-                                }
-                            }
-                            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll, showsTraffic: false))
-                            // .colorScheme(.dark) // Фіксуємо темний режим для карти
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .frame(height: UIScreen.main.bounds.height * 0.33)
-                            .padding(.horizontal, 16)
-                            .padding(.top, 16)
-                        } else {
-                            // Для iOS 17 використовуємо MapMarker замість MapAnnotation
-                            Map(coordinateRegion: $region, annotationItems: viewModel.coffeeShops.filter { $0.coordinate != nil }) { shop in
-                                MapMarker(coordinate: shop.coordinate!, tint: Color("primary"))
-                            }
-                            .preferredColorScheme(.dark) // Фіксуємо темний режим для карти
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .frame(height: UIScreen.main.bounds.height * 0.33)
-                            .padding(.horizontal, 16)
-                            .padding(.top, 16)
-                            .overlay(
-                                // Додаємо темний фільтр для карти для більш явного темного режиму
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color.black.opacity(0.05))
-                            )
-                        }
+        ZStack {
+            // Базовий фон
+            Group {
+                if colorScheme == .light {
+                    ZStack {
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color("nidusCoolGray").opacity(0.9),
+                                Color("nidusLightBlueGray").opacity(0.8)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                         
-                        // Кнопка пошуку (зліва зверху)
-                        Button(action: {
-                            // Дія для переходу на екран пошуку
-                        }) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 20))
-                                .foregroundColor(Color("primary"))
-                                .padding(5)
-                                .background(Circle().fill(Color.white.opacity(0.25)))
-                                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 24)
-                        .padding(.top, 24)
-                        .zIndex(1) // Щоб кнопка була поверх карти
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color("nidusCoolGray").opacity(0.15),
+                                Color.clear
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                         
-                        // Кнопка для центрування на поточному місцезнаходженні
-                        Button(action: {
-                            // Центрувати мапу на поточному місцезнаходженні
-                        }) {
-                            Image(systemName: "location.circle.fill")
-                                .font(.system(size: 25))
-                                .foregroundColor(Color("primary"))
-                                .background(Circle().fill(Color.white.opacity(0.8)))
-                                .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
-                        }
-                        .padding(.trailing, 24)
-                        .padding(.top, 24)
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                Color("nidusCoolGray").opacity(0.2)
+                            ]),
+                            center: .bottomTrailing,
+                            startRadius: UIScreen.main.bounds.width * 0.2,
+                            endRadius: UIScreen.main.bounds.width
+                        )
                     }
-                    
-                    // Список кав'ярень
-                    if viewModel.isLoading {
-                        Spacer()
-                        ProgressView("Завантаження...")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                        Spacer()
-                    } else if viewModel.coffeeShops.isEmpty {
-                        // Демо-дані для відображення
-                        ScrollView {
-                            VStack(spacing: 12) {
-                                ForEach(mockCoffeeShops) { shop in
-                                    CoffeeShopRow(coffeeShop: shop)
-                                        .padding(.horizontal, 16)
-                                }
-                            }
-                            .padding(.vertical, 8)
-                        }
-                    } else {
-                        // Реальні дані в скляних картках
-                        ScrollView {
-                            VStack(spacing: 12) {
-                                ForEach(viewModel.coffeeShops) { shop in
-                                    CoffeeShopRow(coffeeShop: shop)
-                                        .padding(.horizontal, 16)
-                                }
-                            }
-                            .padding(.vertical, 8)
-                        }
-                    }
+                } else {
+                    Color("backgroundColor")
                 }
             }
-            .navigationTitle("")
-            .navigationBarHidden(true) // Приховуємо навігаційну панель повністю
-            .onAppear {
-                Task {
-                    await viewModel.loadCoffeeShops()
+            .edgesIgnoringSafeArea(.all)
+            
+            // Логотип як фон
+            Image("Logo")
+                .resizable()
+                .renderingMode(.original)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: UIScreen.main.bounds.width * 0.7)
+                .saturation(1.5)
+                .opacity(1)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            VStack(spacing: 0) {
+                // Карта у вигляді картки з заокругленнями
+                ZStack(alignment: .topTrailing) {
+                    // Карта
+                    if #available(iOS 18.0, *) {
+                        Map(position: Binding(
+                            get: { MapCameraPosition.region(region) },
+                            set: { _ in }
+                        )) {
+                            ForEach(viewModel.coffeeShops.filter { $0.coordinate != nil }) { shop in
+                                Marker(shop.name, coordinate: shop.coordinate!)
+                                    .tint(Color("primary"))
+                            }
+                        }
+                        .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll, showsTraffic: false))
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .frame(height: UIScreen.main.bounds.height * 0.33)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
+                    } else {
+                        Map(coordinateRegion: $region, annotationItems: viewModel.coffeeShops.filter { $0.coordinate != nil }) { shop in
+                            MapMarker(coordinate: shop.coordinate!, tint: Color("primary"))
+                        }
+                        .preferredColorScheme(.dark)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .frame(height: UIScreen.main.bounds.height * 0.33)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.black.opacity(0.05))
+                        )
+                    }
+                    
+                    // Кнопка пошуку (зліва зверху)
+                    Button(action: {
+                        // Дія для переходу на екран пошуку
+                    }) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color("primary"))
+                            .padding(5)
+                            .background(Circle().fill(Color.white.opacity(0.25)))
+                            .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 24)
+                    .padding(.top, 24)
+                    .zIndex(1)
+                    
+                    // Кнопка для центрування на поточному місцезнаходженні
+                    Button(action: {
+                        // Центрувати мапу на поточному місцезнаходженні
+                    }) {
+                        Image(systemName: "location.circle.fill")
+                            .font(.system(size: 25))
+                            .foregroundColor(Color("primary"))
+                            .background(Circle().fill(Color.white.opacity(0.8)))
+                            .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
+                    }
+                    .padding(.trailing, 24)
+                    .padding(.top, 24)
+                }
+                
+                // Список кав'ярень
+                if viewModel.isLoading {
+                    ProgressView("Завантаження...")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 40)
+                    
+                    Spacer()
+                } else if viewModel.coffeeShops.isEmpty {
+                    // Демо-дані для відображення
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(mockCoffeeShops) { shop in
+                                CoffeeShopRow(coffeeShop: shop)
+                                    .padding(.horizontal, 16)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                } else {
+                    // Реальні дані
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(viewModel.coffeeShops) { shop in
+                                CoffeeShopRow(coffeeShop: shop)
+                                    .padding(.horizontal, 16)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
                 }
             }
         }
-        .navigationViewStyle(StackNavigationViewStyle()) // Використовуємо стек стиль для навігації
-        .accentColor(Color("primary")) // Акцентний колір для навігації
+        .navigationTitle("")
+        .navigationBarHidden(true)
+        .onAppear {
+            Task {
+                await viewModel.loadCoffeeShops()
+            }
+        }
     }
     
     // Демо-дані для відображення, коли сервер ще не доступний
-    // Виправлений масив mockCoffeeShops без дублювання ID
     private var mockCoffeeShops: [CoffeeShop] = [
         CoffeeShop(
             id: "mock-1",
@@ -302,10 +289,11 @@ struct HomeView: View {
     ]
 }
 
-// УВАГА: Видалено дублікати структур, які перенесені в CoffeeShopDetailView.swift
-
 struct HomeView_Previews: PreviewProvider {
     static var previews: some View {
-        HomeView()
+        // Для превью додаємо NavigationView
+        NavigationView {
+            HomeView()
+        }
     }
 }
