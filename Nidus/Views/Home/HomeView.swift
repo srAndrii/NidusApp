@@ -67,107 +67,44 @@ struct HomeView: View {
                 .opacity(1)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
+            // Основний контент
             VStack(spacing: 0) {
-                // Карта у вигляді картки з заокругленнями
-                ZStack(alignment: .topTrailing) {
-                    // Карта
-                    if #available(iOS 18.0, *) {
-                        Map(position: Binding(
-                            get: { MapCameraPosition.region(region) },
-                            set: { _ in }
-                        )) {
-                            ForEach(viewModel.coffeeShops.filter { $0.coordinate != nil }) { shop in
-                                Marker(shop.name, coordinate: shop.coordinate!)
-                                    .tint(Color("primary"))
-                            }
-                        }
-                        .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll, showsTraffic: false))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .frame(height: UIScreen.main.bounds.height * 0.33)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
-                    } else {
-                        Map(coordinateRegion: $region, annotationItems: viewModel.coffeeShops.filter { $0.coordinate != nil }) { shop in
-                            MapMarker(coordinate: shop.coordinate!, tint: Color("primary"))
-                        }
-                        .preferredColorScheme(.dark)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .frame(height: UIScreen.main.bounds.height * 0.33)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(Color.black.opacity(0.05))
-                        )
-                    }
-                    
-                    // Кнопка пошуку (зліва зверху)
-                    Button(action: {
-                        // Дія для переходу на екран пошуку
-                    }) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 20))
-                            .foregroundColor(Color("primary"))
-                            .padding(5)
-                            .background(Circle().fill(Color.white.opacity(0.25)))
-                            .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 24)
-                    .padding(.top, 24)
-                    .zIndex(1)
-                    
-                    // Кнопка для центрування на поточному місцезнаходженні
-                    Button(action: {
-                        // Центрувати мапу на поточному місцезнаходженні
-                    }) {
-                        Image(systemName: "location.circle.fill")
-                            .font(.system(size: 25))
-                            .foregroundColor(Color("primary"))
-                            .background(Circle().fill(Color.white.opacity(0.8)))
-                            .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
-                    }
-                    .padding(.trailing, 24)
-                    .padding(.top, 24)
-                }
+                // Карта у верхній частині екрану
+                Map(coordinateRegion: $region)
+                    .cornerRadius(20)
+                    .frame(height: UIScreen.main.bounds.height * 0.3)
+                    .padding(.horizontal, 0)
+                    .padding(.top, 0)
                 
                 // Список кав'ярень
-                if viewModel.isLoading {
-                    ProgressView("Завантаження...")
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 40)
-                    
-                    Spacer()
-                } else if viewModel.coffeeShops.isEmpty {
-                    // Демо-дані для відображення
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(mockCoffeeShops) { shop in
-                                CoffeeShopRow(coffeeShop: shop)
-                                    .padding(.horizontal, 16)
+                ScrollView {
+                    VStack(spacing: 12) { // Збільшуємо відступи між карточками
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, minHeight: 100)
+                                .padding()
+                        } else if !viewModel.coffeeShops.isEmpty {
+                            ForEach(viewModel.coffeeShops, id: \.id) { coffeeShop in
+                                CoffeeShopRow(coffeeShop: coffeeShop)
+                                    .padding(.horizontal)
+                            }
+                        } else {
+                            // Показуємо мокові дані тільки якщо немає реальних даних
+                            ForEach(mockCoffeeShops, id: \.id) { coffeeShop in
+                                CoffeeShopRow(coffeeShop: coffeeShop)
+                                    .padding(.horizontal)
                             }
                         }
-                        .padding(.vertical, 8)
                     }
-                } else {
-                    // Реальні дані
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(viewModel.coffeeShops) { shop in
-                                CoffeeShopRow(coffeeShop: shop)
-                                    .padding(.horizontal, 16)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
+                    .padding(.vertical, 10)
                 }
             }
-        }
-        .navigationTitle("")
-        .navigationBarHidden(true)
-        .onAppear {
-            Task {
-                await viewModel.loadCoffeeShops()
+            .padding(.top, 1) // Невеликий відступ від верхньої SafeArea
+            .onAppear {
+                // Завантажуємо дані з сервера при появі екрану
+                Task {
+                    await viewModel.loadCoffeeShops()
+                }
             }
         }
     }
