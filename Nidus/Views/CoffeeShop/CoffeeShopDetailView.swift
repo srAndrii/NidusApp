@@ -84,6 +84,7 @@ struct CoffeeShopDetailView: View {
                     Color("backgroundColor")
                 }
             }
+            .navigationBarHidden(true)
             .edgesIgnoringSafeArea(.all)
             
             // Логотип як фон
