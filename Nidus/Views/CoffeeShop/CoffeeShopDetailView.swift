@@ -7,14 +7,11 @@ struct CoffeeShopDetailView: View {
     @StateObject private var viewModel = CoffeeShopDetailViewModel(coffeeShopRepository: DIContainer.shared.coffeeShopRepository)
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedCategory: String? = nil
+    @Environment(\.colorScheme) private var colorScheme
     
     // MARK: - View
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // Фон
-            Color("backgroundColor")
-                .edgesIgnoringSafeArea(.all)
-            
             // Головний контент
             if #available(iOS 16.0, *) {
                 // Для iOS 16+ з новою навігацією
@@ -46,40 +43,94 @@ struct CoffeeShopDetailView: View {
     
     // MARK: - Основний контент
     private var mainContentView: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                // Розтягувана шапка з зображенням і накладеною інформацією
-                StretchableHeaderView(coffeeShop: coffeeShop)
-                    .frame(height: 320)
-                
-                // Контент на основі стану завантаження
-                if viewModel.isLoading {
-                    loadingView
-                        .padding(.top, 20)
-                } else if viewModel.menuGroups.isEmpty {
-                    emptyStateView
-                        .padding(.top, 20)
-                } else {
-                    // Фільтр категорій
-                    categoryFilterView()
-                    
-                    // Меню кав'ярні - групи меню з фільтрацією
-                    VStack(spacing: 24) {
-                        ForEach(viewModel.menuGroups) { group in
-                            if selectedCategory == nil || selectedCategory == group.id {
-                                MenuGroupView(group: group)
-                                    .transition(.opacity)
-                            }
-                        }
+        ZStack {
+            // Базовий фон
+            Group {
+                if colorScheme == .light {
+                    ZStack {
+                        // Основний горизонтальний градієнт
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color("nidusCoolGray").opacity(0.9),
+                                Color("nidusLightBlueGray").opacity(0.8)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        
+                        // Додатковий вертикальний градієнт для текстури
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color("nidusCoolGray").opacity(0.15),
+                                Color.clear
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        
+                        // Тонкий шар кольору для затінення в кутах
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                Color("nidusCoolGray").opacity(0.2)
+                            ]),
+                            center: .bottomTrailing,
+                            startRadius: UIScreen.main.bounds.width * 0.2,
+                            endRadius: UIScreen.main.bounds.width
+                        )
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .animation(.easeInOut(duration: 0.3), value: selectedCategory)
+                } else {
+                    // Для темного режиму використовуємо існуючий колір
+                    Color("backgroundColor")
                 }
             }
+            .edgesIgnoringSafeArea(.all)
+            
+            // Логотип як фон
+            Image("Logo")
+                .resizable()
+                .renderingMode(.original)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: UIScreen.main.bounds.width * 0.7)
+                .saturation(1.5)
+                .opacity(1)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            // Головний контент
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // Розтягувана шапка з зображенням і накладеною інформацією
+                    StretchableHeaderView(coffeeShop: coffeeShop)
+                        .frame(height: 320)
+                    
+                    // Контент на основі стану завантаження
+                    if viewModel.isLoading {
+                        loadingView
+                            .padding(.top, 20)
+                    } else if viewModel.menuGroups.isEmpty {
+                        emptyStateView
+                            .padding(.top, 20)
+                    } else {
+                        // Фільтр категорій
+                        categoryFilterView()
+                        
+                        // Меню кав'ярні - групи меню з фільтрацією
+                        VStack(spacing: 24) {
+                            ForEach(viewModel.menuGroups) { group in
+                                if selectedCategory == nil || selectedCategory == group.id {
+                                    MenuGroupView(group: group)
+                                        .transition(.opacity)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .animation(.easeInOut(duration: 0.3), value: selectedCategory)
+                    }
+                }
+            }
+            .edgesIgnoringSafeArea(.top)
         }
-        .edgesIgnoringSafeArea(.top)
-        .background(Color("backgroundColor"))
     }
     
     // MARK: - Фільтр категорій

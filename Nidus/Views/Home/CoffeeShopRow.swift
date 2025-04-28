@@ -21,8 +21,8 @@ struct CoffeeShopRow: View {
                     .fill(Color.clear)
                     .overlay(
                         BlurView(
-                            style: colorScheme == .light ? .systemThinMaterialDark : .systemMaterialDark,
-                            opacity: colorScheme == .light ? 0.7 : 0.95
+                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                            opacity: colorScheme == .light ? 0.95 : 0.95
                         )
                     )
                     .overlay(
@@ -72,13 +72,13 @@ struct CoffeeShopRow: View {
                     ZStack {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color("inputField"))
-                            .frame(width: 80, height: 80)
+                            .frame(width: 90, height: 90)
                         
                         if let logoUrl = coffeeShop.logoUrl, let url = URL(string: logoUrl) {
                             KFImage(url)
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: 80, height: 80)
+                                .frame(width: 90, height: 90)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         } else {
                             Image(systemName: "cup.and.saucer.fill")
@@ -146,8 +146,8 @@ struct CoffeeShopRow: View {
                         .font(.system(size: 14, weight: .semibold))
                         .padding(.trailing, 8)
                 }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .padding(.horizontal, 5)
             }
         }
         // Важливо: прибрати всі стилі кнопки та рядка, які можуть додавати зовнішню стрілку

@@ -209,8 +209,8 @@ struct ProfileView: View {
                         ZStack {
                             // Основний ефект скла
                             BlurView(
-                                style: colorScheme == .light ? .systemThinMaterialDark : .systemMaterialDark,
-                                opacity: colorScheme == .light ? 0.7 : 0.95
+                                style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                                opacity: colorScheme == .light ? 0.95 : 0.95
                             )
                             // Додатково тонуємо під кольори застосунку
                             Group {

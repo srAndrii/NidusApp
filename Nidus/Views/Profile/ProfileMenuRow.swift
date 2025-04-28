@@ -33,7 +33,7 @@ struct ProfileMenuRow: View {
                 Text(title)
                     .font(.body)
                     .fontWeight(.medium)
-                    .foregroundColor(Color("primaryText"))
+                    .foregroundColor(Color("secondaryText"))
                 
                 Spacer()
                 

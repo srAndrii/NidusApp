@@ -85,7 +85,7 @@ struct StretchableHeaderView: View {
                         Text(address)
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .foregroundColor(Color("secondaryText"))
+                            .foregroundColor(.white.opacity(0.9))
                             .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
                     }
                     

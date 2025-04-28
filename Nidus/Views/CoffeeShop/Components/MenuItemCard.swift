@@ -13,29 +13,7 @@ struct MenuItemCard: View {
     // MARK: - Властивості
     let item: MenuItem
     @State private var navigateToDetails = false
-    
-    // MARK: - Обчислювані властивості
-    
-    /// Градієнт фону картки
-    private var cardGradient: LinearGradient {
-        return LinearGradient(
-            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
-            startPoint: .top,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    /// Градієнт для кнопки додавання
-    private var addButtonGradient: LinearGradient {
-        return LinearGradient(
-            gradient: Gradient(colors: [
-                Color("primary").opacity(0.8),
-                Color("primary")
-            ]),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
+    @Environment(\.colorScheme) private var colorScheme
     
     // MARK: - View
     var body: some View {
@@ -66,6 +44,7 @@ typealias MenuItemCardWithNavigation = MenuItemCard
 struct CardContentView: View {
     let item: MenuItem
     var addAction: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -101,7 +80,7 @@ struct CardContentView: View {
                 Text(item.name)
                     .font(.headline)
                     .fontWeight(.semibold)
-                    .foregroundColor(Color.white)
+                    .foregroundColor(Color("primaryText"))
                     .lineLimit(1)
                 
                 // Опис (якщо є)
@@ -109,7 +88,7 @@ struct CardContentView: View {
                     Text(description)
                         .font(.caption)
                         .fontWeight(.regular)
-                        .foregroundColor(Color.gray)
+                        .foregroundColor(Color("secondaryText"))
                         .lineLimit(1)
                         .truncationMode(.tail)
                 } else {
@@ -154,15 +133,63 @@ struct CardContentView: View {
             }
             .padding(.bottom, 6)
         }
-        // Стилі всієї картки
+        // Стилі всієї картки - оновлений зі скляним ефектом
         .padding(5)
         .frame(width: 135, height: 245)
-        .background(LinearGradient(
-            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
-            startPoint: .top,
-            endPoint: .bottomTrailing
-        ))
+        .background(
+            ZStack {
+                // Скляний фон
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(Color.clear)
+                    .overlay(
+                        BlurView(
+                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                            opacity: colorScheme == .light ? 0.95 : 0.95
+                        )
+                    )
+                    .overlay(
+                        Group {
+                            if colorScheme == .light {
+                                // Тонування для світлої теми
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color("nidusMistyBlue").opacity(0.25),
+                                        Color("nidusCoolGray").opacity(0.1)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                .opacity(0.4)
+                                
+                                Color("nidusLightBlueGray").opacity(0.12)
+                            } else {
+                                // Темна тема
+                                Color.black.opacity(0.15)
+                            }
+                        }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 25))
+            }
+        )
         .cornerRadius(25)
+        .overlay(
+            RoundedRectangle(cornerRadius: 25)
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            colorScheme == .light 
+                                ? Color("nidusCoolGray").opacity(0.4)
+                                : Color.black.opacity(0.35),
+                            colorScheme == .light
+                                ? Color("nidusLightBlueGray").opacity(0.25)
+                                : Color.black.opacity(0.1)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
         .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
         .opacity(item.isAvailable ? 1.0 : 0.5)
         // Показуємо "Недоступно" для недоступних товарів
@@ -210,3 +237,5 @@ struct CardContentView: View {
         return formatter.string(from: NSDecimalNumber(decimal: price)) ?? "\(price)"
     }
 }
+
+
