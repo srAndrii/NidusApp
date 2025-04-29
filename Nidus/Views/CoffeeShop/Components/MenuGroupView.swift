@@ -54,7 +54,7 @@ struct MenuGroupView: View {
                     .foregroundColor(Color("primary"))
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 10)
     }
     
     /// Опис групи (якщо є)
@@ -64,8 +64,8 @@ struct MenuGroupView: View {
                 Text(description)
                     .font(.subheadline)
                     .foregroundColor(Color("secondaryText"))
-                    .padding(.horizontal, 16)
-                    .padding(.top, -8)
+                    .padding(.horizontal, 10)
+                    .padding(.top, -6)
             }
         }
     }
@@ -73,7 +73,7 @@ struct MenuGroupView: View {
     /// Горизонтальний список пунктів меню
     private var menuItemsScrollView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 if let menuItems = group.menuItems, !menuItems.isEmpty {
                     ForEach(menuItems) { item in
                         // Використовуємо виправлену картку з навігацією
@@ -88,10 +88,10 @@ struct MenuGroupView: View {
                     emptyStateView
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
+            .padding(.horizontal, 10)
+            .padding(.bottom, 6)
         }
-        .padding(.bottom, 10)
+        .padding(.bottom, 6)
     }
     
     /// Пустий стан, коли немає пунктів меню

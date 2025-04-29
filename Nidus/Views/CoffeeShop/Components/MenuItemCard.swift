@@ -100,8 +100,10 @@ struct CardContentView: View {
             }
             .frame(height: 45)
             .padding(.top, 5)
+            .padding(.leading, 4)
             
             Spacer()
+                .frame(height: 8) // Фіксована висота замість автоматичного розтягування
             
             // Ціна та кнопка додавання
             HStack {
@@ -122,7 +124,7 @@ struct CardContentView: View {
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ))
-                            .frame(width: 40, height: 40)
+                            .frame(width: 35, height: 35)
                         
                         Image(systemName: "plus")
                             .font(.system(size: 20, weight: .semibold))
@@ -132,10 +134,11 @@ struct CardContentView: View {
                 .buttonStyle(PlainButtonStyle())
             }
             .padding(.bottom, 6)
+            .padding(.horizontal, 6)
         }
         // Стилі всієї картки - оновлений зі скляним ефектом
-        .padding(5)
-        .frame(width: 135, height: 245)
+        .padding(4)
+        .frame(width: 135, height: 232)
         .background(
             ZStack {
                 // Скляний фон
@@ -190,7 +193,7 @@ struct CardContentView: View {
                     lineWidth: 1
                 )
         )
-        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+        .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
         .opacity(item.isAvailable ? 1.0 : 0.5)
         // Показуємо "Недоступно" для недоступних товарів
         .overlay(

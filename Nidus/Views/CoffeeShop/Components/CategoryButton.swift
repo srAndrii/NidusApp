@@ -16,7 +16,7 @@ struct CategoryButton: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 // Назва категорії
                 Text(title)
                     .font(.callout)
@@ -27,14 +27,14 @@ struct CategoryButton: View {
                 if isSelected {
                     Circle()
                         .fill(Color("primary"))
-                        .frame(width: 6, height: 6)
+                        .frame(width: 5, height: 5)
                 } else {
                     Circle()
                         .fill(Color.clear)
-                        .frame(width: 6, height: 6)
+                        .frame(width: 5, height: 5)
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
         }
     }
 }

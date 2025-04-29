@@ -29,8 +29,8 @@ struct CoffeeShopDetailView: View {
             
             // Кнопка "Назад" - тепер з правильним вирівнюванням і кольором
             BackButtonView(color: Color("primary"), backgroundColor: Color.black.opacity(0.4))
-                .padding(.top, getSafeAreaInsets().top + 10)
-                .padding(.leading, 16)
+                .padding(.top, getSafeAreaInsets().top + 8)
+                .padding(.leading, 12)
                 .zIndex(2) // Щоб кнопка була над всіма іншими елементами
         }
         .edgesIgnoringSafeArea(.top)
@@ -102,7 +102,7 @@ struct CoffeeShopDetailView: View {
                 VStack(spacing: 0) {
                     // Розтягувана шапка з зображенням і накладеною інформацією
                     StretchableHeaderView(coffeeShop: coffeeShop)
-                        .frame(height: 320)
+                        .frame(height: 300)
                     
                     // Контент на основі стану завантаження
                     if viewModel.isLoading {
@@ -116,7 +116,7 @@ struct CoffeeShopDetailView: View {
                         categoryFilterView()
                         
                         // Меню кав'ярні - групи меню з фільтрацією
-                        VStack(spacing: 24) {
+                        VStack(spacing: 16) {
                             ForEach(viewModel.menuGroups) { group in
                                 if selectedCategory == nil || selectedCategory == group.id {
                                     MenuGroupView(group: group)
@@ -124,8 +124,8 @@ struct CoffeeShopDetailView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
+                        .padding(.horizontal, 8)
+                        .padding(.top, 4)
                         .animation(.easeInOut(duration: 0.3), value: selectedCategory)
                     }
                 }
@@ -137,7 +137,7 @@ struct CoffeeShopDetailView: View {
     // MARK: - Фільтр категорій
     private func categoryFilterView() -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 // Кнопка "Всі"
                 CategoryButton(
                     title: "Всі",
@@ -162,8 +162,8 @@ struct CoffeeShopDetailView: View {
                     )
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
         }
     }
     
