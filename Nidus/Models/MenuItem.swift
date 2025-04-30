@@ -233,6 +233,7 @@ struct Size: Identifiable, Codable, Hashable {
     let abbreviation: String
     let additionalPrice: Decimal
     let isDefault: Bool
+    var order: Int = 0
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -242,11 +243,12 @@ struct Size: Identifiable, Codable, Hashable {
         return lhs.id == rhs.id
     }
     
-    init(id: String? = nil, name: String, abbreviation: String, additionalPrice: Decimal, isDefault: Bool) {
+    init(id: String? = nil, name: String, abbreviation: String, additionalPrice: Decimal, isDefault: Bool, order: Int = 0) {
         self.id = id ?? UUID().uuidString
         self.name = name
         self.abbreviation = abbreviation
         self.additionalPrice = additionalPrice
         self.isDefault = isDefault
+        self.order = order
     }
 }

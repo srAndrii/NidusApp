@@ -13,9 +13,10 @@ struct MenuItemDetailView: View {
     let menuItem: MenuItem
     @StateObject private var viewModel: MenuItemDetailViewModel
     @Environment(\.presentationMode) var presentationMode
+    @Environment(\.colorScheme) private var colorScheme
     
     // MARK: - Стани екрану
-    @State private var selectedSize: String = "M" // Розмір за замовчуванням
+    @State private var selectedSize: String = "" // Порожній рядок для автоматичного вибору розміру за замовчуванням
     @State private var quantity: Int = 1
     @State private var showToast = false
     @State private var toastMessage = ""
@@ -30,8 +31,56 @@ struct MenuItemDetailView: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             // Фон
-            Color("backgroundColor")
-                .ignoresSafeArea()
+            Group {
+                if colorScheme == .light {
+                    ZStack {
+                        // Основний горизонтальний градієнт
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color("nidusCoolGray").opacity(0.9),
+                                Color("nidusLightBlueGray").opacity(0.8)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        
+                        // Додатковий вертикальний градієнт для текстури
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color("nidusCoolGray").opacity(0.15),
+                                Color.clear
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        
+                        // Тонкий шар кольору для затінення в кутах
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                Color("nidusCoolGray").opacity(0.2)
+                            ]),
+                            center: .bottomTrailing,
+                            startRadius: UIScreen.main.bounds.width * 0.2,
+                            endRadius: UIScreen.main.bounds.width
+                        )
+                    }
+                } else {
+                    // Для темного режиму використовуємо існуючий колір
+                    Color("backgroundColor")
+                }
+            }
+            .ignoresSafeArea()
+            
+            // Логотип як фон
+            Image("Logo")
+                .resizable()
+                .renderingMode(.original)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: UIScreen.main.bounds.width * 0.7)
+                .saturation(1.5)
+                .opacity(1)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             // Головний контент
             ScrollView {
@@ -151,14 +200,6 @@ struct MenuItemDetailView: View {
         }
     }
     
-    private var cardGradient: LinearGradient {
-        return LinearGradient(
-            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
-            startPoint: .top,
-            endPoint: .bottomTrailing
-        )
-    }
-    
     /// Секція з описом товару
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -180,42 +221,144 @@ struct MenuItemDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(cardGradient) // Застосовуємо градієнт замість одного кольору
-        .cornerRadius(12)
+        .background(
+            ZStack {
+                // Скляний фон
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.clear)
+                    .overlay(
+                        BlurView(
+                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                            opacity: colorScheme == .light ? 0.95 : 0.95
+                        )
+                    )
+                    .overlay(
+                        Group {
+                            if colorScheme == .light {
+                                // Тонування для світлої теми
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color("nidusMistyBlue").opacity(0.25),
+                                        Color("nidusCoolGray").opacity(0.1)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                .opacity(0.4)
+                                
+                                Color("nidusLightBlueGray").opacity(0.12)
+                            } else {
+                                // Темна тема
+                                Color.black.opacity(0.15)
+                            }
+                        }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+            }
+        )
+        .cornerRadius(20)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            colorScheme == .light 
+                                ? Color("nidusCoolGray").opacity(0.4)
+                                : Color.black.opacity(0.35),
+                            colorScheme == .light
+                                ? Color("nidusLightBlueGray").opacity(0.25)
+                                : Color.black.opacity(0.1)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
     }
     
     /// Секція з вибором розміру
     private var sizeSelectionSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Розмір")
-                    .font(.headline)
-                    .foregroundColor(Color("primaryText"))
-                
-                Spacer()
+        Group {
+            if !viewModel.availableSizes.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Розмір")
+                        .font(.headline)
+                        .foregroundColor(Color("primaryText"))
+                    
+                    // Селектор розміру (без заголовка)
+                    SizeSelectorView(
+                        selectedSize: $selectedSize,
+                        sizes: viewModel.availableSizes,
+                        onSizeChanged: { size in
+                            viewModel.updatePrice(for: size)
+                        },
+                        showTitle: false
+                    )
+                    .padding(.top, 0)
+                    .frame(maxWidth: .infinity) // Для центрування елементів
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    ZStack {
+                        // Скляний фон
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.clear)
+                            .overlay(
+                                BlurView(
+                                    style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                                    opacity: colorScheme == .light ? 0.95 : 0.95
+                                )
+                            )
+                            .overlay(
+                                Group {
+                                    if colorScheme == .light {
+                                        // Тонування для світлої теми
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                Color("nidusMistyBlue").opacity(0.25),
+                                                Color("nidusCoolGray").opacity(0.1)
+                                            ]),
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                        .opacity(0.4)
+                                        
+                                        Color("nidusLightBlueGray").opacity(0.12)
+                                    } else {
+                                        // Темна тема
+                                        Color.black.opacity(0.15)
+                                    }
+                                }
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                    }
+                )
+                .cornerRadius(20)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    colorScheme == .light 
+                                        ? Color("nidusCoolGray").opacity(0.4)
+                                        : Color.black.opacity(0.35),
+                                    colorScheme == .light
+                                        ? Color("nidusLightBlueGray").opacity(0.25)
+                                        : Color.black.opacity(0.1)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+                .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
             }
-            
-            // Селектор розміру (без заголовка)
-            SizeSelectorView(
-                selectedSize: $selectedSize,
-                availableSizes: ["S", "M", "L"],
-                onSizeChanged: { size in
-                    viewModel.updatePrice(for: size)
-                },
-                showTitle: false
-            )
-            .padding(.top, 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
-                startPoint: .top,
-                endPoint: .bottomTrailing
-            )
-        )
-        .cornerRadius(12)
     }
     
     /// Секція кастомізації
@@ -237,7 +380,7 @@ struct MenuItemDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(cardGradient) // Застосовуємо градієнт замість одного кольору
+        .background(LinearGradient.cardGradient())
         .cornerRadius(12)
     }
     
@@ -283,8 +426,6 @@ struct MenuItemDetailView: View {
                 )
             }
         }
-//        .background(cardGradient)
-        
     }
     
     /// Секція з кількістю та кнопкою замовлення
@@ -327,7 +468,7 @@ struct MenuItemDetailView: View {
                 }
             }
             .padding(16)
-            .background(cardGradient)
+            .background(LinearGradient.cardGradient())
             .cornerRadius(12)
             
             // Кнопка "Додати до кошика"
