@@ -22,7 +22,7 @@ class MenuItemDetailViewModel: ObservableObject {
     @Published var ingredientCustomizations: [String: Double] = [:]
     
     /// Вибрані опції кастомізації (id опції: id вибору)
-    @Published var optionSelections: [String: String] = [:]
+    @Published var optionSelections: [String: [String: Int]] = [:]
     
     /// Додаткова ціна за кастомізацію
     @Published var customizationExtraPrice: Decimal = 0
@@ -71,8 +71,17 @@ class MenuItemDetailViewModel: ObservableObject {
         // Ініціалізація вибору опцій кастомізації за замовчуванням
         if let options = menuItem.customizationOptions {
             for option in options {
-                if option.required, let firstChoice = option.choices.first {
-                    optionSelections[option.id] = firstChoice.id
+                if option.required {
+                    optionSelections[option.id] = [:]
+                    
+                    // Додавання першого вибору для обов'язкових опцій
+                    if let firstChoice = option.choices.first {
+                        if firstChoice.allowQuantity == true {
+                            optionSelections[option.id]?[firstChoice.id] = firstChoice.defaultQuantity ?? 1
+                        } else {
+                            optionSelections[option.id]?[firstChoice.id] = 1
+                        }
+                    }
                 }
             }
         }
@@ -92,18 +101,18 @@ class MenuItemDetailViewModel: ObservableObject {
             currentPrice = menuItem.price + newSize.additionalPrice + customizationExtraPrice
         } else {
             // Стара логіка для зворотної сумісності
-        let sizeMultiplier: Decimal
+            let sizeMultiplier: Decimal
             switch sizeAbbreviation {
-        case "S":
-            sizeMultiplier = 0.8
-        case "L":
-            sizeMultiplier = 1.2
-        default: // "M"
-            sizeMultiplier = 1.0
-        }
+            case "S":
+                sizeMultiplier = 0.8
+            case "L":
+                sizeMultiplier = 1.2
+            default: // "M"
+                sizeMultiplier = 1.0
+            }
         
-        let basePrice = menuItem.price
-        currentPrice = (basePrice * sizeMultiplier) + customizationExtraPrice
+            let basePrice = menuItem.price
+            currentPrice = (basePrice * sizeMultiplier) + customizationExtraPrice
         }
     }
     
@@ -114,10 +123,22 @@ class MenuItemDetailViewModel: ObservableObject {
         // Перевіряємо вибрані опції на додаткову ціну
         if let options = menuItem.customizationOptions {
             for option in options {
-                if let selectedChoiceId = optionSelections[option.id],
-                   let selectedChoice = option.choices.first(where: { $0.id == selectedChoiceId }),
-                   let price = selectedChoice.price {
-                    extraPrice += price
+                if let selectedChoices = optionSelections[option.id] {
+                    for (choiceId, quantity) in selectedChoices {
+                        if let selectedChoice = option.choices.first(where: { $0.id == choiceId }),
+                           let price = selectedChoice.price {
+                            extraPrice += price
+                            
+                            // Якщо вибір підтримує кількість, додаємо додаткову ціну за одиниці понад стандартну кількість
+                            if selectedChoice.allowQuantity == true, 
+                               let defaultQuantity = selectedChoice.defaultQuantity,
+                               let pricePerAdditionalUnit = selectedChoice.pricePerAdditionalUnit,
+                               quantity > defaultQuantity {
+                                let additionalUnits = quantity - defaultQuantity
+                                extraPrice += Decimal(additionalUnits) * pricePerAdditionalUnit
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -147,8 +168,72 @@ class MenuItemDetailViewModel: ObservableObject {
         if let size = selectedSize {
             currentPrice = menuItem.price + size.additionalPrice + extraPrice
         } else {
-        currentPrice = menuItem.price + extraPrice
+            currentPrice = menuItem.price + extraPrice
         }
+    }
+    
+    /// Додавання опції кастомізації
+    func toggleCustomizationChoice(optionId: String, choiceId: String) {
+        // Отримуємо опцію за ID
+        guard let option = menuItem.customizationOptions?.first(where: { $0.id == optionId }) else {
+            return
+        }
+        
+        // Отримуємо вибір за ID
+        guard let choice = option.choices.first(where: { $0.id == choiceId }) else {
+            return
+        }
+        
+        // Перевіряємо, чи є запис для цієї опції
+        if optionSelections[optionId] == nil {
+            optionSelections[optionId] = [:]
+        }
+        
+        // Перевіряємо, чи можна вибрати кілька варіантів для цієї опції
+        let allowMultiple = option.allowMultipleChoices ?? false
+        
+        // Отримуємо поточні вибори для цієї опції
+        let currentSelections = optionSelections[optionId] ?? [:]
+        
+        // Якщо вибір вже існує, видаляємо його (окрім випадків, коли опція обов'язкова і це останній вибір)
+        if currentSelections[choiceId] != nil {
+            // Якщо опція обов'язкова і це єдиний вибір, не видаляємо
+            if option.required && currentSelections.count <= 1 {
+                return
+            }
+            
+            // Інакше видаляємо вибір
+            optionSelections[optionId]?.removeValue(forKey: choiceId)
+        } else {
+            // Якщо не дозволено вибирати кілька варіантів, очищаємо попередні вибори
+            if !allowMultiple {
+                optionSelections[optionId] = [:]
+            }
+            
+            // Додаємо новий вибір з відповідною кількістю
+            if choice.allowQuantity == true {
+                optionSelections[optionId]?[choiceId] = choice.defaultQuantity ?? 1
+            } else {
+                optionSelections[optionId]?[choiceId] = 1
+            }
+        }
+        
+        // Оновлюємо ціну
+        calculateCustomizationPrice()
+    }
+    
+    /// Зміна кількості для опції кастомізації
+    func updateCustomizationQuantity(optionId: String, choiceId: String, quantity: Int) {
+        // Перевіряємо, чи є запис для цієї опції
+        if optionSelections[optionId] == nil {
+            optionSelections[optionId] = [:]
+        }
+        
+        // Оновлюємо кількість
+        optionSelections[optionId]?[choiceId] = quantity
+        
+        // Оновлюємо ціну
+        calculateCustomizationPrice()
     }
     
     /// Додавання товару до кошика
@@ -168,10 +253,13 @@ class MenuItemDetailViewModel: ObservableObject {
         }
         
         // Логування вибраних опцій
-        for (optionId, choiceId) in optionSelections {
-            if let option = menuItem.customizationOptions?.first(where: { $0.id == optionId }),
-               let choice = option.choices.first(where: { $0.id == choiceId }) {
-                print("Опція \(option.name): \(choice.name)")
+        for (optionId, choices) in optionSelections {
+            if let option = menuItem.customizationOptions?.first(where: { $0.id == optionId }) {
+                for (choiceId, choiceQuantity) in choices {
+                    if let choice = option.choices.first(where: { $0.id == choiceId }) {
+                        print("Опція \(option.name): \(choice.name), кількість: \(choiceQuantity)")
+                    }
+                }
             }
         }
         
@@ -181,5 +269,15 @@ class MenuItemDetailViewModel: ObservableObject {
     /// Оновлення налаштувань кастомізації
     func updateCustomization() {
         calculateCustomizationPrice()
+    }
+    
+    /// Перевірка, чи вибраний варіант для опції
+    func isChoiceSelected(optionId: String, choiceId: String) -> Bool {
+        return optionSelections[optionId]?[choiceId] != nil
+    }
+    
+    /// Отримання кількості для вибраного варіанту
+    func getQuantityForChoice(optionId: String, choiceId: String) -> Int {
+        return optionSelections[optionId]?[choiceId] ?? 0
     }
 }

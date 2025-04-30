@@ -11,19 +11,9 @@ import SwiftUI
 struct CustomizationOptionView: View {
     // MARK: - Властивості
     let option: CustomizationOption
-    @Binding var selectedChoiceId: String
+    @ObservedObject var viewModel: MenuItemDetailViewModel
     @State private var isExpanded = true
-    
-    
-    private var cardGradient: LinearGradient {
-        return LinearGradient(
-            gradient: Gradient(colors: [Color("cardTop"), Color("cardBottom")]),
-            startPoint: .top,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    
+    @Environment(\.colorScheme) private var colorScheme
     
     // MARK: - View
     var body: some View {
@@ -41,12 +31,51 @@ struct CustomizationOptionView: View {
                                 .font(.caption)
                                 .foregroundColor(Color("primary"))
                         }
+                        
+                        if option.allowMultipleChoices == true {
+                            Text("(Можна вибрати кілька)")
+                                .font(.caption)
+                                .foregroundColor(Color("secondaryText"))
+                        }
                     }
                     
-                    if let selectedChoice = option.choices.first(where: { $0.id == selectedChoiceId }) {
-                        Text("Вибрано: \(selectedChoice.name)")
-                            .font(.caption)
-                            .foregroundColor(Color("secondaryText"))
+                    // Показуємо вибрані варіанти
+                    if let selections = viewModel.optionSelections[option.id], !selections.isEmpty {
+                        HStack {
+                            Text("Вибрано: ")
+                                .font(.caption)
+                                .foregroundColor(Color("secondaryText"))
+                            
+                            // Показуємо макс. 2 вибрані опції
+                            let selectedChoices = selections.keys.prefix(2)
+                            ForEach(Array(selectedChoices.enumerated()), id: \.element) { index, choiceId in
+                                if let choice = option.choices.first(where: { $0.id == choiceId }) {
+                                    if index > 0 {
+                                        Text(", ")
+                                            .font(.caption)
+                                            .foregroundColor(Color("secondaryText"))
+                                    }
+                                    
+                                    Text(choice.name)
+                                        .font(.caption)
+                                        .foregroundColor(Color("primary"))
+                                        .lineLimit(1)
+                                    
+                                    if let quantity = selections[choiceId], quantity > 1 {
+                                        Text("×\(quantity)")
+                                            .font(.caption)
+                                            .foregroundColor(Color("secondaryText"))
+                                    }
+                                }
+                            }
+                            
+                            // Якщо є більше варіантів, показуємо +N
+                            if selections.count > 2 {
+                                Text(" +\(selections.count - 2)")
+                                    .font(.caption)
+                                    .foregroundColor(Color("secondaryText"))
+                            }
+                        }
                     }
                 }
                 
@@ -64,71 +93,250 @@ struct CustomizationOptionView: View {
             
             // Варіанти вибору (згортаються/розгортаються)
             if isExpanded {
-                // Горизонтальне прокручування варіантів
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(option.choices) { choice in
-                            ChoiceButton(
-                                choice: choice,
-                                isSelected: selectedChoiceId == choice.id,
-                                onSelect: {
-                                    selectedChoiceId = choice.id
-                                }
-                            )
-                        }
+                // Сітка варіантів вибору з можливістю скролінгу
+                VStack(spacing: 12) {
+                    ForEach(option.choices) { choice in
+                        ChoiceCardView(
+                            choice: choice,
+                            isSelected: viewModel.isChoiceSelected(optionId: option.id, choiceId: choice.id),
+                            quantity: viewModel.getQuantityForChoice(optionId: option.id, choiceId: choice.id),
+                            onSelect: {
+                                viewModel.toggleCustomizationChoice(optionId: option.id, choiceId: choice.id)
+                            },
+                            onQuantityChanged: { newQuantity in
+                                viewModel.updateCustomizationQuantity(optionId: option.id, choiceId: choice.id, quantity: newQuantity)
+                            }
+                        )
                     }
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 8)
                 }
                 .transition(.opacity)
             }
         }
-        .padding(12)
-//        .background(Color("cardColor").opacity(0.5))
-        .background(cardGradient)
-        .cornerRadius(8)
+        .padding(16)
+        .background(
+            ZStack {
+                // Скляний фон
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.clear)
+                    .overlay(
+                        BlurView(
+                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                            opacity: colorScheme == .light ? 0.95 : 0.95
+                        )
+                    )
+                    .overlay(
+                        Group {
+                            if colorScheme == .light {
+                                // Тонування для світлої теми
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color("nidusMistyBlue").opacity(0.25),
+                                        Color("nidusCoolGray").opacity(0.1)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                .opacity(0.4)
+                                
+                                Color("nidusLightBlueGray").opacity(0.12)
+                            } else {
+                                // Темна тема
+                                Color.black.opacity(0.15)
+                            }
+                        }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+            }
+        )
+        .cornerRadius(20)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            colorScheme == .light 
+                                ? Color("nidusCoolGray").opacity(0.4)
+                                : Color.black.opacity(0.35),
+                            colorScheme == .light
+                                ? Color("nidusLightBlueGray").opacity(0.25)
+                                : Color.black.opacity(0.1)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
     }
 }
 
-/// Кнопка для вибору опції кастомізації
-struct ChoiceButton: View {
+/// Картка для вибору опції кастомізації
+struct ChoiceCardView: View {
     // MARK: - Властивості
     let choice: CustomizationChoice
     let isSelected: Bool
+    let quantity: Int
     let onSelect: () -> Void
+    let onQuantityChanged: (Int) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    
+    /// Перевірка, чи можна зменшити кількість
+    private var canDecrease: Bool {
+        guard choice.allowQuantity == true else { return false }
+        let minQuantity = choice.minQuantity ?? 1
+        return quantity > minQuantity
+    }
+    
+    /// Перевірка, чи можна збільшити кількість
+    private var canIncrease: Bool {
+        guard choice.allowQuantity == true else { return false }
+        let maxQuantity = choice.maxQuantity ?? Int.max
+        return quantity < maxQuantity
+    }
     
     /// Форматування ціни опції
-    var priceText: String? {
+    private var priceText: String? {
         guard let price = choice.price, price > 0 else { return nil }
-        return "+\(price) ₴"
+        return "+\(formatPrice(price)) ₴"
+    }
+    
+    /// Форматування ціни
+    private func formatPrice(_ price: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 0
+        
+        return formatter.string(from: NSDecimalNumber(decimal: price)) ?? "\(price)"
     }
     
     // MARK: - View
     var body: some View {
-        Button(action: onSelect) {
-            VStack(spacing: 4) {
-                // Назва варіанта вибору
-                Text(choice.name)
-                    .font(.subheadline)
-                    .fontWeight(isSelected ? .semibold : .regular)
-                    .foregroundColor(isSelected ? .white : Color("primaryText"))
-                
-                // Додаткова ціна (якщо є)
-                if let priceText = priceText {
-                    Text(priceText)
-                        .font(.caption)
-                        .fontWeight(.regular)
-                        .foregroundColor(isSelected ? .white.opacity(0.9) : Color("primary"))
+        HStack(spacing: 12) {
+            // Кнопка вибору
+            Button(action: onSelect) {
+                ZStack {
+                    // Фон кнопки
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.clear)
+                        .overlay(
+                            BlurView(
+                                style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                                opacity: colorScheme == .light ? 0.95 : 0.95
+                            )
+                        )
+                        .overlay(
+                            Group {
+                                if isSelected {
+                                    // Фон для вибраного стану
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color("primary").opacity(0.8),
+                                            Color("primary")
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                } else if colorScheme == .light {
+                                    // Фон для невибраного стану (світла тема)
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color("nidusMistyBlue").opacity(0.25),
+                                            Color("nidusCoolGray").opacity(0.1)
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                    .opacity(0.4)
+                                    
+                                    Color("nidusLightBlueGray").opacity(0.12)
+                                } else {
+                                    // Фон для невибраного стану (темна тема)
+                                    Color.black.opacity(0.15)
+                                }
+                            }
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    
+                    // Інформація про опцію
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            // Назва опції
+                            Text(choice.name)
+                                .font(.subheadline)
+                                .fontWeight(isSelected ? .semibold : .regular)
+                                .foregroundColor(isSelected ? .white : Color("primaryText"))
+                            
+                            Spacer()
+                            
+                            // Іконка вибору
+                            if isSelected {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.white)
+                                    .font(.subheadline)
+                            }
+                        }
+                        
+                        // Додаткова ціна (якщо є)
+                        if let priceText = priceText {
+                            Text(priceText)
+                                .font(.caption)
+                                .fontWeight(.regular)
+                                .foregroundColor(isSelected ? .white.opacity(0.9) : Color("primary"))
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                 }
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color("primary") : Color("inputField"))
-            )
+            .buttonStyle(PlainButtonStyle())
+            .frame(maxWidth: .infinity)
+            
+            // Селектор кількості (якщо allowQuantity = true)
+            if choice.allowQuantity == true && isSelected {
+                HStack(spacing: 12) {
+                    // Кнопка зменшення
+                    Button(action: {
+                        if canDecrease {
+                            onQuantityChanged(quantity - 1)
+                        }
+                    }) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(canDecrease ? Color("primary") : Color("secondaryText").opacity(0.5))
+                    }
+                    .disabled(!canDecrease)
+                    
+                    // Поточна кількість
+                    Text("\(quantity)")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundColor(Color("primaryText"))
+                        .frame(minWidth: 24)
+                        .multilineTextAlignment(.center)
+                    
+                    // Кнопка збільшення
+                    Button(action: {
+                        if canIncrease {
+                            onQuantityChanged(quantity + 1)
+                        }
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(canIncrease ? Color("primary") : Color("secondaryText").opacity(0.5))
+                    }
+                    .disabled(!canIncrease)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color("inputField").opacity(0.7))
+                )
+            }
         }
-        .buttonStyle(PlainButtonStyle())
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -136,39 +344,94 @@ struct ChoiceButton: View {
 struct CustomizationOptionView_Previews: PreviewProvider {
     static var previews: some View {
         VStack(spacing: 16) {
-            // Приклад з типами молока
-            CustomizationOptionView(
-                option: CustomizationOption(
-                    id: "milk-type",
-                    name: "Тип молока",
-                    choices: [
-                        CustomizationChoice(id: "regular", name: "Звичайне", price: nil),
-                        CustomizationChoice(id: "oat", name: "Вівсяне", price: Decimal(15)),
-                        CustomizationChoice(id: "almond", name: "Мигдальне", price: Decimal(20)),
-                        CustomizationChoice(id: "coconut", name: "Кокосове", price: Decimal(25))
-                    ],
-                    required: true
-                ),
-                selectedChoiceId: .constant("oat")
+            // Приклад з простими опціями
+            let simpleOption = CustomizationOption(
+                id: "milk-type",
+                name: "Тип молока",
+                choices: [
+                    CustomizationChoice(id: "regular", name: "Звичайне", price: nil),
+                    CustomizationChoice(id: "oat", name: "Вівсяне", price: Decimal(15)),
+                    CustomizationChoice(id: "almond", name: "Мигдальне", price: Decimal(20))
+                ],
+                required: true,
+                allowMultipleChoices: false
             )
             
-            // Приклад з сиропами
-            CustomizationOptionView(
-                option: CustomizationOption(
-                    id: "syrup",
-                    name: "Сироп",
-                    choices: [
-                        CustomizationChoice(id: "no-syrup", name: "Без сиропу", price: nil),
-                        CustomizationChoice(id: "vanilla", name: "Ванільний", price: Decimal(10)),
-                        CustomizationChoice(id: "caramel", name: "Карамельний", price: Decimal(10)),
-                        CustomizationChoice(id: "hazelnut", name: "Фундучний", price: Decimal(15))
-                    ],
-                    required: false
-                ),
-                selectedChoiceId: .constant("vanilla")
+            // Приклад з опціями, що підтримують кількість
+            let quantityOption = CustomizationOption(
+                id: "toppings",
+                name: "Топінги",
+                choices: [
+                    CustomizationChoice(
+                        id: "chocolate", 
+                        name: "Шоколад", 
+                        price: Decimal(10), 
+                        allowQuantity: true,
+                        defaultQuantity: 1,
+                        minQuantity: 1,
+                        maxQuantity: 3,
+                        pricePerAdditionalUnit: Decimal(5)
+                    ),
+                    CustomizationChoice(
+                        id: "caramel", 
+                        name: "Карамельний", 
+                        price: Decimal(10),
+                        allowQuantity: true,
+                        defaultQuantity: 1,
+                        minQuantity: 1,
+                        maxQuantity: 3,
+                        pricePerAdditionalUnit: Decimal(5)
+                    )
+                ],
+                required: false,
+                allowMultipleChoices: true
             )
+            
+            // Створимо ViewModel для превью
+            let menuItem = MenuItem(
+                id: "coffee-1",
+                name: "Капучино",
+                price: Decimal(70),
+                customizationOptions: [simpleOption, quantityOption],
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+            
+            let viewModel = MenuItemDetailViewModel(menuItem: menuItem)
+            
+            // Відображення компонентів
+            CustomizationOptionView(option: simpleOption, viewModel: viewModel)
+            CustomizationOptionView(option: quantityOption, viewModel: viewModel)
         }
         .padding()
         .background(Color("backgroundColor"))
+        .onAppear {
+            // Налаштовуємо стан вибраних опцій для превью
+            let viewModel = MenuItemDetailViewModel(menuItem: MenuItem(
+                id: "coffee-1",
+                name: "Капучино",
+                price: Decimal(70),
+                customizationOptions: [
+                    CustomizationOption(
+                        id: "milk-type",
+                        name: "Тип молока",
+                        choices: [],
+                        required: true
+                    ),
+                    CustomizationOption(
+                        id: "syrup",
+                        name: "Сироп",
+                        choices: [],
+                        required: false
+                    )
+                ],
+                createdAt: Date(),
+                updatedAt: Date()
+            ))
+            
+            viewModel.toggleCustomizationChoice(optionId: "milk-type", choiceId: "oat")
+            viewModel.toggleCustomizationChoice(optionId: "syrup", choiceId: "vanilla")
+            viewModel.updateCustomizationQuantity(optionId: "syrup", choiceId: "vanilla", quantity: 2)
+        }
     }
 }

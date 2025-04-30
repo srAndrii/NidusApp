@@ -57,13 +57,13 @@ struct CustomizationPanelView: View {
                         .foregroundColor(Color("secondaryText"))
                     
                     VStack(spacing: 10) {
-                        ForEach(ingredients.filter { $0.isCustomizable }, id: \.name) { ingredient in
+                        ForEach(ingredients.filter { $0.isCustomizable }, id: \.id) { ingredient in
                             IngredientCustomizationView(
                                 ingredient: ingredient,
                                 value: Binding(
-                                    get: { viewModel.ingredientCustomizations[ingredient.name] ?? ingredient.amount },
+                                    get: { viewModel.ingredientCustomizations[ingredient.id ?? ingredient.name] ?? ingredient.amount },
                                     set: { newValue in
-                                        viewModel.ingredientCustomizations[ingredient.name] = newValue
+                                        viewModel.ingredientCustomizations[ingredient.id ?? ingredient.name] = newValue
                                         viewModel.updateCustomization()
                                     }
                                 )
@@ -116,16 +116,7 @@ struct CustomizationPanelView: View {
                     
                     VStack(spacing: 10) {
                         ForEach(options) { option in
-                            CustomizationOptionView(
-                                option: option,
-                                selectedChoiceId: Binding(
-                                    get: { viewModel.optionSelections[option.id] ?? "" },
-                                    set: { newValue in
-                                        viewModel.optionSelections[option.id] = newValue
-                                        viewModel.updateCustomization()
-                                    }
-                                )
-                            )
+                            CustomizationOptionView(option: option, viewModel: viewModel)
                         }
                     }
                 }
@@ -161,10 +152,24 @@ struct CustomizationPanelView_Previews: PreviewProvider {
             isAvailable: true,
             menuGroupId: "group-1",
             ingredients: [
-//                Ingredient(name: "Кава", amount: 7, unit: "г", isCustomizable: true, minAmount: 5, maxAmount: 12),
-//                Ingredient(name: "Вода", amount: 150, unit: "мл", isCustomizable: true, minAmount: 100, maxAmount: 200),
-//                Ingredient(name: "Цукор", amount: 10, unit: "г", isCustomizable: true, minAmount: 0, maxAmount: 20),
-     
+                Ingredient(
+                    id: "ing-1",
+                    name: "Кава",
+                    amount: 7,
+                    unit: "г",
+                    isCustomizable: true,
+                    minAmount: 5,
+                    maxAmount: 12
+                ),
+                Ingredient(
+                    id: "ing-2",
+                    name: "Вода",
+                    amount: 150,
+                    unit: "мл",
+                    isCustomizable: true,
+                    minAmount: 100,
+                    maxAmount: 200
+                )
             ],
             customizationOptions: [
                 CustomizationOption(
@@ -176,17 +181,37 @@ struct CustomizationPanelView_Previews: PreviewProvider {
                         CustomizationChoice(id: "oat", name: "Вівсяне", price: Decimal(15)),
                         CustomizationChoice(id: "almond", name: "Мигдальне", price: Decimal(20))
                     ],
-                    required: true
+                    required: true,
+                    allowMultipleChoices: false
                 ),
                 CustomizationOption(
                     id: "syrup",
                     name: "Сироп",
                     choices: [
                         CustomizationChoice(id: "no-syrup", name: "Без сиропу", price: nil),
-                        CustomizationChoice(id: "vanilla", name: "Ванільний", price: Decimal(10)),
-                        CustomizationChoice(id: "caramel", name: "Карамельний", price: Decimal(10))
+                        CustomizationChoice(
+                            id: "vanilla", 
+                            name: "Ванільний", 
+                            price: Decimal(10), 
+                            allowQuantity: true,
+                            defaultQuantity: 1,
+                            minQuantity: 1,
+                            maxQuantity: 3,
+                            pricePerAdditionalUnit: Decimal(5)
+                        ),
+                        CustomizationChoice(
+                            id: "caramel", 
+                            name: "Карамельний", 
+                            price: Decimal(10),
+                            allowQuantity: true,
+                            defaultQuantity: 1,
+                            minQuantity: 1,
+                            maxQuantity: 3,
+                            pricePerAdditionalUnit: Decimal(5)
+                        )
                     ],
-                    required: false
+                    required: false,
+                    allowMultipleChoices: true
                 )
             ],
             createdAt: Date(),
@@ -198,6 +223,12 @@ struct CustomizationPanelView_Previews: PreviewProvider {
         return ScrollView {
             CustomizationPanelView(menuItem: customizedItem, viewModel: viewModel)
                 .padding()
+                .onAppear {
+                    // Налаштовуємо стан вибраних опцій для превью
+                    viewModel.toggleCustomizationChoice(optionId: "milk-type", choiceId: "oat")
+                    viewModel.toggleCustomizationChoice(optionId: "syrup", choiceId: "vanilla")
+                    viewModel.updateCustomizationQuantity(optionId: "syrup", choiceId: "vanilla", quantity: 2)
+                }
         }
         .background(Color("backgroundColor"))
     }

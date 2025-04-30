@@ -201,6 +201,7 @@ struct CustomizationOption: Identifiable, Codable, Hashable {
     let name: String
     var choices: [CustomizationChoice]
     let required: Bool
+    let allowMultipleChoices: Bool?
     
     // Потрібно для Hashable
     func hash(into hasher: inout Hasher) {
@@ -210,12 +211,26 @@ struct CustomizationOption: Identifiable, Codable, Hashable {
     static func == (lhs: CustomizationOption, rhs: CustomizationOption) -> Bool {
         return lhs.id == rhs.id
     }
+    
+    // Додаємо ініціалізатор з параметром allowMultipleChoices за замовчуванням
+    init(id: String, name: String, choices: [CustomizationChoice], required: Bool, allowMultipleChoices: Bool? = nil) {
+        self.id = id
+        self.name = name
+        self.choices = choices
+        self.required = required
+        self.allowMultipleChoices = allowMultipleChoices
+    }
 }
 
 struct CustomizationChoice: Identifiable, Codable, Hashable {
     let id: String
     let name: String
     let price: Decimal?
+    let allowQuantity: Bool?
+    let defaultQuantity: Int?
+    let minQuantity: Int?
+    let maxQuantity: Int?
+    let pricePerAdditionalUnit: Decimal?
     
     // Потрібно для Hashable
     func hash(into hasher: inout Hasher) {
@@ -224,6 +239,18 @@ struct CustomizationChoice: Identifiable, Codable, Hashable {
     
     static func == (lhs: CustomizationChoice, rhs: CustomizationChoice) -> Bool {
         return lhs.id == rhs.id
+    }
+    
+    // Додаємо ініціалізатор з опціональними параметрами
+    init(id: String, name: String, price: Decimal?, allowQuantity: Bool? = nil, defaultQuantity: Int? = nil, minQuantity: Int? = nil, maxQuantity: Int? = nil, pricePerAdditionalUnit: Decimal? = nil) {
+        self.id = id
+        self.name = name
+        self.price = price
+        self.allowQuantity = allowQuantity
+        self.defaultQuantity = defaultQuantity
+        self.minQuantity = minQuantity
+        self.maxQuantity = maxQuantity
+        self.pricePerAdditionalUnit = pricePerAdditionalUnit
     }
 }
 

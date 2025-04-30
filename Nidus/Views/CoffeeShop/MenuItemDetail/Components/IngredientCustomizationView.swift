@@ -160,7 +160,8 @@ struct IngredientCustomizationView: View {
                     .overlay(
                         BlurView(
                             style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
-                            opacity: colorScheme == .light ? 0.95 : 0.95
+                            opacity: colorScheme == .light ? 0.95 : 0.95,
+                            backgroundColor: nil
                         )
                     )
                     .overlay(

@@ -464,75 +464,10 @@ struct MenuItemDetailView: View {
                 .foregroundColor(Color("primaryText"))
             
             ForEach(menuItem.customizationOptions ?? [], id: \.id) { option in
-                CustomizationOptionView(
-                    option: option,
-                    selectedChoiceId: Binding(
-                        get: { viewModel.optionSelections[option.id] ?? "" },
-                        set: { newValue in
-                            viewModel.optionSelections[option.id] = newValue
-                            viewModel.updateCustomization()
-                        }
-                    )
-                )
+                CustomizationOptionView(option: option, viewModel: viewModel)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            ZStack {
-                // Скляний фон
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.clear)
-                    .overlay(
-                        BlurView(
-                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
-                            opacity: colorScheme == .light ? 0.95 : 0.95
-                        )
-                    )
-                    .overlay(
-                        Group {
-                            if colorScheme == .light {
-                                // Тонування для світлої теми
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color("nidusMistyBlue").opacity(0.25),
-                                        Color("nidusCoolGray").opacity(0.1)
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                                .opacity(0.4)
-                                
-                                Color("nidusLightBlueGray").opacity(0.12)
-                            } else {
-                                // Темна тема
-                                Color.black.opacity(0.15)
-                            }
-                        }
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-            }
-        )
-        .cornerRadius(20)
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            colorScheme == .light 
-                                ? Color("nidusCoolGray").opacity(0.4)
-                                : Color.black.opacity(0.35),
-                            colorScheme == .light
-                                ? Color("nidusLightBlueGray").opacity(0.25)
-                                : Color.black.opacity(0.1)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
     }
     
     /// Секція з кількістю та кнопкою замовлення
@@ -643,11 +578,7 @@ struct MenuItemDetailView_Previews: PreviewProvider {
             imageUrl: nil,
             isAvailable: true,
             menuGroupId: "group-1",
-            ingredients: [
-//                Ingredient(name: "Кава", amount: 7, unit: "г", isCustomizable: true, minAmount: 5, maxAmount: 12),
-//                Ingredient(name: "Вода", amount: 150, unit: "мл", isCustomizable: true, minAmount: 100, maxAmount: 200),
-//                Ingredient(name: "Цукор", amount: 10, unit: "г", isCustomizable: true, minAmount: 0, maxAmount: 20)
-            ],
+            ingredients: [],
             customizationOptions: [
                 CustomizationOption(
                     id: "milk-type",
