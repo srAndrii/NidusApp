@@ -114,6 +114,8 @@ struct MenuItemDetailView: View {
             // Кнопка "Назад"
             BackButtonView()
                 .padding(.top, 50)
+
+                .padding(.leading, 12)
             
             // Toast повідомлення
             if showToast {
@@ -173,13 +175,6 @@ struct MenuItemDetailView: View {
                             .clipShape(Circle())
                     }
                     
-                    // Іконка кастомізації
-                    if viewModel.hasCustomizationOptions {
-                        Image(systemName: "slider.horizontal.3")
-                            .foregroundColor(Color("primary"))
-                            .background(Color.white.opacity(0.8))
-                            .clipShape(Circle())
-                    }
                 }
                 
                 // Ціна
@@ -282,7 +277,7 @@ struct MenuItemDetailView: View {
     private var sizeSelectionSection: some View {
         Group {
             if !viewModel.availableSizes.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Розмір")
                         .font(.headline)
                         .foregroundColor(Color("primaryText"))
@@ -301,7 +296,7 @@ struct MenuItemDetailView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, 8) // Зменшений вертикальний padding
                 .background(
                     ZStack {
                         // Скляний фон
@@ -380,9 +375,7 @@ struct MenuItemDetailView: View {
     // Інгредієнти для кастомізації
     private var ingredientsCustomizationView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Інгредієнти")
-                .font(.headline)
-                .foregroundColor(Color("primaryText"))
+           
             
             ForEach(menuItem.ingredients?.filter { $0.isCustomizable } ?? [], id: \.id) { ingredient in
                 IngredientCustomizationView(
@@ -416,44 +409,121 @@ struct MenuItemDetailView: View {
     private var orderSection: some View {
         VStack(spacing: 16) {
             // Вибір кількості
-            HStack {
+            VStack(spacing: 4) {
                 Text("Кількість")
-                    .font(.headline)
+                    .font(.subheadline)
                     .foregroundColor(Color("primaryText"))
+                    .frame(maxWidth: .infinity, alignment: .center)
                 
-                Spacer()
-                
-                // Зменшити кількість
-                Button(action: {
-                    if quantity > 1 {
-                        quantity -= 1
+                HStack {
+                    Spacer()
+                    
+                    // Новий компактний селектор кількості з центрованим розташуванням
+                    HStack(spacing: 12) {
+                        // Зменшити кількість
+                        Button(action: {
+                            if quantity > 1 {
+                                quantity -= 1
+                            }
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color("primary"))
+                                    .frame(width: 32, height: 32)
+                                    .shadow(color: Color("primary").opacity(0.2), radius: 3, x: 0, y: 1)
+                                
+                                Image(systemName: "minus")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .disabled(quantity <= 1)
+                        .opacity(quantity > 1 ? 1.0 : 0.5)
+                        
+                        // Поточна кількість
+                        Text("\(quantity)")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundColor(Color("primaryText"))
+                            .frame(minWidth: 40)
+                            .multilineTextAlignment(.center)
+                        
+                        // Збільшити кількість
+                        Button(action: {
+                            quantity += 1
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color("primary"))
+                                    .frame(width: 32, height: 32)
+                                    .shadow(color: Color("primary").opacity(0.2), radius: 3, x: 0, y: 1)
+                                
+                                Image(systemName: "plus")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                            }
+                        }
                     }
-                }) {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(quantity > 1 ? Color("primary") : Color.gray)
-                }
-                
-                // Поточна кількість
-                Text("\(quantity)")
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(Color("primaryText"))
-                    .frame(minWidth: 40)
-                    .multilineTextAlignment(.center)
-                
-                // Збільшити кількість
-                Button(action: {
-                    quantity += 1
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(Color("primary"))
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                    .background(
+                        ZStack {
+                            // Скляний фон
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.clear)
+                                .overlay(
+                                    BlurView(
+                                        style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                                        opacity: colorScheme == .light ? 0.95 : 0.95
+                                    )
+                                )
+                                .overlay(
+                                    Group {
+                                        if colorScheme == .light {
+                                            // Тонування для світлої теми
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [
+                                                    Color("nidusMistyBlue").opacity(0.25),
+                                                    Color("nidusCoolGray").opacity(0.1)
+                                                ]),
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                            .opacity(0.4)
+                                            
+                                            Color("nidusLightBlueGray").opacity(0.12)
+                                        } else {
+                                            // Темна тема
+                                            Color.black.opacity(0.15)
+                                        }
+                                    }
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                        }
+                    )
+                    .cornerRadius(20)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        colorScheme == .light 
+                                            ? Color("nidusCoolGray").opacity(0.4)
+                                            : Color.black.opacity(0.35),
+                                        colorScheme == .light
+                                            ? Color("nidusLightBlueGray").opacity(0.25)
+                                            : Color.black.opacity(0.1)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
+                    
+                    Spacer()
                 }
             }
-            .padding(16)
-            .background(LinearGradient.cardGradient())
-            .cornerRadius(12)
             
             // Кнопка "Додати до кошика"
             Button(action: {

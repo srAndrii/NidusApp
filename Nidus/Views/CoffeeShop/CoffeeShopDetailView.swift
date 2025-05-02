@@ -16,22 +16,32 @@ struct CoffeeShopDetailView: View {
             if #available(iOS 16.0, *) {
                 // Для iOS 16+ з новою навігацією
                 NavigationStack {
-                    mainContentView
-                        .navigationDestination(for: MenuItem.self) { item in
-                            MenuItemDetailView(menuItem: item)
-                        }
+                    ZStack(alignment: .topLeading) {
+                        mainContentView
+                        
+                        // Кнопка "Назад" - переміщена всередину NavigationStack, щоб не з'являтися у вкладених екранах
+                        BackButtonView(color: Color("primary"), backgroundColor: Color.black.opacity(0.4))
+                            .padding(.top )
+                            .padding(.leading, 12)
+                            .zIndex(2) // Щоб кнопка була над всіма іншими елементами
+                    }
+                    .navigationDestination(for: MenuItem.self) { item in
+                        MenuItemDetailView(menuItem: item)
+                    }
                 }
                 .navigationBarHidden(true)
             } else {
                 // Для iOS 15 і раніше
-                mainContentView
+                ZStack(alignment: .topLeading) {
+                    mainContentView
+                    
+                    // Кнопка "Назад" для iOS 15
+                    BackButtonView(color: Color("primary"), backgroundColor: Color.black.opacity(0.4))
+                        .padding(.top, getSafeAreaInsets().top + 8)
+                        .padding(.leading, 12)
+                        .zIndex(2)
+                }
             }
-            
-            // Кнопка "Назад" - тепер з правильним вирівнюванням і кольором
-            BackButtonView(color: Color("primary"), backgroundColor: Color.black.opacity(0.4))
-                .padding(.top, getSafeAreaInsets().top + 8)
-                .padding(.leading, 12)
-                .zIndex(2) // Щоб кнопка була над всіма іншими елементами
         }
         .edgesIgnoringSafeArea(.top)
         .navigationBarHidden(true)

@@ -21,6 +21,9 @@ struct SizeSelectorView: View {
     // Базовий розмір кнопки для найменшого розміру
     private let baseButtonSize: CGFloat = 50
     
+    // Стан для ScrollView
+    @State private var scrollViewProxy: ScrollViewProxy? = nil
+    
     // MARK: - Ініціалізатор
     init(selectedSize: Binding<String>, sizes: [Size], onSizeChanged: @escaping (String) -> Void, showTitle: Bool = false) {
         self._selectedSize = selectedSize
@@ -31,42 +34,63 @@ struct SizeSelectorView: View {
     
     // MARK: - View
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             // Заголовок секції (тільки якщо showTitle=true)
             if showTitle {
                 Text("Розмір")
                     .font(.headline)
                     .foregroundColor(Color("primaryText"))
+                    .padding(.bottom, 2) // Додаємо невеликий відступ знизу
             }
             
-            // Горизонтальний скрол для кнопок розміру
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    // Сортуємо розміри за порядковим номером
-                    let sortedSizes = sizes.sorted { $0.order < $1.order }
+            // Використовуємо GeometryReader для визначення доступної ширини
+            GeometryReader { geometry in
+                // Обчислюємо, чи потрібен скролінг
+                let availableWidth = geometry.size.width - 20 // віднімаємо горизонтальні відступи
+                let estimatedItemWidth = CGFloat(85) // приблизна ширина одного елемента з відступами
+                let totalEstimatedWidth = estimatedItemWidth * CGFloat(sizes.count)
+                let needsScrolling = totalEstimatedWidth > availableWidth && sizes.count >= 4
+                
+                ZStack(alignment: .trailing) {
+                    // Горизонтальний скрол для кнопок розміру
+                    if sizes.count >= 4 {
+                        // Використовуємо скролінг тільки якщо багато елементів
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            ScrollViewReader { proxy in
+                                centeredButtonsStack
+                                    .padding(.trailing, needsScrolling ? 30 : 0) // Додаємо відступ для стрілки
+                                    .onAppear {
+                                        scrollViewProxy = proxy
+                                    }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        // Для малої кількості розмірів просто показуємо HStack без скролінгу
+                        centeredButtonsStack
+                            .frame(maxWidth: .infinity)
+                    }
                     
-                    // Створюємо кнопки для кожного розміру
-                    ForEach(sortedSizes) { size in
-                        sizeButton(
-                            size: size,
-                            isSelected: selectedSize == size.abbreviation,
-                            buttonSize: calculateButtonSize(for: size, in: sortedSizes),
-                            onSelect: {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    if selectedSize != size.abbreviation {
-                                        selectedSize = size.abbreviation
-                                        onSizeChanged(size.abbreviation)
+                    // Показуємо стрілку, якщо потрібен скролінг
+                    if needsScrolling {
+                        // Стрілка-індикатор прокрутки з анімацією
+                        ScrollIndicator()
+                            .onTapGesture {
+                                // Прокручуємо до останнього елемента при натисканні
+                                if let proxy = scrollViewProxy {
+                                    withAnimation {
+                                        let lastSize = sizes.sorted(by: { $0.order < $1.order }).last?.id
+                                        if let lastId = lastSize {
+                                            proxy.scrollTo(lastId, anchor: .trailing)
+                                        }
                                     }
                                 }
                             }
-                        )
                     }
                 }
-                .padding(.vertical, 2)
-                .padding(.horizontal, 10)
-                .frame(minWidth: 0, maxWidth: .infinity, alignment: sizes.count <= 3 ? .center : .leading) // Центрування, якщо мало елементів
             }
-            .frame(maxWidth: .infinity)
+            // Фіксуємо висоту відповідно до висоти кнопок
+            .frame(height: calculateLayoutHeight())
         }
         .onAppear {
             // Автоматично встановлюємо розмір за замовчуванням при першому з'явленні
@@ -106,7 +130,7 @@ struct SizeSelectorView: View {
     
     /// Компонент кнопки розміру
     private func sizeButton(size: Size, isSelected: Bool, buttonSize: CGFloat, onSelect: @escaping () -> Void) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) { // Зменшуємо відступ між елементами
             // Кнопка розміру
             Button(action: onSelect) {
                 ZStack {
@@ -195,9 +219,10 @@ struct SizeSelectorView: View {
                     .font(.caption2)
                     .foregroundColor(isSelected ? Color("primary") : Color("secondaryText"))
                     .opacity(0.8)
+                    .padding(.top, -1) // Негативний відступ для компактності
             }
         }
-        .frame(height: buttonSize * 2.2) // Зменшуємо висоту для вирівнювання всіх елементів
+        .frame(height: buttonSize * 1.8) // Зменшуємо висоту для компактності
         .background(Color.clear) // Прозорий фон для всього компонента
     }
     
@@ -268,6 +293,98 @@ struct SizeSelectorView: View {
         let formattedPrice = formatter.string(from: NSDecimalNumber(decimal: abs(price))) ?? "\(abs(price))"
         
         return price > 0 ? "+₴\(formattedPrice)" : "-₴\(formattedPrice)"
+    }
+    
+    // MARK: - Допоміжні властивості
+    
+    /// Центрований стек кнопок розмірів
+    private var centeredButtonsStack: some View {
+        HStack(spacing: 16) {
+            // Додаємо Spacer на початку для центрування
+            Spacer(minLength: 0)
+            
+            // Сортуємо розміри за порядковим номером
+            let sortedSizes = sizes.sorted { $0.order < $1.order }
+            
+            // Створюємо кнопки для кожного розміру
+            ForEach(sortedSizes) { size in
+                sizeButton(
+                    size: size,
+                    isSelected: selectedSize == size.abbreviation,
+                    buttonSize: calculateButtonSize(for: size, in: sortedSizes),
+                    onSelect: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            if selectedSize != size.abbreviation {
+                                selectedSize = size.abbreviation
+                                onSizeChanged(size.abbreviation)
+                            }
+                        }
+                    }
+                )
+                .id(size.id) // Додаємо ідентифікатор для ScrollViewProxy
+            }
+            
+            // Додаємо Spacer у кінці для центрування
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 0) // Зменшую вертикальний padding
+        .padding(.horizontal, 10)
+    }
+    
+    /// Розраховуємо необхідну висоту на основі розміру найбільшої кнопки
+    private func calculateLayoutHeight() -> CGFloat {
+        // Знаходимо розмір найбільшої кнопки
+        let maxButtonSize: CGFloat = baseButtonSize * 1.5
+        
+        // Додаємо висоту для назви та додаткової ціни
+        let totalHeight = maxButtonSize * 1.8 // Використовуємо той самий множник, що і для висоти кнопки
+        
+        return totalHeight
+    }
+}
+
+// MARK: - Допоміжні компоненти
+
+/// Компонент анімованого індикатора скролінгу (стрілка)
+private struct ScrollIndicator: View {
+    @State private var isAnimating = false
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var body: some View {
+        VStack {
+            // Зменшений верхній спейсер для зміщення вгору
+            Spacer().frame(height: 40)
+            
+            ZStack {
+                // Фон для кращої видимості
+                Circle()
+                    .fill(colorScheme == .light 
+                          ? Color.white.opacity(0.8) 
+                          : Color.black.opacity(0.3))
+                    .frame(width: 26, height: 26)
+                    .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 1)
+                
+                // Іконка стрілки
+                Image(systemName: "chevron.right.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(Color("primary"))
+            }
+            .offset(x: isAnimating ? -2 : -7, y: -10) // Додаємо зміщення на 10 пікселів вгору
+            .animation(
+                Animation.easeInOut(duration: 1.0)
+                    .repeatForever(autoreverses: true),
+                value: isAnimating
+            )
+            
+            // Збільшений нижній спейсер для компенсації
+            Spacer().frame(height: 50)
+        }
+        .frame(width: 30)
+        .contentShape(Rectangle())
+        .onAppear {
+            // Запускаємо анімацію при появі
+            isAnimating = true
+        }
     }
 }
 
