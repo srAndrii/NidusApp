@@ -83,6 +83,8 @@ struct CustomizationPanelView: View {
                                     Text(ingredient.name)
                                         .font(.caption)
                                         .foregroundColor(Color("secondaryText"))
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
                                     
                                     Spacer()
                                     

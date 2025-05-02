@@ -398,70 +398,12 @@ struct MenuItemDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            ZStack {
-                // Скляний фон
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.clear)
-                    .overlay(
-                        BlurView(
-                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
-                            opacity: colorScheme == .light ? 0.95 : 0.95
-                        )
-                    )
-                    .overlay(
-                        Group {
-                            if colorScheme == .light {
-                                // Тонування для світлої теми
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color("nidusMistyBlue").opacity(0.25),
-                                        Color("nidusCoolGray").opacity(0.1)
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                                .opacity(0.4)
-                                
-                                Color("nidusLightBlueGray").opacity(0.12)
-                            } else {
-                                // Темна тема
-                                Color.black.opacity(0.15)
-                            }
-                        }
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-            }
-        )
-        .cornerRadius(20)
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            colorScheme == .light 
-                                ? Color("nidusCoolGray").opacity(0.4)
-                                : Color.black.opacity(0.35),
-                            colorScheme == .light
-                                ? Color("nidusLightBlueGray").opacity(0.25)
-                                : Color.black.opacity(0.1)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
     }
     
     // Опції кастомізації
     private var customizationOptionsView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Опції")
-                .font(.headline)
-                .foregroundColor(Color("primaryText"))
+
             
             ForEach(menuItem.customizationOptions ?? [], id: \.id) { option in
                 CustomizationOptionView(option: option, viewModel: viewModel)

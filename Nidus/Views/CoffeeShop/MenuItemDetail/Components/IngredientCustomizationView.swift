@@ -70,6 +70,8 @@ struct IngredientCustomizationView: View {
                 Text(ingredient.name)
                     .font(.subheadline)
                     .foregroundColor(Color("primaryText"))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 
                 Spacer()
                 

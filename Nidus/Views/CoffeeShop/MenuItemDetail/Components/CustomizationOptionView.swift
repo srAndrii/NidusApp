@@ -25,6 +25,8 @@ struct CustomizationOptionView: View {
                         Text(option.name)
                             .font(.headline)
                             .foregroundColor(Color("primaryText"))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                         
                         if option.required {
                             Text("* Обов'язково")
@@ -267,6 +269,8 @@ struct ChoiceCardView: View {
                                 .font(.subheadline)
                                 .fontWeight(isSelected ? .semibold : .regular)
                                 .foregroundColor(isSelected ? .white : Color("primaryText"))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
                             
                             Spacer()
                             
@@ -304,15 +308,16 @@ struct ChoiceCardView: View {
                     }) {
                         Image(systemName: "minus.circle.fill")
                             .font(.title3)
-                            .foregroundColor(canDecrease ? Color("primary") : Color("secondaryText").opacity(0.5))
+                            .foregroundColor(.white)
                     }
                     .disabled(!canDecrease)
+                    .opacity(canDecrease ? 1.0 : 0.5)
                     
                     // Поточна кількість
                     Text("\(quantity)")
                         .font(.subheadline)
                         .fontWeight(.bold)
-                        .foregroundColor(Color("primaryText"))
+                        .foregroundColor(.white)
                         .frame(minWidth: 24)
                         .multilineTextAlignment(.center)
                     
@@ -324,15 +329,16 @@ struct ChoiceCardView: View {
                     }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.title3)
-                            .foregroundColor(canIncrease ? Color("primary") : Color("secondaryText").opacity(0.5))
+                            .foregroundColor(.white)
                     }
                     .disabled(!canIncrease)
+                    .opacity(canIncrease ? 1.0 : 0.5)
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color("inputField").opacity(0.7))
+                        .fill(Color("primary"))
                 )
             }
         }
