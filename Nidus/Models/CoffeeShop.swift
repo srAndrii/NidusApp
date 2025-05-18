@@ -12,7 +12,7 @@ struct CoffeeShop: Identifiable, Codable {
     var minPreorderTimeMinutes: Int
     var maxPreorderTimeMinutes: Int
     var workingHours: [String: WorkingHoursPeriod]?
-    var metadata: String?
+    var metadata: [String: Any]?
     var createdAt: Date
     var updatedAt: Date
     var menuGroups: [MenuGroup]?
@@ -75,7 +75,7 @@ struct CoffeeShop: Identifiable, Codable {
          ownerId: String? = nil, owner: User? = nil,
          allowScheduledOrders: Bool = false, minPreorderTimeMinutes: Int = 15,
          maxPreorderTimeMinutes: Int = 1440, workingHours: [String: WorkingHoursPeriod]? = nil,
-         metadata: String? = nil, createdAt: Date = Date(), updatedAt: Date = Date(),
+         metadata: [String: Any]? = nil, createdAt: Date = Date(), updatedAt: Date = Date(),
          menuGroups: [MenuGroup]? = nil, distance: Double? = nil) {
         self.id = id
         self.name = name
@@ -92,6 +92,63 @@ struct CoffeeShop: Identifiable, Codable {
         self.updatedAt = updatedAt
         self.menuGroups = menuGroups
         self.distance = distance
+    }
+    
+    // Метод для кодування об'єкта в JSON
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(address, forKey: .address)
+        try container.encodeIfPresent(logoUrl, forKey: .logoUrl)
+        try container.encodeIfPresent(ownerId, forKey: .ownerId)
+        try container.encodeIfPresent(owner, forKey: .owner)
+        
+        try container.encode(allowScheduledOrders, forKey: .allowScheduledOrders)
+        try container.encode(minPreorderTimeMinutes, forKey: .minPreorderTimeMinutes)
+        try container.encode(maxPreorderTimeMinutes, forKey: .maxPreorderTimeMinutes)
+        
+        // Кодування workingHours
+        try container.encodeIfPresent(workingHours, forKey: .workingHours)
+        
+        // Кодування metadata як [String: Any]
+        if let metadata = metadata, !metadata.isEmpty {
+            // Перетворюємо [String: Any] в JSON дані
+            let jsonData = try JSONSerialization.data(withJSONObject: metadata)
+            
+            // Створюємо окремий контейнер для метаданих
+            var metadataContainer = container.nestedContainer(keyedBy: DynamicCodingKeys.self, forKey: .metadata)
+            
+            // Розбираємо JSON дані знову в словник і кодуємо кожен елемент окремо
+            if let metadataDict = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                for (key, value) in metadataDict {
+                    let dynamicKey = DynamicCodingKeys(stringValue: key)!
+                    
+                    if let stringValue = value as? String {
+                        try metadataContainer.encode(stringValue, forKey: dynamicKey)
+                    } else if let intValue = value as? Int {
+                        try metadataContainer.encode(intValue, forKey: dynamicKey)
+                    } else if let doubleValue = value as? Double {
+                        try metadataContainer.encode(doubleValue, forKey: dynamicKey)
+                    } else if let boolValue = value as? Bool {
+                        try metadataContainer.encode(boolValue, forKey: dynamicKey)
+                    }
+                }
+            }
+        }
+        
+        // Кодування дат
+        // Формат ISO8601 для сервера
+        let dateFormatter = ISO8601DateFormatter()
+        let createdAtString = dateFormatter.string(from: createdAt)
+        let updatedAtString = dateFormatter.string(from: updatedAt)
+        
+        try container.encode(createdAtString, forKey: .createdAt)
+        try container.encode(updatedAtString, forKey: .updatedAt)
+        
+        // Кодування menuGroups
+        try container.encodeIfPresent(menuGroups, forKey: .menuGroups)
     }
     
     // Спеціальний ініціалізатор для декодування з JSON
@@ -166,8 +223,35 @@ struct CoffeeShop: Identifiable, Codable {
             }
         }
         
-        // Спрощене декодування метаданих
-        metadata = try container.decodeIfPresent(String.self, forKey: .metadata)
+        // Декодування метаданих як словника
+        do {
+            // Спробуємо декодувати metadata як Dictionary
+            let metadataContainer = try? container.nestedContainer(keyedBy: DynamicCodingKeys.self, forKey: .metadata)
+            if let metadataContainer = metadataContainer {
+                var metadataDict: [String: Any] = [:]
+                
+                // Проходимо по всіх ключах у контейнері metadata
+                for key in metadataContainer.allKeys {
+                    if let stringValue = try? metadataContainer.decodeIfPresent(String.self, forKey: key) {
+                        metadataDict[key.stringValue] = stringValue
+                    } else if let intValue = try? metadataContainer.decodeIfPresent(Int.self, forKey: key) {
+                        metadataDict[key.stringValue] = intValue
+                    } else if let doubleValue = try? metadataContainer.decodeIfPresent(Double.self, forKey: key) {
+                        metadataDict[key.stringValue] = doubleValue
+                    } else if let boolValue = try? metadataContainer.decodeIfPresent(Bool.self, forKey: key) {
+                        metadataDict[key.stringValue] = boolValue
+                    }
+                }
+                
+                self.metadata = metadataDict.isEmpty ? nil : metadataDict
+            } else {
+                // Якщо не вдалося отримати як контейнер, спробуємо як словник
+                self.metadata = nil
+            }
+        } catch {
+            print("Помилка декодування метаданих: \(error)")
+            self.metadata = nil
+        }
         
         // Декодування дат
         let dateFormatter = ISO8601DateFormatter()
