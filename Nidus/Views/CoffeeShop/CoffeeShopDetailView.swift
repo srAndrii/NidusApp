@@ -5,41 +5,37 @@ struct CoffeeShopDetailView: View {
     // MARK: - Властивості
     let coffeeShop: CoffeeShop
     @StateObject private var viewModel = CoffeeShopDetailViewModel(coffeeShopRepository: DIContainer.shared.coffeeShopRepository)
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedCategory: String? = nil
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject var tabBarManager: TabBarManager
     
     // MARK: - View
     var body: some View {
         ZStack(alignment: .topLeading) {
             // Головний контент
-            if #available(iOS 16.0, *) {
-                // Для iOS 16+ з новою навігацією
-                NavigationStack {
-                    ZStack(alignment: .topLeading) {
-                        mainContentView
-                        
-                        // Кнопка "Назад" - переміщена всередину NavigationStack, щоб не з'являтися у вкладених екранах
-                        BackButtonView(color: Color("primary"), backgroundColor: Color.black.opacity(0.4))
-                            .padding(.top )
-                            .padding(.leading, 12)
-                            .zIndex(2) // Щоб кнопка була над всіма іншими елементами
-                    }
-                    .navigationDestination(for: MenuItem.self) { item in
-                        MenuItemDetailView(menuItem: item)
-                    }
-                }
-                .navigationBarHidden(true)
-            } else {
-                // Для iOS 15 і раніше
+            NavigationStack {
                 ZStack(alignment: .topLeading) {
                     mainContentView
                     
-                    // Кнопка "Назад" для iOS 15
-                    BackButtonView(color: Color("primary"), backgroundColor: Color.black.opacity(0.4))
-                        .padding(.top, getSafeAreaInsets().top + 8)
-                        .padding(.leading, 12)
-                        .zIndex(2)
+                    // Кнопка "Назад" - оновлена для використання dismiss
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(Color("primary"))
+                            .padding(10)
+                            .background(Circle().fill(Color.black.opacity(0.4)))
+                            .shadow(color: Color.black.opacity(0.15), radius: 3, x: 0, y: 2)
+                    }
+                    .padding(.top, 8)
+                    .padding(.leading, 12)
+                    .zIndex(2) // Щоб кнопка була над всіма іншими елементами
+                }
+                .navigationDestination(for: MenuItem.self) { item in
+                    MenuItemDetailView(menuItem: item)
+                        .environmentObject(tabBarManager)
                 }
             }
         }
