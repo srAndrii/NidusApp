@@ -4,7 +4,7 @@ import SwiftUI
 struct MainView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @Environment(\.colorScheme) private var colorScheme
-    @StateObject private var tabBarManager = TabBarManager()
+    @ObservedObject private var tabBarManager = DIContainer.shared.tabBarManager
     
     var body: some View {
         ZStack {
@@ -66,6 +66,7 @@ struct MainView: View {
                 // 1. Вкладка "Кав'ярні"
                 NavigationView {
                     HomeView()
+                        .environmentObject(tabBarManager)
                 }
                 .tabItem {
                     Label("Кав'ярні", systemImage: "cup.and.saucer.fill")
@@ -84,6 +85,7 @@ struct MainView: View {
                 // 3. Вкладка "Корзина" (нова, центральна)
                 NavigationView {
                     CartView()
+                        .environmentObject(tabBarManager)
                 }
                 .tabItem {
                     Label("Корзина", systemImage: "cart.fill")
@@ -109,19 +111,6 @@ struct MainView: View {
                 .tag(TabSelection.profile)
             }
             .accentColor(Color("primary")) // Оранжевий колір для активних елементів
-        }
-        .environmentObject(tabBarManager)
-        .onAppear {
-            // Додаємо слухача для сповіщення про зміну вкладки
-            NotificationCenter.default.addObserver(
-                forName: NSNotification.Name("SwitchToTab"),
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let tabSelection = notification.object as? TabSelection {
-                    tabBarManager.switchToTab(tabSelection)
-                }
-            }
         }
     }
 }

@@ -16,6 +16,7 @@ struct NidusApp: App {
             ZStack {
                 if authManager.isAuthenticated {
                     MainView()
+                        .environmentObject(DIContainer.shared.tabBarManager)
                 } else {
                     AuthView()
                 }

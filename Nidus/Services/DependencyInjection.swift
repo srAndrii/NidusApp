@@ -14,6 +14,7 @@ class DIContainer {
     // Сервіси
     let networkService: NetworkService
     let cartService: CartService
+    let tabBarManager: TabBarManager
     
     // Репозиторії
     let authRepository: AuthRepositoryProtocol
@@ -27,6 +28,7 @@ class DIContainer {
     private init() {
         self.networkService = NetworkService.shared
         self.cartService = CartService.shared
+        self.tabBarManager = TabBarManager()
         
         self.authRepository = AuthRepository(networkService: networkService)
         self.userRepository = UserRepository(networkService: networkService)

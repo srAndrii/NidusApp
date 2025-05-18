@@ -11,6 +11,7 @@ import WebKit
 struct CartView: View {
     @StateObject private var viewModel = CartViewModel()
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var tabBarManager: TabBarManager
     @State private var showConfirmationDialog = false
     @State private var showOrderCancellationAlert = false
     @State private var comment: String = ""
@@ -274,8 +275,11 @@ struct CartView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
-            // Кнопка переходу до кав'ярень
-            NavigationLink(destination: HomeView()) {
+            // Замінюємо NavigationLink на кнопку з переходом до табу кав'ярень
+            Button(action: {
+                // Перемикаємося на вкладку "Кав'ярні"
+                tabBarManager.switchToTab(.coffeeShops)
+            }) {
                 HStack {
                     Image(systemName: "cup.and.saucer.fill")
                     Text("Перейти до кав'ярень")
