@@ -1,15 +1,10 @@
-//
-//  MainView.swift
-//  Nidus
-//
-//  Created by Andrii Liakhovych on 3/29/25.
-//
-
+// Nidus/Views/MainView.swift
 import SwiftUI
 
 struct MainView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @Environment(\.colorScheme) private var colorScheme
+    @StateObject private var tabBarManager = TabBarManager()
     
     var body: some View {
         ZStack {
@@ -66,33 +61,67 @@ struct MainView: View {
                 .opacity(1)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // TabView - основний контент
-            TabView {
-                // Вкладка "Кав'ярні"
+            // TabView - основний контент з оновленим порядком вкладок
+            TabView(selection: $tabBarManager.selectedTab) {
+                // 1. Вкладка "Кав'ярні"
                 NavigationView {
                     HomeView()
                 }
                 .tabItem {
                     Label("Кав'ярні", systemImage: "cup.and.saucer.fill")
                 }
+                .tag(TabSelection.coffeeShops)
                 
-                // Вкладка "QR-код"
+                // 2. Вкладка "QR-код"
                 NavigationView {
                     QRCodeView()
                 }
                 .tabItem {
                     Label("Мій код", systemImage: "qrcode")
                 }
+                .tag(TabSelection.qrCode)
                 
-                // Вкладка "Профіль"
+                // 3. Вкладка "Корзина" (нова, центральна)
+                NavigationView {
+                    CartView()
+                }
+                .tabItem {
+                    Label("Корзина", systemImage: "cart.fill")
+                }
+                .tag(TabSelection.cart)
+                
+                // 4. Вкладка "Пропозиції" (нова)
+                NavigationView {
+                    OffersView()
+                }
+                .tabItem {
+                    Label("Пропозиції", systemImage: "tag.fill")
+                }
+                .tag(TabSelection.offers)
+                
+                // 5. Вкладка "Профіль"
                 NavigationView {
                     ProfileView()
                 }
                 .tabItem {
                     Label("Профіль", systemImage: "person.fill")
                 }
+                .tag(TabSelection.profile)
             }
             .accentColor(Color("primary")) // Оранжевий колір для активних елементів
+        }
+        .environmentObject(tabBarManager)
+        .onAppear {
+            // Додаємо слухача для сповіщення про зміну вкладки
+            NotificationCenter.default.addObserver(
+                forName: NSNotification.Name("SwitchToTab"),
+                object: nil,
+                queue: .main
+            ) { notification in
+                if let tabSelection = notification.object as? TabSelection {
+                    tabBarManager.switchToTab(tabSelection)
+                }
+            }
         }
     }
 }

@@ -13,6 +13,7 @@ class DIContainer {
     
     // Сервіси
     let networkService: NetworkService
+    let cartService: CartService
     
     // Репозиторії
     let authRepository: AuthRepositoryProtocol
@@ -25,6 +26,7 @@ class DIContainer {
     // Приватний конструктор для Singleton
     private init() {
         self.networkService = NetworkService.shared
+        self.cartService = CartService.shared
         
         self.authRepository = AuthRepository(networkService: networkService)
         self.userRepository = UserRepository(networkService: networkService)
