@@ -172,6 +172,132 @@ class MenuItemDetailViewModel: ObservableObject {
         }
     }
     
+    /// Додавання товару до кошика
+    func addToCart(quantity: Int) {
+        // Отримуємо поточну кав'ярню
+        guard let coffeeShopId = menuItem.menuGroupId?.split(separator: ":").first.map(String.init) else {
+            print("Неможливо визначити ID кав'ярні")
+            return
+        }
+        
+        // Отримуємо сервіс корзини
+        let cartService = CartService.shared
+        
+        // Перевіряємо на конфлікт кав'ярень
+        if !cartService.getCart().canAddItemFromCoffeeShop(coffeeShopId: coffeeShopId) {
+            // Тут можна обробити конфлікт (наприклад, показати вікно з попередженням)
+            print("Конфлікт кав'ярень при додаванні в корзину")
+            
+            // ViewModel повинен повідомити View про конфлікт кав'ярень
+            // (в реальному коді тут буде прив'язка до UI)
+            return
+        }
+        
+        // Створюємо об'єкт для додавання в корзину
+        let cartItem = CartItem(
+            from: menuItem,
+            coffeeShopId: coffeeShopId,
+            quantity: quantity,
+            selectedSize: selectedSize?.abbreviation,
+            customization: createCustomizationData()
+        )
+        
+        // Додаємо товар в корзину через сервіс
+        let success = cartService.addItem(cartItem)
+        
+        if success {
+            print("Товар успішно додано до корзини")
+        } else {
+            print("Помилка додавання товару до корзини")
+        }
+    }
+    
+    /// Створення даних кастомізації для корзини
+    private func createCustomizationData() -> [String: Any] {
+        var customizationData: [String: Any] = [:]
+        
+        // Додаємо інформацію про розмір
+        if let size = selectedSize {
+            customizationData["size"] = [
+                "id": size.id,
+                "name": size.name,
+                "abbreviation": size.abbreviation,
+                "additionalPrice": size.additionalPrice
+            ]
+        }
+        
+        // Додаємо інформацію про кастомізовані інгредієнти
+        if !ingredientCustomizations.isEmpty {
+            var ingredients: [[String: Any]] = []
+            
+            for (ingredientId, amount) in ingredientCustomizations {
+                // Знаходимо оригінальний інгредієнт для отримання додаткової інформації
+                if let ingredient = menuItem.ingredients?.first(where: { $0.id == ingredientId || $0.name == ingredientId }) {
+                    ingredients.append([
+                        "id": ingredient.id ?? ingredient.name,
+                        "name": ingredient.name,
+                        "amount": amount
+                    ])
+                }
+            }
+            
+            if !ingredients.isEmpty {
+                customizationData["ingredients"] = ingredients
+            }
+        }
+        
+        // Додаємо інформацію про вибрані опції
+        if !optionSelections.isEmpty {
+            var options: [[String: Any]] = []
+            
+            for (optionId, selections) in optionSelections {
+                // Знаходимо оригінальну опцію для отримання додаткової інформації
+                if let option = menuItem.customizationOptions?.first(where: { $0.id == optionId }) {
+                    var choices: [[String: Any]] = []
+                    
+                    for (choiceId, quantity) in selections {
+                        // Знаходимо вибір для отримання назви
+                        if let choice = option.choices.first(where: { $0.id == choiceId }) {
+                            choices.append([
+                                "id": choice.id,
+                                "name": choice.name,
+                                "quantity": quantity,
+                                "price": choice.price as Any
+                            ])
+                        }
+                    }
+                    
+                    options.append([
+                        "id": option.id,
+                        "name": option.name,
+                        "choices": choices
+                    ])
+                }
+            }
+            
+            if !options.isEmpty {
+                customizationData["options"] = options
+            }
+        }
+        
+        return customizationData
+    }
+    
+    /// Оновлення налаштувань кастомізації
+    func updateCustomization() {
+        calculateCustomizationPrice()
+    }
+    
+    /// Перевірка, чи вибраний варіант для опції
+    func isChoiceSelected(optionId: String, choiceId: String) -> Bool {
+        return optionSelections[optionId]?[choiceId] != nil
+    }
+    
+    /// Отримання кількості для вибраного варіанту
+    func getQuantityForChoice(optionId: String, choiceId: String) -> Int {
+        return optionSelections[optionId]?[choiceId] ?? 0
+    }
+    
     /// Додавання опції кастомізації
     func toggleCustomizationChoice(optionId: String, choiceId: String) {
         // Отримуємо опцію за ID
@@ -234,50 +360,5 @@ class MenuItemDetailViewModel: ObservableObject {
         
         // Оновлюємо ціну
         calculateCustomizationPrice()
-    }
-    
-    /// Додавання товару до кошика
-    func addToCart(quantity: Int) {
-        // В майбутньому тут буде реальна логіка додавання до кошика
-        print("Додано до кошика: \(menuItem.name), кількість: \(quantity)")
-        print("Поточна ціна: \(currentPrice)")
-        
-        // Логування розміру
-        if let size = selectedSize {
-            print("Розмір: \(size.name) (\(size.abbreviation)), додаткова ціна: \(size.additionalPrice)")
-        }
-        
-        // Логування кастомізацій інгредієнтів
-        for (name, value) in ingredientCustomizations {
-            print("Інгредієнт \(name): \(value)")
-        }
-        
-        // Логування вибраних опцій
-        for (optionId, choices) in optionSelections {
-            if let option = menuItem.customizationOptions?.first(where: { $0.id == optionId }) {
-                for (choiceId, choiceQuantity) in choices {
-                    if let choice = option.choices.first(where: { $0.id == choiceId }) {
-                        print("Опція \(option.name): \(choice.name), кількість: \(choiceQuantity)")
-                    }
-                }
-            }
-        }
-        
-        // Тут буде виклик API для створення замовлення
-    }
-    
-    /// Оновлення налаштувань кастомізації
-    func updateCustomization() {
-        calculateCustomizationPrice()
-    }
-    
-    /// Перевірка, чи вибраний варіант для опції
-    func isChoiceSelected(optionId: String, choiceId: String) -> Bool {
-        return optionSelections[optionId]?[choiceId] != nil
-    }
-    
-    /// Отримання кількості для вибраного варіанту
-    func getQuantityForChoice(optionId: String, choiceId: String) -> Int {
-        return optionSelections[optionId]?[choiceId] ?? 0
     }
 }

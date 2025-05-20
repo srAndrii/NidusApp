@@ -12,8 +12,11 @@ import Kingfisher
 struct MenuItemCard: View {
     // MARK: - Властивості
     let item: MenuItem
+    let coffeeShopId: String
+    let coffeeShopName: String
     @State private var navigateToDetails = false
     @Environment(\.colorScheme) private var colorScheme
+    @State private var showToast = false
     
     // MARK: - View
     var body: some View {
@@ -21,7 +24,13 @@ struct MenuItemCard: View {
             if #available(iOS 16.0, *) {
                 // Новий стиль для iOS 16+
                 NavigationLink(value: item) {
-                    CardContentView(item: item, addAction: { navigateToDetails = true })
+                    CardContentView(
+                        item: item,
+                        addAction: {
+                            // Додавання товару до корзини при натисканні на кнопку +
+                            addToCart()
+                        }
+                    )
                 }
                 .buttonStyle(PlainButtonStyle())
             } else {
@@ -29,10 +38,67 @@ struct MenuItemCard: View {
                 NavigationLink(
                     destination: MenuItemDetailView(menuItem: item)
                 ) {
-                    CardContentView(item: item, addAction: { navigateToDetails = true })
+                    CardContentView(
+                        item: item,
+                        addAction: {
+                            // Додавання товару до корзини при натисканні на кнопку +
+                            addToCart()
+                        }
+                    )
                 }
                 .buttonStyle(PlainButtonStyle())
             }
+            
+            // Toast повідомлення
+            if showToast {
+                VStack {
+                    Spacer()
+                    Text("Додано до корзини")
+                        .padding()
+                        .background(Color("primary").opacity(0.9))
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                        .padding(.bottom, 20)
+                        .transition(.move(edge: .bottom))
+                }
+                .zIndex(1)
+                .transition(.opacity)
+            }
+        }
+    }
+    
+    // MARK: - Функція додавання товару до корзини
+    private func addToCart() {
+        if !item.isAvailable {
+            return
+        }
+        
+        // Додаємо товар в корзину з базовими налаштуваннями
+        let cartItem = CartItem(
+            from: item,
+            coffeeShopId: coffeeShopId,
+            quantity: 1,
+            selectedSize: nil,
+            customization: nil
+        )
+        
+        let success = CartService.shared.addItem(cartItem)
+        
+        if success {
+            // Показуємо повідомлення про успішне додавання
+            withAnimation {
+                showToast = true
+            }
+            
+            // Приховуємо повідомлення через 2 секунди
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                withAnimation {
+                    showToast = false
+                }
+            }
+        } else {
+            // Якщо додавання не успішне (конфлікт кав'ярень), перенаправляємо на детальний екран
+            navigateToDetails = true
         }
     }
 }

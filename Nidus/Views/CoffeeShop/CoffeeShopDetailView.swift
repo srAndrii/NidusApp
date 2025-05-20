@@ -125,8 +125,12 @@ struct CoffeeShopDetailView: View {
                         VStack(spacing: 16) {
                             ForEach(viewModel.menuGroups) { group in
                                 if selectedCategory == nil || selectedCategory == group.id {
-                                    MenuGroupView(group: group)
-                                        .transition(.opacity)
+                                    MenuGroupView(
+                                        group: group,
+                                        coffeeShopId: coffeeShop.id,
+                                        coffeeShopName: coffeeShop.name
+                                    )
+                                    .transition(.opacity)
                                 }
                             }
                         }

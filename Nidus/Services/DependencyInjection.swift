@@ -30,6 +30,9 @@ class DIContainer {
         self.cartService = CartService.shared
         self.tabBarManager = TabBarManager()
         
+        // Встановлюємо зв'язок між CartService і TabBarManager
+        self.cartService.setupTabBarManager(self.tabBarManager)
+        
         self.authRepository = AuthRepository(networkService: networkService)
         self.userRepository = UserRepository(networkService: networkService)
         self.coffeeShopRepository = CoffeeShopRepository(networkService: networkService)

@@ -24,11 +24,21 @@ class CartService {
     // Поточний стан корзини
     private var cart = Cart()
     
+    // Посилання на TabBarManager для оновлення бейджа
+    private weak var tabBarManager: TabBarManager?
+    
     private init() {
         // При ініціалізації завантажуємо корзину з UserDefaults
         if let savedCart = loadCart() {
             self.cart = savedCart
         }
+    }
+    
+    // Метод для встановлення табберу після ініціалізації DI контейнера
+    func setupTabBarManager(_ manager: TabBarManager) {
+        self.tabBarManager = manager
+        // Оновлюємо лічильник товарів у бейджі
+        updateBadgeCount()
     }
     
     // MARK: - Публічні методи для роботи з корзиною
@@ -47,6 +57,10 @@ class CartService {
             cart = updatedCart
             saveCart()
             cartSubject.send(cart)
+            
+            // Оновлюємо лічильник товарів у бейджі
+            updateBadgeCount()
+            
             return true
         }
         return false
@@ -59,6 +73,9 @@ class CartService {
         cart = updatedCart
         saveCart()
         cartSubject.send(cart)
+        
+        // Оновлюємо лічильник товарів у бейджі
+        updateBadgeCount()
     }
     
     // Видалити товар за ID
@@ -68,6 +85,9 @@ class CartService {
         cart = updatedCart
         saveCart()
         cartSubject.send(cart)
+        
+        // Оновлюємо лічильник товарів у бейджі
+        updateBadgeCount()
     }
     
     // Видалити товар за індексом
@@ -77,6 +97,9 @@ class CartService {
         cart = updatedCart
         saveCart()
         cartSubject.send(cart)
+        
+        // Оновлюємо лічильник товарів у бейджі
+        updateBadgeCount()
     }
     
     // Очистити корзину
@@ -86,9 +109,19 @@ class CartService {
         cart = updatedCart
         saveCart()
         cartSubject.send(cart)
+        
+        // Оновлюємо лічильник товарів у бейджі
+        updateBadgeCount()
     }
     
     // MARK: - Приватні методи для роботи зі сховищем
+    
+    // Оновлення лічильника товарів у бейджі таббару
+    private func updateBadgeCount() {
+        DispatchQueue.main.async {
+            self.tabBarManager?.updateCartItemsCount(self.cart.itemCount)
+        }
+    }
     
     // Завантаження корзини з UserDefaults
     private func loadCart() -> Cart? {

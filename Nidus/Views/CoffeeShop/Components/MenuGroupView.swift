@@ -7,24 +7,67 @@
 
 
 import SwiftUI
+import Kingfisher
 
 /// Оновлений компонент для відображення групи меню з навігацією до деталей пунктів меню
 struct MenuGroupView: View {
     // MARK: - Властивості
     let group: MenuGroup
+    @State private var isExpanded = true
+    let coffeeShopId: String
+    let coffeeShopName: String
+    
+    init(group: MenuGroup, coffeeShopId: String, coffeeShopName: String) {
+        self.group = group
+        self.coffeeShopId = coffeeShopId
+        self.coffeeShopName = coffeeShopName
+    }
     
     // MARK: - View
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Заголовок групи
-            headerView
+            // Заголовок групи з можливістю згортання
+            HStack {
+                Text(group.name)
+                    .font(.headline)
+                    .foregroundColor(Color("primaryText"))
+                
+                Spacer()
+                
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        isExpanded.toggle()
+                    }
+                }) {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundColor(Color("primaryText"))
+                        .font(.system(size: 14, weight: .medium))
+                        .padding(8)
+                        .background(Color("cardColor").opacity(0.3))
+                        .clipShape(Circle())
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
             
-            // Опис групи (якщо є)
-            descriptionView
-            
-            // Горизонтальний скрол з пунктами меню
-            menuItemsScrollView
+            // Елементи групи з анімацією згортання/розгортання
+            if isExpanded {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(group.menuItems ?? []) { item in
+                            MenuItemCard(
+                                item: item,
+                                coffeeShopId: coffeeShopId,
+                                coffeeShopName: coffeeShopName
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
+        .padding(.vertical, 8)
         .onAppear {
             print("📋 MenuGroupView.body з'явився для групи: \(group.id), назва: \(group.name)")
         }
@@ -33,29 +76,6 @@ struct MenuGroupView: View {
     
     
     // MARK: - Допоміжні компоненти
-    
-    /// Заголовок групи меню
-    private var headerView: some View {
-        HStack {
-            Text(group.name)
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(Color("primaryText"))
-            
-            Spacer()
-            
-            // Кнопка "Показати всі"
-            Button(action: {
-                // Дія для переходу до всіх пунктів категорії
-            }) {
-                Text("Всі")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(Color("primary"))
-            }
-        }
-        .padding(.horizontal, 10)
-    }
     
     /// Опис групи (якщо є)
     private var descriptionView: some View {
@@ -69,76 +89,16 @@ struct MenuGroupView: View {
             }
         }
     }
-    
-    /// Горизонтальний список пунктів меню
-    private var menuItemsScrollView: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                if let menuItems = group.menuItems, !menuItems.isEmpty {
-                    ForEach(menuItems) { item in
-                        // Використовуємо виправлену картку з навігацією
-                        if #available(iOS 16.0, *) {
-                            MenuItemCard(item: item)
-                                .buttonStyle(PlainButtonStyle())
-                        } else {
-                            MenuItemCardWithNavigation(item: item)
-                        }
-                    }
-                } else {
-                    emptyStateView
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.bottom, 6)
-        }
-        .padding(.bottom, 6)
-    }
-    
-    /// Пустий стан, коли немає пунктів меню
-    private var emptyStateView: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 23)
-                .fill(Color("cardColor"))
-                .frame(width: 170, height: 250)
-            
-            VStack(spacing: 12) {
-                Image(systemName: "cup.and.saucer")
-                    .font(.system(size: 40))
-                    .foregroundColor(Color("secondaryText"))
-                
-                Text("Немає доступних пунктів")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(Color("secondaryText"))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-            }
-        }
-    }
 }
 
 // MARK: - Preview
 struct MenuGroupView_Previews: PreviewProvider {
     static var previews: some View {
-        Group {
-            // Група з товарами
-            MenuGroupView(group: MockData.mockHotDrinksGroup)
-                .previewDisplayName("With Items")
-            
-            // Порожня група
-            MenuGroupView(group: MenuGroup(
-                id: "empty-group",
-                name: "Порожня група",
-                description: "Група без пунктів меню",
-                displayOrder: 1,
-                coffeeShopId: "coffee-1",
-                menuItems: [],
-                createdAt: Date(),
-                updatedAt: Date()
-            ))
-            .previewDisplayName("Empty Group")
-        }
-        .padding(.vertical)
+        MenuGroupView(
+            group: MockData.mockHotDrinksGroup,
+            coffeeShopId: "test-coffee-shop-id",
+            coffeeShopName: "Тестова кав'ярня"
+        )
         .background(Color("backgroundColor"))
         .previewLayout(.sizeThatFits)
     }
