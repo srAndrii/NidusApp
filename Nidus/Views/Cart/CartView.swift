@@ -303,16 +303,11 @@ struct CartView: View {
                 .font(.subheadline)
                 .foregroundColor(Color("secondaryText"))
             
-            TextField("Вкажіть особливі побажання...", text: $comment)
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color("inputField"))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color("secondaryText").opacity(0.2), lineWidth: 1)
-                )
+            CustomTextField(
+                iconName: "text.bubble", 
+                placeholder: "Вкажіть особливі побажання...", 
+                text: $comment
+            )
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)

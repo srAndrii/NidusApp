@@ -13,11 +13,12 @@ struct CustomTextField: View {
     @Binding var text: String
     var isSecure: Bool = false
     var keyboardType: UIKeyboardType = .default
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         HStack {
             Image(systemName: iconName)
-                .foregroundColor(Color("secondaryText"))
+                .foregroundColor(Color("nidusPrimary")) 
                 .padding(.leading, 15)
             
             if isSecure {
@@ -42,10 +43,48 @@ struct CustomTextField: View {
                     .keyboardType(keyboardType)
             }
         }
-        .background(Color("inputField"))
+        .background(
+            ZStack {
+                // Фон з ефектом "втиснутого" елемента - ЗБІЛЬШЕНА НЕПРОЗОРІСТЬ
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        colorScheme == .light ?
+                            Color.black.opacity(0.25) :
+                            Color.black.opacity(0.75)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(
+                                colorScheme == .light ?
+                                    Color.black.opacity(0.15) :
+                                    Color.white.opacity(0.15),
+                                lineWidth: 0.5
+                            )
+                    )
+                    // Тіні для ефекту втиснутого елемента
+                    .shadow(
+                        color: colorScheme == .light ?
+                            Color.white.opacity(0.5) :
+                            Color.white.opacity(0.1),
+                        radius: 1,
+                        x: 0,
+                        y: 1
+                    )
+                    .shadow(
+                        color: colorScheme == .light ?
+                            Color.black.opacity(0.25) :
+                            Color.black.opacity(0.45),
+                        radius: 1,
+                        x: 0,
+                        y: -1
+                    )
+            }
+        )
         .cornerRadius(12)
     }
 }
+
+
 
 struct CustomTextField_Previews: PreviewProvider {
     static var previews: some View {
