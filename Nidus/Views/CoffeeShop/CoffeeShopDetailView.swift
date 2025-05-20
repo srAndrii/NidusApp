@@ -34,7 +34,7 @@ struct CoffeeShopDetailView: View {
                     .zIndex(2) // Щоб кнопка була над всіма іншими елементами
                 }
                 .navigationDestination(for: MenuItem.self) { item in
-                    MenuItemDetailView(menuItem: item)
+                    MenuItemDetailView(menuItem: item, coffeeShopId: coffeeShop.id)
                         .environmentObject(tabBarManager)
                 }
             }

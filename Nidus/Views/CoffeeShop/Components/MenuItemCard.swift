@@ -36,7 +36,7 @@ struct MenuItemCard: View {
             } else {
                 // Старий стиль для iOS 15 і раніше
                 NavigationLink(
-                    destination: MenuItemDetailView(menuItem: item)
+                    destination: MenuItemDetailView(menuItem: item, coffeeShopId: coffeeShopId)
                 ) {
                     CardContentView(
                         item: item,

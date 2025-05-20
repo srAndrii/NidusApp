@@ -11,6 +11,7 @@ import Kingfisher
 struct MenuItemDetailView: View {
     // MARK: - Властивості
     let menuItem: MenuItem
+    let coffeeShopId: String // Додаємо ID кав'ярні як параметр
     @StateObject private var viewModel: MenuItemDetailViewModel
     @Environment(\.presentationMode) var presentationMode
     @Environment(\.colorScheme) private var colorScheme
@@ -22,9 +23,10 @@ struct MenuItemDetailView: View {
     @State private var toastMessage = ""
     
     // MARK: - Конструктор
-    init(menuItem: MenuItem) {
+    init(menuItem: MenuItem, coffeeShopId: String) {
         self.menuItem = menuItem
-        self._viewModel = StateObject(wrappedValue: MenuItemDetailViewModel(menuItem: menuItem))
+        self.coffeeShopId = coffeeShopId
+        self._viewModel = StateObject(wrappedValue: MenuItemDetailViewModel(menuItem: menuItem, coffeeShopId: coffeeShopId))
     }
     
     // MARK: - View
@@ -527,10 +529,19 @@ struct MenuItemDetailView: View {
             
             // Кнопка "Додати до кошика"
             Button(action: {
+                // Діагностичне повідомлення
+                print("👆 MenuItemDetailView: Натиснуто кнопку 'Додати до кошика'")
+                print("   - Товар: \(menuItem.name)")
+                print("   - Кількість: \(quantity)")
+                print("   - Вибраний розмір: \(selectedSize)")
+                
                 // Тут буде логіка додавання до кошика
                 viewModel.addToCart(quantity: quantity)
                 toastMessage = "Додано до кошика: \(menuItem.name) x\(quantity)"
                 showToast = true
+                
+                // Діагностичне повідомлення після виклику методу
+                print("✅ MenuItemDetailView: Виклик методу addToCart завершено")
             }) {
                 HStack {
                     Text("Додати до кошика")
@@ -578,7 +589,7 @@ struct MenuItemDetailView: View {
 struct MenuItemDetailView_Previews: PreviewProvider {
     static var previews: some View {
         // Приклад з базовими даними
-        MenuItemDetailView(menuItem: MockData.mockCappuccino)
+        MenuItemDetailView(menuItem: MockData.mockCappuccino, coffeeShopId: "shop-1")
             .previewDisplayName("Basic Item")
         
         // Приклад з кастомізацією
@@ -618,7 +629,7 @@ struct MenuItemDetailView_Previews: PreviewProvider {
             updatedAt: Date()
         )
         
-        MenuItemDetailView(menuItem: customizedItem)
+        MenuItemDetailView(menuItem: customizedItem, coffeeShopId: "shop-1")
             .previewDisplayName("With Customization")
     }
 }

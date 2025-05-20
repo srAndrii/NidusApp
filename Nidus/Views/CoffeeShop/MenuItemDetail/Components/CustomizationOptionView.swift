@@ -403,7 +403,7 @@ struct CustomizationOptionView_Previews: PreviewProvider {
                 updatedAt: Date()
             )
             
-            let viewModel = MenuItemDetailViewModel(menuItem: menuItem)
+            let viewModel = MenuItemDetailViewModel(menuItem: menuItem, coffeeShopId: "preview-coffee-shop-id")
             
             // Відображення компонентів
             CustomizationOptionView(option: simpleOption, viewModel: viewModel)
@@ -433,7 +433,7 @@ struct CustomizationOptionView_Previews: PreviewProvider {
                 ],
                 createdAt: Date(),
                 updatedAt: Date()
-            ))
+            ), coffeeShopId: "preview-coffee-shop-id")
             
             viewModel.toggleCustomizationChoice(optionId: "milk-type", choiceId: "oat")
             viewModel.toggleCustomizationChoice(optionId: "syrup", choiceId: "vanilla")

@@ -15,6 +15,9 @@ class MenuItemDetailViewModel: ObservableObject {
     /// Поточний пункт меню
     @Published var menuItem: MenuItem
     
+    /// ID кав'ярні
+    private let coffeeShopId: String
+    
     /// Поточна ціна з урахуванням вибраного розміру та кастомізацій
     @Published var currentPrice: Decimal
     
@@ -49,8 +52,9 @@ class MenuItemDetailViewModel: ObservableObject {
     }
     
     // MARK: - Ініціалізатор
-    init(menuItem: MenuItem) {
+    init(menuItem: MenuItem, coffeeShopId: String) {
         self.menuItem = menuItem
+        self.coffeeShopId = coffeeShopId
         self.currentPrice = menuItem.price
         
         // Ініціалізація розміру за замовчуванням
@@ -174,19 +178,15 @@ class MenuItemDetailViewModel: ObservableObject {
     
     /// Додавання товару до кошика
     func addToCart(quantity: Int) {
-        // Отримуємо поточну кав'ярню
-        guard let coffeeShopId = menuItem.menuGroupId?.split(separator: ":").first.map(String.init) else {
-            print("Неможливо визначити ID кав'ярні")
-            return
-        }
+        print("📝 MenuItemDetailViewModel: Початок addToCart, товар: \(menuItem.name), кількість: \(quantity)")
+        print("📝 MenuItemDetailViewModel: ID кав'ярні: \(coffeeShopId)")
         
         // Отримуємо сервіс корзини
         let cartService = CartService.shared
         
         // Перевіряємо на конфлікт кав'ярень
         if !cartService.getCart().canAddItemFromCoffeeShop(coffeeShopId: coffeeShopId) {
-            // Тут можна обробити конфлікт (наприклад, показати вікно з попередженням)
-            print("Конфлікт кав'ярень при додаванні в корзину")
+            print("⚠️ MenuItemDetailViewModel: Конфлікт кав'ярень при додаванні в корзину")
             
             // ViewModel повинен повідомити View про конфлікт кав'ярень
             // (в реальному коді тут буде прив'язка до UI)
@@ -194,22 +194,31 @@ class MenuItemDetailViewModel: ObservableObject {
         }
         
         // Створюємо об'єкт для додавання в корзину
+        let customizationData = createCustomizationData()
+        print("📝 MenuItemDetailViewModel: Створено дані кастомізації: \(customizationData)")
+        
         let cartItem = CartItem(
             from: menuItem,
             coffeeShopId: coffeeShopId,
             quantity: quantity,
             selectedSize: selectedSize?.abbreviation,
-            customization: createCustomizationData()
+            customization: customizationData
         )
         
         // Додаємо товар в корзину через сервіс
         let success = cartService.addItem(cartItem)
         
         if success {
-            print("Товар успішно додано до корзини")
+            print("✅ MenuItemDetailViewModel: Товар успішно додано до кошика")
         } else {
-            print("Помилка додавання товару до корзини")
+            print("❌ MenuItemDetailViewModel: Помилка додавання товару до кошика")
         }
+        
+        // Виводимо для діагностики поточний стан корзини
+        let cart = cartService.getCart()
+        print("📝 MenuItemDetailViewModel: Поточний стан корзини після додавання:")
+        print("   - Кількість товарів: \(cart.items.count)")
+        print("   - Загальна вартість: \(cart.totalPrice)")
     }
     
     /// Створення даних кастомізації для корзини

@@ -22,7 +22,103 @@ struct CartItem: Identifiable, Codable, Equatable {
     
     // Обчислювана вартість елемента
     var totalPrice: Decimal {
-        return price * Decimal(quantity)
+        var finalPrice = price
+        
+        // Додаємо вартість опцій кастомізації
+        if let customization = customization {
+            // Додаємо ціну розміру, якщо є
+            if let sizeData = customization["size"] as? [String: Any],
+               let additionalPrice = sizeData["additionalPrice"] as? Decimal {
+                finalPrice += additionalPrice
+            }
+            
+            // Додаємо ціну опцій кастомізації
+            if let options = customization["options"] as? [[String: Any]] {
+                for option in options {
+                    if let choices = option["choices"] as? [[String: Any]] {
+                        for choice in choices {
+                            if let choicePrice = choice["price"] as? Decimal,
+                               let quantity = choice["quantity"] as? Int {
+                                finalPrice += choicePrice * Decimal(quantity)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return finalPrice * Decimal(quantity)
+    }
+    
+    // Ціна за одиницю товару з урахуванням кастомізації
+    var unitPrice: Decimal {
+        var finalPrice = price
+        
+        // Додаємо вартість опцій кастомізації
+        if let customization = customization {
+            // Додаємо ціну розміру, якщо є
+            if let sizeData = customization["size"] as? [String: Any],
+               let additionalPrice = sizeData["additionalPrice"] as? Decimal {
+                finalPrice += additionalPrice
+            }
+            
+            // Додаємо ціну опцій кастомізації
+            if let options = customization["options"] as? [[String: Any]] {
+                for option in options {
+                    if let choices = option["choices"] as? [[String: Any]] {
+                        for choice in choices {
+                            if let choicePrice = choice["price"] as? Decimal,
+                               let quantity = choice["quantity"] as? Int {
+                                finalPrice += choicePrice * Decimal(quantity)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return finalPrice
+    }
+    
+    // Метод для отримання компактного опису кастомізації для UI
+    func getCustomizationSummary() -> String? {
+        guard let customization = customization else {
+            print("📝 CartItem.getCustomizationSummary: Немає даних кастомізації для товару \(name)")
+            return nil
+        }
+        
+        print("📝 CartItem.getCustomizationSummary: Отримуємо опис кастомізації для товару \(name)")
+        print("   - Розмір: \(selectedSize ?? "не вказано")")
+        print("   - Дані кастомізації: \(customization)")
+        
+        var summaryParts: [String] = []
+        
+        // Додаємо розмір якщо є
+        if let size = selectedSize {
+            summaryParts.append("Розмір: \(size)")
+        }
+        
+        // Додаємо опції кастомізації
+        if let options = customization["options"] as? [[String: Any]] {
+            print("   - Кількість опцій: \(options.count)")
+            for option in options.prefix(2) {
+                if let name = option["name"] as? String,
+                   let choices = option["choices"] as? [[String: Any]],
+                   !choices.isEmpty {
+                    let choiceNames = choices.compactMap { $0["name"] as? String }
+                    let choiceText = choiceNames.joined(separator: ", ")
+                    summaryParts.append("\(name): \(choiceText)")
+                }
+            }
+            
+            // Додаємо "+N" якщо є більше опцій
+            if options.count > 2 {
+                summaryParts.append("+ ще \(options.count - 2)")
+            }
+        }
+        
+        print("   - Сформований опис: \(summaryParts.joined(separator: "; "))")
+        return summaryParts.isEmpty ? nil : summaryParts.joined(separator: "; ")
     }
     
     // Спеціальні методи для кодування/декодування через JSON

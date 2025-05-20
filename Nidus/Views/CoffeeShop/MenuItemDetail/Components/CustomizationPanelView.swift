@@ -220,7 +220,7 @@ struct CustomizationPanelView_Previews: PreviewProvider {
             updatedAt: Date()
         )
         
-        let viewModel = MenuItemDetailViewModel(menuItem: customizedItem)
+        let viewModel = MenuItemDetailViewModel(menuItem: customizedItem, coffeeShopId: "preview-coffee-shop-id")
         
         return ScrollView {
             CustomizationPanelView(menuItem: customizedItem, viewModel: viewModel)

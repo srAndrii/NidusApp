@@ -36,9 +36,11 @@ class CartService {
     
     // Метод для встановлення табберу після ініціалізації DI контейнера
     func setupTabBarManager(_ manager: TabBarManager) {
+        print("📝 CartService.setupTabBarManager: Встановлюємо TabBarManager")
         self.tabBarManager = manager
         // Оновлюємо лічильник товарів у бейджі
         updateBadgeCount()
+        print("✅ CartService.setupTabBarManager: TabBarManager успішно встановлено і бейдж оновлено")
     }
     
     // MARK: - Публічні методи для роботи з корзиною
@@ -50,8 +52,10 @@ class CartService {
     
     // Додати товар до корзини
     func addItem(_ item: CartItem) -> Bool {
+        print("📝 CartService: Спроба додати товар до корзини: \(item.name)")
         // Перевіряємо, чи можна додати товар з цієї кав'ярні
         if cart.canAddItemFromCoffeeShop(coffeeShopId: item.coffeeShopId) {
+            print("✅ CartService: Товар \(item.name) можна додати з кав'ярні \(item.coffeeShopId)")
             var updatedCart = cart
             updatedCart.addItem(item)
             cart = updatedCart
@@ -61,8 +65,10 @@ class CartService {
             // Оновлюємо лічильник товарів у бейджі
             updateBadgeCount()
             
+            print("✅ CartService: Товар успішно додано, нова кількість товарів: \(cart.items.count)")
             return true
         }
+        print("❌ CartService: Неможливо додати товар з іншої кав'ярні. Поточна кав'ярня: \(cart.coffeeShopId ?? "не встановлена"), нова кав'ярня: \(item.coffeeShopId)")
         return false
     }
     
@@ -119,21 +125,29 @@ class CartService {
     // Оновлення лічильника товарів у бейджі таббару
     private func updateBadgeCount() {
         DispatchQueue.main.async {
-            self.tabBarManager?.updateCartItemsCount(self.cart.itemCount)
+            if let tabBarManager = self.tabBarManager {
+                tabBarManager.updateCartItemsCount(self.cart.itemCount)
+                print("📝 CartService.updateBadgeCount: Оновлено лічильник кошика до \(self.cart.itemCount)")
+            } else {
+                print("⚠️ CartService.updateBadgeCount: TabBarManager не встановлено")
+            }
         }
     }
     
     // Завантаження корзини з UserDefaults
     private func loadCart() -> Cart? {
         guard let data = UserDefaults.standard.data(forKey: cartStorageKey) else {
+            print("📝 CartService.loadCart: Немає збережених даних корзини")
             return nil
         }
         
         do {
             let decoder = JSONDecoder()
-            return try decoder.decode(Cart.self, from: data)
+            let loadedCart = try decoder.decode(Cart.self, from: data)
+            print("✅ CartService.loadCart: Успішно завантажено корзину з \(loadedCart.items.count) товарами")
+            return loadedCart
         } catch {
-            print("Помилка декодування корзини: \(error)")
+            print("❌ CartService.loadCart: Помилка декодування корзини: \(error)")
             return nil
         }
     }
@@ -144,8 +158,9 @@ class CartService {
             let encoder = JSONEncoder()
             let data = try encoder.encode(cart)
             UserDefaults.standard.set(data, forKey: cartStorageKey)
+            print("✅ CartService.saveCart: Корзина успішно збережена з \(cart.items.count) товарами")
         } catch {
-            print("Помилка кодування корзини: \(error)")
+            print("❌ CartService.saveCart: Помилка кодування корзини: \(error)")
         }
     }
 }

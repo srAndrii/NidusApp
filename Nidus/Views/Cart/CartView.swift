@@ -504,7 +504,7 @@ struct CartItemRow: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color("inputField"))
-                    .frame(width: 80, height: 80)
+                    .frame(width: 80, height: 90)
                 
                 if let imageUrl = item.imageUrl, let url = URL(string: imageUrl) {
                     AsyncImage(url: url) { phase in
@@ -513,7 +513,7 @@ struct CartItemRow: View {
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(width: 80, height: 80)
+                                .frame(width: 80, height: 90)
                                 .clipShape(RoundedRectangle(cornerRadius: 10))
                         case .failure(_), .empty:
                             Image(systemName: "cup.and.saucer.fill")
@@ -545,8 +545,22 @@ struct CartItemRow: View {
                         .foregroundColor(Color("secondaryText"))
                 }
                 
+                // Компактний варіант відображення кастомізації
+                if let customizationSummary = item.getCustomizationSummary() {
+                    Text(customizationSummary)
+                        .font(.caption2)
+                        .foregroundColor(Color("secondaryText"))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .onAppear {
+                            print("📝 CartItemRow: Товар має кастомізацію: \(customizationSummary)")
+                            print("   - Повні дані кастомізації: \(String(describing: item.customization))")
+                        }
+                }
+                
                 // Ціна за одиницю
-                Text("₴\(formatPrice(item.price))")
+                Text("₴\(formatPrice(item.unitPrice))")
                     .font(.subheadline)
                     .foregroundColor(Color("primaryText"))
                 

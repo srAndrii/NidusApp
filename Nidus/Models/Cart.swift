@@ -37,7 +37,14 @@ struct Cart: Codable {
     // Перевірка, чи додавання нового товару з іншої кав'ярні можливе
     func canAddItemFromCoffeeShop(coffeeShopId: String) -> Bool {
         // Якщо корзина порожня або містить товари з тієї ж кав'ярні
-        return items.isEmpty || self.coffeeShopId == coffeeShopId
+        let isEmpty = items.isEmpty
+        let isSameCoffeeShop = self.coffeeShopId == coffeeShopId
+        
+        print("📝 Cart.canAddItemFromCoffeeShop: Корзина порожня? \(isEmpty), Той же ID кав'ярні? \(isSameCoffeeShop)")
+        print("   - Поточний ID кав'ярні в корзині: \(self.coffeeShopId ?? "не встановлений")")
+        print("   - ID кав'ярні нового товару: \(coffeeShopId)")
+        
+        return isEmpty || isSameCoffeeShop
     }
     
     // Додавання товару до корзини
@@ -45,15 +52,18 @@ struct Cart: Codable {
         // Якщо корзина порожня, встановлюємо ID кав'ярні
         if items.isEmpty {
             self.coffeeShopId = item.coffeeShopId
+            print("📝 Cart: Корзина була порожня, встановлено ID кав'ярні: \(item.coffeeShopId)")
         }
         
         // Перевіряємо, чи вже є такий товар у корзині
         if let index = items.firstIndex(where: { $0.menuItemId == item.menuItemId && $0.selectedSize == item.selectedSize }) {
             // Збільшуємо кількість існуючого товару
             items[index].quantity += item.quantity
+            print("📝 Cart: Збільшено кількість існуючого товару \(item.name) до \(items[index].quantity)")
         } else {
             // Додаємо новий товар
             items.append(item)
+            print("📝 Cart: Додано новий товар \(item.name), кількість товарів тепер: \(items.count)")
         }
     }
     
