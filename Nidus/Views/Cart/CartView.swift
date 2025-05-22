@@ -15,6 +15,7 @@ struct CartView: View {
     @State private var showConfirmationDialog = false
     @State private var showOrderCancellationAlert = false
     @State private var comment: String = ""
+    @Environment(\.presentationMode) private var presentationMode
     
     var body: some View {
         ZStack {
@@ -174,10 +175,31 @@ struct CartView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 if !viewModel.cart.isEmpty {
+                    HStack(spacing: 20) {
+                        // Кнопка очищення корзини
+                        Button(action: {
+                            showConfirmationDialog = true
+                        }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(Color("primary"))
+                        }
+                        
+                        // Кнопка закриття sheet
+                        Button(action: {
+                            tabBarManager.isCartSheetPresented = false
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(Color("primary"))
+                        }
+                    }
+                } else {
+                    // Тільки кнопка закриття для порожньої корзини
                     Button(action: {
-                        showConfirmationDialog = true
+                        tabBarManager.isCartSheetPresented = false
                     }) {
-                        Image(systemName: "trash")
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
                             .foregroundColor(Color("primary"))
                     }
                 }
@@ -275,8 +297,10 @@ struct CartView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
-            // Замінюємо NavigationLink на кнопку з переходом до табу кав'ярень
+            // Кнопка переходу до кав'ярень та закриття sheet
             Button(action: {
+                // Закриваємо sheet з корзиною
+                tabBarManager.isCartSheetPresented = false
                 // Перемикаємося на вкладку "Кав'ярні"
                 tabBarManager.switchToTab(.coffeeShops)
             }) {
@@ -316,7 +340,7 @@ struct CartView: View {
     // Секція підсумку та оформлення замовлення
     private var checkoutSectionView: some View {
         VStack(spacing: 12) {
-            // Підсумок
+            // Підсумок - без фону
             HStack {
                 Text("Всього:")
                     .font(.headline)
@@ -332,7 +356,7 @@ struct CartView: View {
             .padding(.horizontal, 16)
             .padding(.top, 12)
             
-            // Кнопка оформлення
+            // Кнопка оформлення - з фоном тільки для самої кнопки
             Button(action: {
                 Task {
                     await viewModel.checkout(comment: comment.isEmpty ? nil : comment)
@@ -395,36 +419,6 @@ struct CartView: View {
             }
         }
         .padding(.bottom, 24)
-        .background(
-            ZStack {
-                // Скляний фон
-                BlurView(
-                    style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
-                    opacity: colorScheme == .light ? 0.95 : 0.95
-                )
-                // Додатково тонуємо під кольори застосунку
-                Group {
-                    if colorScheme == .light {
-                        // Тонування для світлої теми з новими кольорами
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color("nidusMistyBlue").opacity(0.25),
-                                Color("nidusCoolGray").opacity(0.1)
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        .opacity(0.4)
-                        
-                        // Додаткове тонування для ефекту глибини
-                        Color("nidusLightBlueGray").opacity(0.12)
-                    } else {
-                        // Додатковий шар для глибини у темному режимі
-                        Color.black.opacity(0.15)
-                    }
-                }
-            }
-        )
     }
     
     // Вікно успішної оплати
@@ -482,6 +476,11 @@ struct CartView: View {
             .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
             .padding(.horizontal, 32)
         }
+    }
+    
+    // Кнопка закриття sheet
+    private func closeSheet() {
+        tabBarManager.isCartSheetPresented = false
     }
 }
 

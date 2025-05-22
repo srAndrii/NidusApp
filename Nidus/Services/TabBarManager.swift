@@ -12,9 +12,8 @@ import SwiftUI
 enum TabSelection: Int {
     case coffeeShops = 0  // Кав'ярні
     case qrCode = 1       // Мій код
-    case cart = 2         // Корзина
-    case offers = 3       // Пропозиції
-    case profile = 4      // Профіль
+    case offers = 2       // Пропозиції (змінюю індекс)
+    case profile = 3      // Профіль (змінюю індекс)
 }
 
 class TabBarManager: ObservableObject {
@@ -26,6 +25,9 @@ class TabBarManager: ObservableObject {
     
     // Кількість товарів в корзині (для відображення бейджа)
     @Published var cartItemsCount: Int = 0
+    
+    // Властивість для керування відображенням корзини як sheet
+    @Published var isCartSheetPresented: Bool = false
     
     // Метод для переключення на іншу вкладку
     func switchToTab(_ tab: TabSelection) {

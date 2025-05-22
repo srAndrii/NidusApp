@@ -4,7 +4,7 @@ import SwiftUI
 struct MainView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @Environment(\.colorScheme) private var colorScheme
-    @ObservedObject private var tabBarManager = DIContainer.shared.tabBarManager
+    @EnvironmentObject var tabBarManager: TabBarManager
     
     var body: some View {
         ZStack {
@@ -61,11 +61,15 @@ struct MainView: View {
                 .opacity(1)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // TabView - основний контент з оновленим порядком вкладок
+            // TabView - основний контент з оновленим порядком вкладок (без вкладки корзини)
             TabView(selection: $tabBarManager.selectedTab) {
                 // 1. Вкладка "Кав'ярні"
                 NavigationView {
+                    // Використовуємо ID для ідентифікації навігації
+                    // Коли значення navigationId змінюється, це призводить до відтворення навігаційного
+                    // стеку спочатку, що призведе до скидання до кореневого екрану
                     HomeView()
+                        .id(tabBarManager.navigationId)
                         .environmentObject(tabBarManager)
                 }
                 .tabItem {
@@ -82,17 +86,9 @@ struct MainView: View {
                 }
                 .tag(TabSelection.qrCode)
                 
-                // 3. Вкладка "Корзина" (нова, центральна)
-                NavigationView {
-                    CartView()
-                        .environmentObject(tabBarManager)
-                }
-                .tabItem {
-                    Label("Корзина", systemImage: "cart.fill")
-                }
-                .tag(TabSelection.cart)
+                // Вкладку корзини видаляємо, будемо використовувати окрему кнопку
                 
-                // 4. Вкладка "Пропозиції" (нова)
+                // 3. Вкладка "Пропозиції"
                 NavigationView {
                     OffersView()
                 }
@@ -101,7 +97,7 @@ struct MainView: View {
                 }
                 .tag(TabSelection.offers)
                 
-                // 5. Вкладка "Профіль"
+                // 4. Вкладка "Профіль"
                 NavigationView {
                     ProfileView()
                 }
@@ -111,6 +107,86 @@ struct MainView: View {
                 .tag(TabSelection.profile)
             }
             .accentColor(Color("primary")) // Оранжевий колір для активних елементів
+            .onChange(of: tabBarManager.selectedTab) { newTab in
+                // Використовуємо модифікований метод для обробки вибору вкладки
+                tabBarManager.handleTabSelection(newTab)
+            }
+            
+            // Оверлей для кнопки корзини
+            VStack {
+                Spacer()
+                
+                // Кнопка корзини з бейджем (відображається над TabBar)
+                if tabBarManager.cartItemsCount > 0 {
+                    HStack {
+                        Spacer() // Переміщуємо кнопку вправо
+                        
+                        ZStack(alignment: .topTrailing) {
+                            Button(action: {
+                                tabBarManager.isCartSheetPresented = true
+                            }) {
+                                Image(systemName: "cart.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(Color("primary"))
+                                    .frame(width: 60, height: 50)
+                                    .background(
+                                        Circle()
+                                            .fill(Color.clear)
+                                            .overlay(
+                                                BlurView(
+                                                    style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                                                    opacity: colorScheme == .light ? 0.95 : 0.95
+                                                )
+                                            )
+                                            .overlay(
+                                                Group {
+                                                    if colorScheme == .light {
+                                                        // Тонування для світлої теми
+                                                        LinearGradient(
+                                                            gradient: Gradient(colors: [
+                                                                Color("nidusMistyBlue").opacity(0.25),
+                                                                Color("nidusCoolGray").opacity(0.1)
+                                                            ]),
+                                                            startPoint: .topLeading,
+                                                            endPoint: .bottomTrailing
+                                                        )
+                                                        .opacity(0.4)
+                                                        
+                                                        Color("nidusLightBlueGray").opacity(0.12)
+                                                    } else {
+                                                        // Темна тема
+                                                        Color.black.opacity(0.15)
+                                                    }
+                                                }
+                                            )
+                                            .clipShape(Circle())
+                                            .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+                                    )
+                            }
+                            
+                            // Бейдж для кількості товарів
+                            Text("\(tabBarManager.cartItemsCount)")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .frame(width: 18, height: 18)
+                                .background(Color.red)
+                                .clipShape(Circle())
+                                .offset(x: 5, y: -5)
+                        }
+                        .padding(.trailing, 20) // Додаємо відступ справа
+                    }
+                    .padding(.bottom, 70) // Розташовуємо над TabBar
+                }
+            }
+            
+            // Sheet для корзини
+            .sheet(isPresented: $tabBarManager.isCartSheetPresented) {
+                NavigationView {
+                    CartView()
+                        .environmentObject(tabBarManager)
+                }
+            }
         }
     }
 }
@@ -119,5 +195,6 @@ struct MainView_Previews: PreviewProvider {
     static var previews: some View {
         MainView()
             .environmentObject(AuthenticationManager())
+            .environmentObject(DIContainer.shared.tabBarManager)
     }
 }
