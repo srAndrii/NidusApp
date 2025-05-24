@@ -145,6 +145,78 @@ class CartService {
             let decoder = JSONDecoder()
             let loadedCart = try decoder.decode(Cart.self, from: data)
             print("✅ CartService.loadCart: Успішно завантажено корзину з \(loadedCart.items.count) товарами")
+            
+            // Логуємо деталі про кастомізацію для діагностики
+            for (index, item) in loadedCart.items.enumerated() {
+                print("📦 CartService.loadCart: Товар #\(index + 1): \(item.name), ID: \(item.id)")
+                print("   - Базова ціна: \(item.price)")
+                print("   - Кількість: \(item.quantity)")
+                
+                if let size = item.selectedSize {
+                    print("   - Розмір: \(size)")
+                }
+                
+                if let customization = item.customization {
+                    print("   - Дані кастомізації: \(customization)")
+                    
+                    // Перевіряємо наявність даних про розмір
+                    if let sizeData = customization["size"] as? [String: Any] {
+                        print("     • Розмір: \(sizeData)")
+                        if let additionalPrice = sizeData["additionalPrice"] {
+                            print("       + Додаткова ціна за розмір: \(additionalPrice) (тип: \(type(of: additionalPrice)))")
+                        }
+                    }
+                    
+                    // Перевіряємо дані інгредієнтів
+                    if let ingredients = customization["ingredients"] as? [[String: Any]] {
+                        print("     • Інгредієнти (\(ingredients.count)):")
+                        for (i, ingredient) in ingredients.enumerated() {
+                            print("       \(i+1). \(ingredient["name"] ?? "Без назви")")
+                            if let amount = ingredient["amount"] {
+                                print("          Кількість: \(amount) (тип: \(type(of: amount)))")
+                            }
+                            if let freeAmount = ingredient["freeAmount"] {
+                                print("          Безкоштовна кількість: \(freeAmount) (тип: \(type(of: freeAmount)))")
+                            }
+                            if let pricePerUnit = ingredient["pricePerUnit"] {
+                                print("          Ціна за одиницю: \(pricePerUnit) (тип: \(type(of: pricePerUnit)))")
+                            }
+                        }
+                    }
+                    
+                    // Перевіряємо дані опцій
+                    if let options = customization["options"] as? [[String: Any]] {
+                        print("     • Опції кастомізації (\(options.count)):")
+                        for (i, option) in options.enumerated() {
+                            print("       \(i+1). \(option["name"] ?? "Без назви")")
+                            
+                            if let choices = option["choices"] as? [[String: Any]] {
+                                print("          Вибори (\(choices.count)):")
+                                for (j, choice) in choices.enumerated() {
+                                    print("            \(j+1). \(choice["name"] ?? "Без назви")")
+                                    if let price = choice["price"] {
+                                        print("               Ціна: \(price) (тип: \(type(of: price)))")
+                                    }
+                                    if let quantity = choice["quantity"] {
+                                        print("               Кількість: \(quantity) (тип: \(type(of: quantity)))")
+                                    }
+                                    if let defaultQuantity = choice["defaultQuantity"] {
+                                        print("               Базова кількість: \(defaultQuantity) (тип: \(type(of: defaultQuantity)))")
+                                    }
+                                    if let pricePerAdditionalUnit = choice["pricePerAdditionalUnit"] {
+                                        print("               Ціна за додаткову одиницю: \(pricePerAdditionalUnit) (тип: \(type(of: pricePerAdditionalUnit)))")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Розрахунок ціни
+                print("   - Розрахована ціна за одиницю: \(item.unitPrice)")
+                print("   - Загальна вартість: \(item.totalPrice)")
+            }
+            
             return loadedCart
         } catch {
             print("❌ CartService.loadCart: Помилка декодування корзини: \(error)")

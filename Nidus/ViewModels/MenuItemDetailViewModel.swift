@@ -242,11 +242,22 @@ class MenuItemDetailViewModel: ObservableObject {
             for (ingredientId, amount) in ingredientCustomizations {
                 // Знаходимо оригінальний інгредієнт для отримання додаткової інформації
                 if let ingredient = menuItem.ingredients?.first(where: { $0.id == ingredientId || $0.name == ingredientId }) {
-                    ingredients.append([
+                    var ingredientData: [String: Any] = [
                         "id": ingredient.id ?? ingredient.name,
                         "name": ingredient.name,
                         "amount": amount
-                    ])
+                    ]
+                    
+                    // Додаємо інформацію про ціни та кількості
+                    if let freeAmount = ingredient.freeAmount {
+                        ingredientData["freeAmount"] = freeAmount
+                    }
+                    
+                    if let pricePerUnit = ingredient.pricePerUnit {
+                        ingredientData["pricePerUnit"] = pricePerUnit
+                    }
+                    
+                    ingredients.append(ingredientData)
                 }
             }
             
@@ -267,12 +278,23 @@ class MenuItemDetailViewModel: ObservableObject {
                     for (choiceId, quantity) in selections {
                         // Знаходимо вибір для отримання назви
                         if let choice = option.choices.first(where: { $0.id == choiceId }) {
-                            choices.append([
+                            var choiceData: [String: Any] = [
                                 "id": choice.id,
                                 "name": choice.name,
                                 "quantity": quantity,
                                 "price": choice.price as Any
-                            ])
+                            ]
+                            
+                            // Додаємо додаткову інформацію для опцій з кількостями
+                            if let defaultQuantity = choice.defaultQuantity {
+                                choiceData["defaultQuantity"] = defaultQuantity
+                            }
+                            
+                            if let pricePerAdditionalUnit = choice.pricePerAdditionalUnit {
+                                choiceData["pricePerAdditionalUnit"] = pricePerAdditionalUnit
+                            }
+                            
+                            choices.append(choiceData)
                         }
                     }
                     

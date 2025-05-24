@@ -14,9 +14,22 @@
 		B477F7982D98942800595037 /* Nidus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nidus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B43AC22F2DE19E1A0090A882 /* Exceptions for "Nidus" folder in "Nidus" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = B477F7972D98942800595037 /* Nidus */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B477F79A2D98942800595037 /* Nidus */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B43AC22F2DE19E1A0090A882 /* Exceptions for "Nidus" folder in "Nidus" target */,
+			);
 			path = Nidus;
 			sourceTree = "<group>";
 		};
@@ -286,6 +299,7 @@
 				DEVELOPMENT_TEAM = AHAP96ASMJ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Nidus/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -315,6 +329,7 @@
 				DEVELOPMENT_TEAM = AHAP96ASMJ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Nidus/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

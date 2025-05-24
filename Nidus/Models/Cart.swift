@@ -56,14 +56,31 @@ struct Cart: Codable {
         }
         
         // Перевіряємо, чи вже є такий товар у корзині
-        if let index = items.firstIndex(where: { $0.menuItemId == item.menuItemId && $0.selectedSize == item.selectedSize }) {
+        // Товар вважається тим самим, якщо співпадає ID меню-айтема, розмір ТА дані кастомізації
+        let existingItemIndex = items.firstIndex { existingItem in
+            // Перевіряємо співпадіння базових параметрів і кастомізації
+            guard existingItem.menuItemId == item.menuItemId && existingItem.selectedSize == item.selectedSize else {
+                return false
+            }
+            
+            // Використовуємо спеціальний метод для порівняння кастомізації
+            let sameCustomization = existingItem.hasSameCustomization(as: item)
+            
+            if !sameCustomization {
+                print("📝 Cart: Товари \(item.name) відрізняються кастомізацією")
+            }
+            
+            return sameCustomization
+        }
+        
+        if let index = existingItemIndex {
             // Збільшуємо кількість існуючого товару
             items[index].quantity += item.quantity
             print("📝 Cart: Збільшено кількість існуючого товару \(item.name) до \(items[index].quantity)")
         } else {
             // Додаємо новий товар
             items.append(item)
-            print("📝 Cart: Додано новий товар \(item.name), кількість товарів тепер: \(items.count)")
+            print("📝 Cart: Додано новий товар \(item.name) як окрему позицію, кількість товарів тепер: \(items.count)")
         }
     }
     

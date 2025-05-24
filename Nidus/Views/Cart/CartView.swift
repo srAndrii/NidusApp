@@ -131,7 +131,27 @@ struct CartView: View {
             }
         } content: {
             if let url = viewModel.paymentUrl {
-                PaymentWebView(url: url)
+                NavigationView {
+                    PaymentWebView(url: url)
+                        .navigationTitle("Оплата")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Закрити") {
+                                    viewModel.showPaymentWebView = false
+                                }
+                            }
+                            
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Готово") {
+                                    // Вручну тригеримо успішну оплату
+                                    viewModel.showPaymentWebView = false
+                                    NotificationCenter.default.post(name: .paymentSuccessful, object: nil)
+                                }
+                                .foregroundColor(.green)
+                            }
+                        }
+                }
             }
         }
         
@@ -211,7 +231,7 @@ struct CartView: View {
     
     // Заголовок з інформацією про кав'ярню
     private func coffeeShopHeaderView(_ coffeeShop: CoffeeShop) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: 4) {
             Text("Ваше замовлення з")
                 .font(.subheadline)
                 .foregroundColor(Color("secondaryText"))
@@ -526,17 +546,19 @@ struct CartItemRow: View {
             
             // Інформація про товар
             VStack(alignment: .leading, spacing: 4) {
-                // Назва
-                Text(item.name)
-                    .font(.headline)
-                    .foregroundColor(Color("primaryText"))
-                    .lineLimit(1)
-                
-                // Розмір, якщо є
-                if let selectedSize = item.selectedSize {
-                    Text("Розмір: \(selectedSize)")
-                        .font(.caption)
-                        .foregroundColor(Color("secondaryText"))
+                // Назва з розміром
+                HStack(spacing: 4) {
+                    Text(item.name)
+                        .font(.headline)
+                        .foregroundColor(Color("primaryText"))
+                        .lineLimit(1)
+                    
+                    if let selectedSize = item.selectedSize {
+                        Text(selectedSize)
+                            .font(.subheadline)
+                            .foregroundColor(Color("primary"))
+                            .fontWeight(.bold)
+                    }
                 }
                 
                 // Компактний варіант відображення кастомізації
@@ -544,7 +566,6 @@ struct CartItemRow: View {
                     Text(customizationSummary)
                         .font(.caption2)
                         .foregroundColor(Color("secondaryText"))
-                        .lineLimit(2)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .onAppear {
@@ -552,11 +573,6 @@ struct CartItemRow: View {
                             print("   - Повні дані кастомізації: \(String(describing: item.customization))")
                         }
                 }
-                
-                // Ціна за одиницю
-                Text("₴\(formatPrice(item.unitPrice))")
-                    .font(.subheadline)
-                    .foregroundColor(Color("primaryText"))
                 
                 // Елементи керування кількістю
                 HStack(spacing: 12) {
@@ -683,20 +699,30 @@ struct CartItemRow: View {
 // MARK: - WebView для сторінки оплати
 struct PaymentWebView: UIViewRepresentable {
     let url: URL
+    @Environment(\.presentationMode) var presentationMode
     
     func makeUIView(context: Context) -> WKWebView {
         let preferences = WKPreferences()
+        preferences.javaScriptEnabled = true
+        
         let configuration = WKWebViewConfiguration()
         configuration.preferences = preferences
         
+        // Дозволяємо всі медіа типи
+        configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = []
+        
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
+        
+        print("🌐 PaymentWebView: Створено WebView для URL: \(url)")
         return webView
     }
     
     func updateUIView(_ webView: WKWebView, context: Context) {
         let request = URLRequest(url: url)
         webView.load(request)
+        print("🌐 PaymentWebView: Завантажуємо URL: \(url)")
     }
     
     func makeCoordinator() -> Coordinator {
@@ -710,19 +736,84 @@ struct PaymentWebView: UIViewRepresentable {
             self.parent = parent
         }
         
-        // Обробка URL перенаправлення
+        // Обробка початку навігації
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            if let url = navigationAction.request.url,
-               url.absoluteString.starts(with: "nidus://") {
-                // Закриваємо WebView, коли отримуємо перенаправлення на схему додатку
+            
+            guard let url = navigationAction.request.url else {
+                print("⚠️ PaymentWebView: URL не знайдено в navigation action")
+                decisionHandler(.allow)
+                return
+            }
+            
+            print("🔗 PaymentWebView: Navigation до URL: \(url.absoluteString)")
+            
+            // Перевіряємо різні варіанти redirect URL
+            let urlString = url.absoluteString.lowercased()
+            
+            if urlString.contains("nidus://") || 
+               urlString.contains("payment-callback") ||
+               urlString.contains("success") ||
+               urlString.contains("завершено") ||
+               url.scheme == "nidus" {
+                
+                print("✅ PaymentWebView: Знайдено redirect URL, закриваємо WebView")
+                print("   - URL: \(url.absoluteString)")
+                print("   - Scheme: \(url.scheme ?? "немає")")
+                print("   - Host: \(url.host ?? "немає")")
+                
+                // Відхиляємо навігацію до redirect URL
                 decisionHandler(.cancel)
                 
+                // Закриваємо WebView та повідомляємо про успішну оплату
                 DispatchQueue.main.async {
-                    // Закриття WebView буде здійснено через binding $viewModel.showPaymentWebView
-                    NotificationCenter.default.post(name: NSNotification.Name("PaymentCompleted"), object: nil)
+                    // Відправляємо notification про успішну оплату
+                    NotificationCenter.default.post(name: .paymentSuccessful, object: nil)
+                    
+                    // Закриваємо WebView
+                    self.parent.presentationMode.wrappedValue.dismiss()
                 }
-            } else {
-                decisionHandler(.allow)
+                
+                return
+            }
+            
+            // Дозволяємо всі інші URL
+            decisionHandler(.allow)
+        }
+        
+        // Обробка завершення завантаження
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            print("✅ PaymentWebView: Сторінка завантажена")
+            
+            if let url = webView.url {
+                print("   - Поточний URL: \(url.absoluteString)")
+            }
+        }
+        
+        // Обробка помилок завантаження
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            print("❌ PaymentWebView: Помилка завантаження: \(error.localizedDescription)")
+        }
+        
+        // Обробка помилок provisional navigation
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            let nsError = error as NSError
+            print("❌ PaymentWebView: Provisional navigation помилка:")
+            print("   - Код: \(nsError.code)")
+            print("   - Домен: \(nsError.domain)")
+            print("   - Опис: \(error.localizedDescription)")
+            
+            // Ігноруємо помилки timeout для redirect URL
+            if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorTimedOut {
+                print("⚠️ PaymentWebView: Timeout помилка (можливо redirect), перевіряємо URL")
+                
+                if let url = webView.url, url.scheme == "nidus" {
+                    print("✅ PaymentWebView: Timeout на redirect URL, закриваємо WebView")
+                    
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: .paymentSuccessful, object: nil)
+                        self.parent.presentationMode.wrappedValue.dismiss()
+                    }
+                }
             }
         }
     }

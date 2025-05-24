@@ -67,6 +67,14 @@ class CartViewModel: ObservableObject {
             }
             .store(in: &cancellables)
         
+        // Підписуємось на успішну оплату через deep link
+        NotificationCenter.default.publisher(for: .paymentSuccessful)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleSuccessfulPayment()
+            }
+            .store(in: &cancellables)
+        
         // Завантажуємо початковий стан корзини
         self.cart = cartService.getCart()
         
@@ -311,6 +319,39 @@ class CartViewModel: ObservableObject {
             self.error = "Необхідна авторизація"
         default:
             self.error = error.localizedDescription
+        }
+    }
+    
+    /// Обробка успішного повернення з оплати через deep link
+    func handleSuccessfulPayment() {
+        print("✅ CartViewModel: Обробка успішного повернення з оплати")
+        
+        // Виконуємо UI операції в main thread
+        DispatchQueue.main.async { [weak self] in
+            print("🔄 CartViewModel: Виконуємо дії після успішної оплати")
+            
+            // Закриваємо WebView якщо він відкритий
+            if self?.showPaymentWebView == true {
+                print("📱 CartViewModel: Закриваємо WebView")
+                self?.showPaymentWebView = false
+            }
+            
+            // Скидаємо поточне замовлення
+            self?.currentOrderId = nil
+            
+            // Очищаємо корзину
+            print("🗑️ CartViewModel: Очищаємо корзину")
+            self?.cartService.clearCart()
+            
+            // Показуємо повідомлення про успішну оплату
+            print("🎉 CartViewModel: Показуємо повідомлення про успішну оплату")
+            self?.showPaymentSuccess = true
+            
+            // Автоматично приховуємо повідомлення через 3 секунди
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                print("⏰ CartViewModel: Приховуємо повідомлення про успішну оплату")
+                self?.showPaymentSuccess = false
+            }
         }
     }
 }

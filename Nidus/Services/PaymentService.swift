@@ -39,49 +39,85 @@ class PaymentService {
     ) async throws -> CreateOrderWithPaymentResultDto {
         // Підготовка списку товарів для запиту
         let orderItems = items.map { item -> CreateOrderItemDto in
+            print("📝 PaymentService: Обробка товару \(item.name)")
+            print("   - Дані кастомізації: \(String(describing: item.customization))")
+            
             // Створюємо об'єкт для кастомізації, якщо вона є
             var customizationDto: OrderItemCustomizationDto? = nil
             
             if let customization = item.customization {
                 customizationDto = OrderItemCustomizationDto()
                 
-                // Додаємо розмір, якщо він є
-                if let selectedSize = item.selectedSize {
-                    customizationDto?.selectedSize = selectedSize
-                }
-                
-                // Додаємо вибрані інгредієнти, якщо вони є
-                if let selectedIngredients = customization["selectedIngredients"] as? [String: Double] {
-                    customizationDto?.selectedIngredients = selectedIngredients
-                }
-                
-                // Додаємо вибрані опції
-                if let selectedOptions = customization["selectedOptions"] as? [String: [[String: Any]]] {
-                    var processedOptions: [String: [OptionChoiceDto]] = [:]
-                    
-                    for (optionId, choices) in selectedOptions {
-                        var processedChoices: [OptionChoiceDto] = []
+                // Додаємо дані про розмір, включаючи ID та додаткову ціну
+                if let sizeData = customization["size"] as? [String: Any] {
+                    if let sizeId = sizeData["id"] as? String {
+                        customizationDto?.selectedSize = sizeId
+                        print("   - Розмір: \(sizeData["abbreviation"] as? String ?? "невідомо") (ID: \(sizeId))")
                         
-                        for choice in choices {
-                            if let choiceId = choice["choiceId"] as? String {
-                                let quantity = choice["quantity"] as? Int ?? 1
-                                processedChoices.append(OptionChoiceDto(choiceId: choiceId, quantity: quantity))
-                            }
+                        // Додаємо інформацію про додаткову ціну
+                        if let additionalPrice = sizeData["additionalPrice"] as? Decimal {
+                            customizationDto?.selectedSizeData = SizeDataDto(id: sizeId, additionalPrice: additionalPrice)
+                            print("   - Додаткова ціна за розмір: +\(additionalPrice)")
                         }
-                        
-                        processedOptions[optionId] = processedChoices
+                    }
+                }
+                
+                // Обробляємо інгредієнти з формату збереження в корзині
+                if let ingredients = customization["ingredients"] as? [[String: Any]] {
+                    var selectedIngredients: [String: Double] = [:]
+                    
+                    for ingredient in ingredients {
+                        if let id = ingredient["id"] as? String,
+                           let amount = ingredient["amount"] as? Double {
+                            selectedIngredients[id] = amount
+                        }
                     }
                     
-                    customizationDto?.selectedOptions = processedOptions
+                    if !selectedIngredients.isEmpty {
+                        customizationDto?.selectedIngredients = selectedIngredients
+                        print("   - Інгредієнти: \(selectedIngredients)")
+                    }
+                }
+                
+                // Обробляємо опції кастомізації з формату збереження в корзині
+                if let options = customization["options"] as? [[String: Any]] {
+                    var selectedOptions: [String: [OptionChoiceDto]] = [:]
+                    
+                    for option in options {
+                        if let optionId = option["id"] as? String,
+                           let choices = option["choices"] as? [[String: Any]] {
+                            
+                            var processedChoices: [OptionChoiceDto] = []
+                            
+                            for choice in choices {
+                                if let choiceId = choice["id"] as? String {
+                                    let quantity = choice["quantity"] as? Int ?? 1
+                                    processedChoices.append(OptionChoiceDto(choiceId: choiceId, quantity: quantity))
+                                }
+                            }
+                            
+                            if !processedChoices.isEmpty {
+                                selectedOptions[optionId] = processedChoices
+                            }
+                        }
+                    }
+                    
+                    if !selectedOptions.isEmpty {
+                        customizationDto?.selectedOptions = selectedOptions
+                        print("   - Опції: \(selectedOptions)")
+                    }
                 }
             }
             
             // Створюємо об'єкт для товару замовлення
-            return CreateOrderItemDto(
+            let orderItem = CreateOrderItemDto(
                 menuItemId: item.menuItemId,
                 quantity: item.quantity,
                 customization: customizationDto
             )
+            
+            print("   - Створено OrderItemDto: menuItemId=\(item.menuItemId), quantity=\(item.quantity)")
+            return orderItem
         }
         
         // Форматуємо дату, якщо вона є
@@ -96,8 +132,15 @@ class PaymentService {
             coffeeShopId: coffeeShopId,
             items: orderItems,
             comment: comment,
-            scheduledFor: scheduledForString
+            scheduledFor: scheduledForString,
+            redirectUrl: redirectUrl
         )
+        
+        print("📝 PaymentService: Відправляємо запит на створення замовлення:")
+        print("   - Coffee Shop ID: \(coffeeShopId)")
+        print("   - Кількість товарів: \(orderItems.count)")
+        print("   - Коментар: \(comment ?? "немає")")
+        print("   - Redirect URL: \(redirectUrl)")
         
         // Відправляємо запит на сервер
         return try await networkService.post(
@@ -133,8 +176,14 @@ class PaymentService {
     
     struct EmptyObject: Codable {}
     
+    struct SizeDataDto: Codable {
+        let id: String
+        let additionalPrice: Decimal
+    }
+    
     struct OrderItemCustomizationDto: Codable {
         var selectedSize: String?
+        var selectedSizeData: SizeDataDto?
         var selectedIngredients: [String: Double]?
         var selectedOptions: [String: [OptionChoiceDto]]?
     }
@@ -155,6 +204,7 @@ class PaymentService {
         let items: [CreateOrderItemDto]
         let comment: String?
         let scheduledFor: String?
+        let redirectUrl: String
     }
 }
 
