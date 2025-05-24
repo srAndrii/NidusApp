@@ -147,7 +147,7 @@ struct CartItem: Identifiable, Codable, Equatable {
                                     let additionalUnits = quantity - defaultQuantity
                                     finalPrice += choicePrice + (pricePerAdditionalUnit * Decimal(additionalUnits))
                                 } else {
-                                    finalPrice += choicePrice * Decimal(quantity)
+                                finalPrice += choicePrice * Decimal(quantity)
                                 }
                             }
                         }

@@ -132,7 +132,7 @@ struct CartView: View {
         } content: {
             if let url = viewModel.paymentUrl {
                 NavigationView {
-                    PaymentWebView(url: url)
+                PaymentWebView(url: url)
                         .navigationTitle("Оплата")
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
@@ -548,12 +548,12 @@ struct CartItemRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Назва з розміром
                 HStack(spacing: 4) {
-                    Text(item.name)
-                        .font(.headline)
-                        .foregroundColor(Color("primaryText"))
-                        .lineLimit(1)
-                    
-                    if let selectedSize = item.selectedSize {
+                Text(item.name)
+                    .font(.headline)
+                    .foregroundColor(Color("primaryText"))
+                    .lineLimit(1)
+                
+                if let selectedSize = item.selectedSize {
                         Text(selectedSize)
                             .font(.subheadline)
                             .foregroundColor(Color("primary"))
@@ -777,7 +777,7 @@ struct PaymentWebView: UIViewRepresentable {
             }
             
             // Дозволяємо всі інші URL
-            decisionHandler(.allow)
+                decisionHandler(.allow)
         }
         
         // Обробка завершення завантаження

@@ -12,8 +12,9 @@ import SwiftUI
 enum TabSelection: Int {
     case coffeeShops = 0  // Кав'ярні
     case qrCode = 1       // Мій код
-    case offers = 2       // Пропозиції (змінюю індекс)
-    case profile = 3      // Профіль (змінюю індекс)
+    case offers = 2       // Пропозиції
+    case orders = 3       // Мої замовлення
+    case profile = 4      // Профіль
 }
 
 class TabBarManager: ObservableObject {

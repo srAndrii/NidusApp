@@ -143,10 +143,16 @@ class PaymentService {
         print("   - Redirect URL: \(redirectUrl)")
         
         // Відправляємо запит на сервер
-        return try await networkService.post(
+        let result: CreateOrderWithPaymentResultDto = try await networkService.post(
             endpoint: "/orders/create-with-payment",
             body: createOrderDto
         )
+        
+        // Повідомляємо про створення нового замовлення
+        print("🔔 PaymentService: Замовлення створено - відправляємо сповіщення")
+        NotificationCenter.default.post(name: Notification.Name("OrderCreated"), object: nil)
+        
+        return result
     }
     
     // Отримання інформації про статус оплати

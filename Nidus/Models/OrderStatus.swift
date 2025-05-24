@@ -7,7 +7,7 @@
 // OrderStatus.swift
 import Foundation
 
-enum OrderStatus: String, Codable {
+enum OrderStatus: String, Codable, CaseIterable {
     case created = "created"
     case pending = "pending"
     case accepted = "accepted"
@@ -32,6 +32,29 @@ enum OrderStatus: String, Codable {
             return "Виконано"
         case .cancelled:
             return "Скасовано"
+        }
+    }
+    
+    var displayName: String {
+        return localizedName
+    }
+    
+    var color: String {
+        switch self {
+        case .created:
+            return "gray"
+        case .pending:
+            return "orange"
+        case .accepted:
+            return "blue"
+        case .preparing:
+            return "yellow"
+        case .ready:
+            return "green"
+        case .completed:
+            return "green"
+        case .cancelled:
+            return "red"
         }
     }
 }

@@ -244,6 +244,10 @@ class CartViewModel: ObservableObject {
             if status.isPaid {
                 cartService.clearCart()
                 self.showPaymentSuccess = true
+                
+                // Повідомляємо про оновлення статусу замовлення
+                print("🔔 CartViewModel: Оплата завершена - відправляємо сповіщення про оновлення")
+                NotificationCenter.default.post(name: Notification.Name("OrderStatusUpdated"), object: nil)
             }
             
             self.isLoading = false

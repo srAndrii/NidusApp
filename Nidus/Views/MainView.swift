@@ -1,4 +1,3 @@
-// Nidus/Views/MainView.swift
 import SwiftUI
 
 struct MainView: View {
@@ -77,7 +76,17 @@ struct MainView: View {
                 }
                 .tag(TabSelection.coffeeShops)
                 
-                // 2. Вкладка "QR-код"
+                // 2.
+                NavigationView {
+                    OffersView()
+                }
+                .tabItem {
+                    Label("Пропозиції", systemImage: "tag.fill")
+                }
+                .tag(TabSelection.offers)
+                
+                // 3.
+                
                 NavigationView {
                     QRCodeView()
                 }
@@ -88,16 +97,17 @@ struct MainView: View {
                 
                 // Вкладку корзини видаляємо, будемо використовувати окрему кнопку
                 
-                // 3. Вкладка "Пропозиції"
+                // 4. Мої замовлення (нова)
                 NavigationView {
-                    OffersView()
+                         OrderHistoryView()
                 }
-                .tabItem {
-                    Label("Пропозиції", systemImage: "tag.fill")
-                }
-                .tag(TabSelection.offers)
+                             .tabItem {
+                    Label("Мої замовлення", systemImage: "list.clipboard")
+                             }
+                .tag(TabSelection.orders)
+               
                 
-                // 4. Вкладка "Профіль"
+                // 5. Вкладка "Профіль"
                 NavigationView {
                     ProfileView()
                 }
