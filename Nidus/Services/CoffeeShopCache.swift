@@ -5,6 +5,7 @@ class CoffeeShopCache {
     static let shared = CoffeeShopCache()
     
     private var cache: [String: CoffeeShopCacheItem] = [:]
+    private let queue = DispatchQueue(label: "com.nidus.coffeeshop.cache", attributes: .concurrent)
     
     private init() {}
     
@@ -15,19 +16,28 @@ class CoffeeShopCache {
     }
     
     func setCoffeeShop(_ id: String, name: String, address: String?) {
-        cache[id] = CoffeeShopCacheItem(id: id, name: name, address: address)
-        print("💾 CoffeeShopCache: Збережено кав'ярню \(id) -> \(name)")
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
+            self.cache[id] = CoffeeShopCacheItem(id: id, name: name, address: address)
+            print("💾 CoffeeShopCache: Збережено кав'ярню \(id) -> \(name)")
+        }
     }
     
     func getCoffeeShopName(for id: String) -> String? {
-        return cache[id]?.name
+        return queue.sync {
+            return cache[id]?.name
+        }
     }
     
     func getCoffeeShopAddress(for id: String) -> String? {
-        return cache[id]?.address
+        return queue.sync {
+            return cache[id]?.address
+        }
     }
     
     func clearCache() {
-        cache.removeAll()
+        queue.async(flags: .barrier) { [weak self] in
+            self?.cache.removeAll()
+        }
     }
 } 

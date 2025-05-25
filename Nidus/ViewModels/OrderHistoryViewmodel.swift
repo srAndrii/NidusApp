@@ -312,12 +312,18 @@ class OrderDetailsViewModel: ObservableObject {
         self.orderHistoryService = orderHistoryService
         self.paymentInfo = order.payment
         
-        // Витягуємо назви з існуючих даних замовлення
-        CustomizationNameService.shared.extractNamesFromOrder(order)
-        
-        // Завантажуємо додаткові назви з API
+        // Витягуємо назви з існуючих даних замовлення безпечно
         Task {
-            await CustomizationNameService.shared.loadNamesFromCoffeeShop(order.coffeeShopId)
+            // Спочатку витягуємо назви з замовлення
+            CustomizationNameService.shared.extractNamesFromOrder(order)
+            
+            // Завантажуємо додаткові назви з API тільки якщо потрібно
+            await loadCustomizationNamesIfNeeded()
+            
+            // Оновлюємо UI після завантаження
+            await MainActor.run {
+                self.objectWillChange.send()
+            }
         }
         
         if paymentInfo == nil {
@@ -359,12 +365,12 @@ class OrderDetailsViewModel: ObservableObject {
     }
     
     func refreshCustomizationNames() {
-        // Витягуємо назви з існуючих даних замовлення
-        CustomizationNameService.shared.extractNamesFromOrder(order)
-        
-        // Завантажуємо додаткові назви з API
         Task {
-            await CustomizationNameService.shared.loadNamesFromCoffeeShop(order.coffeeShopId)
+            // Витягуємо назви з існуючих даних замовлення
+            CustomizationNameService.shared.extractNamesFromOrder(order)
+            
+            // Завантажуємо додаткові назви з API
+            await loadCustomizationNamesIfNeeded()
             
             // Також завантажуємо інформацію про кав'ярню, якщо її немає
             if order.coffeeShopName == nil && order.coffeeShop == nil {
@@ -375,6 +381,46 @@ class OrderDetailsViewModel: ObservableObject {
             await MainActor.run {
                 self.objectWillChange.send()
             }
+        }
+    }
+    
+    private func loadCustomizationNamesIfNeeded() async {
+        // Перевіряємо, чи потрібно завантажувати назви
+        var needsLoading = false
+        
+        for item in order.items {
+            if let customization = item.customization {
+                // Якщо є selectedIngredients з ID, але немає назв
+                if let ingredients = customization.selectedIngredients {
+                    for ingredientId in ingredients.keys {
+                        if CustomizationNameService.shared.getIngredientName(for: ingredientId) == nil {
+                            needsLoading = true
+                            break
+                        }
+                    }
+                }
+                
+                // Якщо є selectedOptions з ID, але немає назв
+                if let options = customization.selectedOptions {
+                    for (_, choices) in options {
+                        for choice in choices {
+                            if choice.name == nil && CustomizationNameService.shared.getOptionName(for: choice.id) == nil {
+                                needsLoading = true
+                                break
+                            }
+                        }
+                        if needsLoading { break }
+                    }
+                }
+            }
+            if needsLoading { break }
+        }
+        
+        if needsLoading {
+            print("🔄 OrderDetailsViewModel: Завантажуємо назви кастомізацій з меню")
+            await CustomizationNameService.shared.loadNamesFromCoffeeShop(order.coffeeShopId)
+        } else {
+            print("✅ OrderDetailsViewModel: Назви кастомізацій вже є, завантаження не потрібне")
         }
     }
     
@@ -392,8 +438,10 @@ class OrderDetailsViewModel: ObservableObject {
             let coffeeShop: CoffeeShopInfo = try await networkService.fetch(endpoint: "/coffee-shops/\(order.coffeeShopId)")
             print("✅ OrderDetailsViewModel: Завантажено кав'ярню: \(coffeeShop.name)")
             
-            // Зберігаємо інформацію в кеші
-            CoffeeShopCache.shared.setCoffeeShop(coffeeShop.id, name: coffeeShop.name, address: coffeeShop.address)
+            // Зберігаємо інформацію в кеші безпечно
+            await MainActor.run {
+                CoffeeShopCache.shared.setCoffeeShop(coffeeShop.id, name: coffeeShop.name, address: coffeeShop.address)
+            }
             
         } catch {
             print("❌ OrderDetailsViewModel: Помилка завантаження кав'ярні \(order.coffeeShopId): \(error)")

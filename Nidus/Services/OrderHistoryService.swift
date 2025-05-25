@@ -266,8 +266,10 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
             let coffeeShop: CoffeeShopInfo = try await networkService.fetch(endpoint: "/coffee-shops/\(coffeeShopId)")
             print("✅ OrderHistoryService: Завантажено кав'ярню: \(coffeeShop.name)")
             
-            // Зберігаємо інформацію в кеші для майбутнього використання
-            CoffeeShopCache.shared.setCoffeeShop(coffeeShop.id, name: coffeeShop.name, address: coffeeShop.address)
+            // Зберігаємо інформацію в кеші для майбутнього використання безпечно
+            DispatchQueue.main.async {
+                CoffeeShopCache.shared.setCoffeeShop(coffeeShop.id, name: coffeeShop.name, address: coffeeShop.address)
+            }
             
         } catch {
             print("❌ OrderHistoryService: Помилка завантаження кав'ярні \(coffeeShopId): \(error)")

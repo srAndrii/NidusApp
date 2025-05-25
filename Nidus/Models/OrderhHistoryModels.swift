@@ -123,9 +123,13 @@ extension OrderHistory {
         if let name = coffeeShopName {
             return name
         }
-        // Якщо і це немає, пробуємо кеш
-        if let cachedName = CoffeeShopCache.shared.getCoffeeShopName(for: coffeeShopId) {
-            return cachedName
+        // Якщо і це немає, пробуємо кеш безпечно
+        do {
+            if let cachedName = CoffeeShopCache.shared.getCoffeeShopName(for: coffeeShopId) {
+                return cachedName
+            }
+        } catch {
+            print("⚠️ OrderHistory: Помилка доступу до кешу кав'ярень: \(error)")
         }
         return "Невідома кав'ярня"
     }
