@@ -280,8 +280,18 @@ struct OrderDetailsView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
+                .background(
+                    ZStack {
+                        BlurView(
+                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                            opacity: 0.95
+                        )
+                        if colorScheme == .light {
+                            Color("nidusLightBlueGray").opacity(0.12)
+                        }
+                    }
+                )
+                .cornerRadius(12)
             } else if let payment = viewModel.paymentInfo {
                 PaymentInfoCard(payment: payment, orderAmount: viewModel.order.totalAmount)
             } else {
@@ -300,8 +310,18 @@ struct OrderDetailsView: View {
                         .foregroundColor(.secondary)
                 }
                 .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
+                .background(
+                    ZStack {
+                        BlurView(
+                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                            opacity: 0.95
+                        )
+                        if colorScheme == .light {
+                            Color("nidusLightBlueGray").opacity(0.12)
+                        }
+                    }
+                )
+                .cornerRadius(12)
             }
         }
     }
@@ -318,8 +338,18 @@ struct OrderDetailsView: View {
                     .foregroundColor(.secondary)
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
+                    .background(
+                        ZStack {
+                            BlurView(
+                                style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                                opacity: 0.95
+                            )
+                            if colorScheme == .light {
+                                Color("nidusLightBlueGray").opacity(0.12)
+                            }
+                        }
+                    )
+                    .cornerRadius(12)
             } else {
                 LazyVStack(spacing: 8) {
                     ForEach(viewModel.order.statusHistory.sorted(by: { $0.createdAt > $1.createdAt })) { historyItem in
@@ -442,6 +472,7 @@ struct CustomizationDisplayView: View {
 
 struct OrderItemCard: View {
     let item: OrderHistoryItem
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -517,10 +548,7 @@ struct OrderItemCard: View {
                             .italic()
                     }
                 }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(Color("nidusLightBlueGray").opacity(0.08))
-                .cornerRadius(8)
+                .padding(.top, 4)
             }
             
             if item.finalPrice != item.basePrice {
@@ -547,15 +575,26 @@ struct OrderItemCard: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(8)
-        .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+        .background(
+            ZStack {
+                BlurView(
+                    style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                    opacity: 0.95
+                )
+                if colorScheme == .light {
+                    Color("nidusLightBlueGray").opacity(0.12)
+                }
+            }
+        )
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
     }
 }
 
 struct PaymentInfoCard: View {
     let payment: OrderPaymentInfo
     let orderAmount: Double
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -607,9 +646,19 @@ struct PaymentInfoCard: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(8)
-        .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+        .background(
+            ZStack {
+                BlurView(
+                    style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                    opacity: 0.95
+                )
+                if colorScheme == .light {
+                    Color("nidusLightBlueGray").opacity(0.12)
+                }
+            }
+        )
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
     }
 }
 
@@ -634,6 +683,7 @@ struct PaymentDetailRow: View {
 
 struct StatusHistoryCard: View {
     let historyItem: OrderStatusHistoryItem
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -669,9 +719,19 @@ struct StatusHistoryCard: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(8)
-        .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+        .background(
+            ZStack {
+                BlurView(
+                    style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                    opacity: 0.95
+                )
+                if colorScheme == .light {
+                    Color("nidusLightBlueGray").opacity(0.12)
+                }
+            }
+        )
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
     }
 }
 
