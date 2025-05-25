@@ -201,14 +201,46 @@ struct OrderItemCustomization: Codable {
     let selectedIngredients: [String: Int]?
     let selectedOptions: [String: [OrderCustomizationChoice]]?
     let selectedSizeData: SelectedSizeData?
+    
+    // Кастомний декодер для гнучкої обробки різних форматів API
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        selectedIngredients = try container.decodeIfPresent([String: Int].self, forKey: .selectedIngredients)
+        selectedOptions = try container.decodeIfPresent([String: [OrderCustomizationChoice]].self, forKey: .selectedOptions)
+        selectedSizeData = try container.decodeIfPresent(SelectedSizeData.self, forKey: .selectedSizeData)
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case selectedIngredients, selectedOptions, selectedSizeData
+    }
 }
 
 // MARK: - Supporting Types
 
 struct SelectedSizeData: Codable {
     let id: String
-    let name: String
+    let name: String?  // Зробимо опціональним
     let additionalPrice: Double
+    
+    // Кастомний декодер для обробки різних варіантів відповіді
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        
+        // Обробляємо additionalPrice як рядок або число
+        if let priceString = try? container.decode(String.self, forKey: .additionalPrice) {
+            additionalPrice = Double(priceString) ?? 0.0
+        } else {
+            additionalPrice = try container.decode(Double.self, forKey: .additionalPrice)
+        }
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, additionalPrice
+    }
 }
 
 struct OrderCustomizationChoice: Codable {
@@ -235,7 +267,19 @@ struct OrderCustomizationChoice: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        id = try container.decode(String.self, forKey: .id)
+        // Пробуємо декодувати id з різних можливих ключів
+        if let choiceId = try? container.decode(String.self, forKey: .id) {
+            id = choiceId
+        } else if let container = try? decoder.singleValueContainer(),
+                  let directId = try? container.decode(String.self) {
+            id = directId
+        } else {
+            throw DecodingError.keyNotFound(CodingKeys.id, DecodingError.Context(
+                codingPath: decoder.codingPath,
+                debugDescription: "Unable to find id or choiceId"
+            ))
+        }
+        
         name = try container.decodeIfPresent(String.self, forKey: .name)
         quantity = try container.decodeIfPresent(Int.self, forKey: .quantity)
         
@@ -330,13 +374,13 @@ extension OrderPaymentInfo {
         case .pending:
             return "orange"
         case .processing:
-            return "blue"
+            return "primary"
         case .completed:
             return "green"
         case .failed:
             return "red"
         case .cancelled:
-            return "gray"
+            return "nidusGrey"
         }
     }
 }

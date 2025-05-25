@@ -42,13 +42,13 @@ enum OrderStatus: String, Codable, CaseIterable {
     var color: String {
         switch self {
         case .created:
-            return "gray"
+            return "nidusGrey"
         case .pending:
             return "orange"
         case .accepted:
-            return "blue"
+            return "primary"
         case .preparing:
-            return "yellow"
+            return "orange"
         case .ready:
             return "green"
         case .completed:

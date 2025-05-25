@@ -110,26 +110,26 @@ class OrderHistoryViewModel: ObservableObject {
         
         print("🔄 OrderHistoryViewModel: Завантаження замовлень - фільтр: \(selectedFilter.displayName), сторінка: \(page)")
         
+        // ВИПРАВЛЕННЯ: Правильна логіка для різних фільтрів
+        if selectedFilter == .all {
+            // Для "Всі" завантажуємо як активні, так і історичні замовлення
+            fetchAllOrders(page: page, isLoadMore: isLoadMore)
+            return
+        }
+        
         // Вибираємо правильний метод згідно з документацією
         let publisher: AnyPublisher<[OrderHistory], NetworkError>
         
-        if selectedFilter == .all {
-            // Для всіх замовлень використовуємо історію, але без фільтра статусів
-            publisher = orderHistoryServiceProtocol.fetchOrderHistory(
-                statuses: nil, // без фільтра - всі статуси
-                limit: pageSize,
-                page: page
-            )
-        } else if statuses?.contains(where: { [.completed, .cancelled].contains($0) }) == true {
-            // Для завершених/скасованих використовуємо /orders/my/history
-            publisher = orderHistoryServiceProtocol.fetchOrderHistory(
-                statuses: statuses,
+        if selectedFilter == .pending {
+            // Для активних замовлень (в обробці) використовуємо /orders/my
+            publisher = orderHistoryServiceProtocol.fetchActiveOrders(
                 limit: pageSize,
                 page: page
             )
         } else {
-            // Для активних замовлень використовуємо /orders/my
-            publisher = orderHistoryServiceProtocol.fetchActiveOrders(
+            // Для завершених/скасованих використовуємо /orders/my/history
+            publisher = orderHistoryServiceProtocol.fetchOrderHistory(
+                statuses: statuses,
                 limit: pageSize,
                 page: page
             )
@@ -151,6 +151,86 @@ class OrderHistoryViewModel: ObservableObject {
                 },
                 receiveValue: { [weak self] newOrders in
                     self?.handleOrdersReceived(newOrders, isLoadMore: isLoadMore)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    // НОВИЙ МЕТОД: Завантаження всіх замовлень (активні + історія)
+    private func fetchAllOrders(page: Int, isLoadMore: Bool) {
+        // Якщо це не перша сторінка, завантажуємо тільки історію (активні вже завантажені)
+        if page > 1 {
+            orderHistoryServiceProtocol.fetchOrderHistory(
+                statuses: nil,
+                limit: pageSize,
+                page: page - 1 // Коригуємо номер сторінки для історії
+            )
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    switch completion {
+                    case .finished:
+                        break
+                    case .failure(let error):
+                        self?.handleError(error)
+                    }
+                    
+                    self?.isLoadingMore = false
+                },
+                receiveValue: { [weak self] historyOrders in
+                    if isLoadMore {
+                        self?.orders.append(contentsOf: historyOrders)
+                    }
+                    self?.hasMoreData = historyOrders.count == self?.pageSize
+                }
+            )
+            .store(in: &cancellables)
+            return
+        }
+        
+        // Для першої сторінки завантажуємо спочатку активні замовлення
+        let activeOrdersPublisher = orderHistoryServiceProtocol.fetchActiveOrders(limit: pageSize, page: 1)
+        let historyOrdersPublisher = orderHistoryServiceProtocol.fetchOrderHistory(
+            statuses: nil,
+            limit: pageSize,
+            page: 1
+        )
+        
+        Publishers.CombineLatest(activeOrdersPublisher, historyOrdersPublisher)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    switch completion {
+                    case .finished:
+                        break
+                    case .failure(let error):
+                        self?.handleError(error)
+                    }
+                    
+                    self?.isLoading = false
+                },
+                receiveValue: { [weak self] (activeOrders, historyOrders) in
+                    print("✅ OrderHistoryViewModel: Завантажено \(activeOrders.count) активних та \(historyOrders.count) історичних замовлень")
+                    
+                    // Об'єднуємо замовлення: спочатку активні, потім історія
+                    let allOrders = activeOrders + historyOrders
+                    
+                    // Сортуємо за датою створення (найновіші спочатку)
+                    let sortedOrders = allOrders.sorted { first, second in
+                        let firstDate = ISO8601DateFormatter().date(from: first.createdAt) ?? Date.distantPast
+                        let secondDate = ISO8601DateFormatter().date(from: second.createdAt) ?? Date.distantPast
+                        return firstDate > secondDate
+                    }
+                    
+                    if isLoadMore {
+                        self?.orders.append(contentsOf: sortedOrders)
+                    } else {
+                        self?.orders = sortedOrders
+                    }
+                    
+                    // Встановлюємо hasMoreData на основі кількості історичних замовлень
+                    self?.hasMoreData = historyOrders.count == self?.pageSize
+                    self?.error = nil
                 }
             )
             .store(in: &cancellables)

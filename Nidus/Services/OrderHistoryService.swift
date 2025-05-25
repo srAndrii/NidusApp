@@ -215,6 +215,9 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
         
         // 3. Тестуємо конкретне замовлення
         await testSpecificOrder("90ae80b5-b06a-4554-9d97-63d0e0587239")
+        
+        // 4. НОВИЙ: Тестуємо пошук нових замовлень
+        await testRecentOrders()
     }
     
     private func diagnoseUserInfo() async {
@@ -295,6 +298,58 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
             print("   - Дата створення: \(order.formattedCreatedDate)")
         } catch {
             print("❌ Не вдалося отримати замовлення: \(error)")
+        }
+    }
+    
+    // НОВИЙ МЕТОД: Тестування нових замовлень
+    private func testRecentOrders() async {
+        print("\n🆕 OrderHistoryService: Пошук нових замовлень")
+        
+        // Перевіряємо активні замовлення
+        do {
+            let activeOrders: [OrderHistory] = try await networkService.fetch(endpoint: "/orders/my?limit=50")
+            print("🟢 Активні замовлення: \(activeOrders.count)")
+            
+            let recentActive = activeOrders.filter { order in
+                // Замовлення за останні 2 години
+                if let date = ISO8601DateFormatter().date(from: order.createdAt) {
+                    return Date().timeIntervalSince(date) < 7200 // 2 години
+                }
+                return false
+            }
+            
+            if !recentActive.isEmpty {
+                print("🎯 Знайдено \(recentActive.count) нових активних замовлень:")
+                for order in recentActive {
+                    print("   - \(order.orderNumber): \(order.status.rawValue) (\(order.totalAmount) ₴)")
+                }
+            } else {
+                print("⚠️ Немає нових активних замовлень за останні 2 години")
+            }
+        } catch {
+            print("❌ Помилка отримання активних замовлень: \(error)")
+        }
+        
+        // Перевіряємо історію
+        do {
+            let historyOrders: [OrderHistory] = try await networkService.fetch(endpoint: "/orders/my/history?limit=50")
+            print("📚 Історичні замовлення: \(historyOrders.count)")
+            
+            let recentHistory = historyOrders.filter { order in
+                if let date = ISO8601DateFormatter().date(from: order.createdAt) {
+                    return Date().timeIntervalSince(date) < 7200 // 2 години
+                }
+                return false
+            }
+            
+            if !recentHistory.isEmpty {
+                print("🎯 Знайдено \(recentHistory.count) нових історичних замовлень:")
+                for order in recentHistory {
+                    print("   - \(order.orderNumber): \(order.status.rawValue) (\(order.totalAmount) ₴)")
+                }
+            }
+        } catch {
+            print("❌ Помилка отримання історії: \(error)")
         }
     }
 }
