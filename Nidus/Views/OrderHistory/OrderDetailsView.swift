@@ -95,13 +95,22 @@ struct OrderDetailsView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        viewModel.refreshPaymentInfo()
-                    }) {
-                        Image(systemName: "arrow.clockwise")
-                            .foregroundColor(Color("primary"))
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            viewModel.refreshCustomizationNames()
+                        }) {
+                            Image(systemName: "textformat")
+                                .foregroundColor(Color("primary"))
+                        }
+                        
+                        Button(action: {
+                            viewModel.refreshPaymentInfo()
+                        }) {
+                            Image(systemName: "arrow.clockwise")
+                                .foregroundColor(Color("primary"))
+                        }
+                        .disabled(viewModel.isLoadingPayment)
                     }
-                    .disabled(viewModel.isLoadingPayment)
                 }
             }
             .alert("Помилка", isPresented: .constant(viewModel.error != nil)) {
@@ -198,11 +207,30 @@ struct OrderDetailsView: View {
                 Image(systemName: "location.fill")
                     .foregroundColor(Color("primary"))
                 
-                Text(viewModel.order.coffeeShopName ?? "Невідома кав'ярня")
-                    .font(.subheadline)
-                    .foregroundColor(Color("primaryText"))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(viewModel.order.displayCoffeeShopName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color("primaryText"))
+                    
+                    if viewModel.order.displayCoffeeShopName == "Невідома кав'ярня" {
+                        Text("ID: \(String(viewModel.order.coffeeShopId.prefix(8)))...")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 
                 Spacer()
+                
+                if viewModel.order.displayCoffeeShopName == "Невідома кав'ярня" {
+                    Button(action: {
+                        viewModel.refreshCustomizationNames()
+                    }) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.caption)
+                            .foregroundColor(Color("primary"))
+                    }
+                }
             }
             .padding()
             .background(
@@ -305,6 +333,113 @@ struct OrderDetailsView: View {
 
 // MARK: - Supporting Views
 
+struct CustomizationDisplayView: View {
+    let data: CustomizationDisplayData
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Інгредієнти
+            if !data.ingredients.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Інгредієнти:")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color("primary"))
+                    
+                    ForEach(data.ingredients.indices, id: \.self) { index in
+                        let ingredient = data.ingredients[index]
+                        
+                        HStack(alignment: .center, spacing: 8) {
+                            Text("•")
+                                .font(.caption2)
+                                .foregroundColor(Color("primary"))
+                            
+                            Text(ingredient.name)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(Color("primaryText"))
+                            
+                            Text("\(ingredient.quantity) \(ingredient.unit)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            if ingredient.additionalPrice > 0 {
+                                Text("+\(String(format: "%.0f", ingredient.additionalPrice)) ₴")
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(Color("primary"))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color("primary").opacity(0.1))
+                                    .cornerRadius(4)
+                            }
+                        }
+                        .padding(.vertical, 1)
+                    }
+                }
+            }
+            
+            // Опції
+            if !data.optionGroups.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Опції:")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color("primary"))
+                    
+                    ForEach(Array(data.optionGroups.keys.sorted()), id: \.self) { groupName in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(groupName):")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                            
+                            if let options = data.optionGroups[groupName] {
+                                ForEach(options.indices, id: \.self) { index in
+                                    let option = options[index]
+                                    
+                                    HStack(alignment: .center, spacing: 8) {
+                                        Text("◦")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                        
+                                        Text(option.name)
+                                            .font(.caption)
+                                            .foregroundColor(Color("primaryText"))
+                                        
+                                        if option.quantity > 1 {
+                                            Text("x\(option.quantity)")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        if option.additionalPrice > 0 {
+                                            Text("+\(String(format: "%.0f", option.additionalPrice)) ₴")
+                                                .font(.caption2)
+                                                .fontWeight(.semibold)
+                                                .foregroundColor(Color("primary"))
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color("primary").opacity(0.1))
+                                                .cornerRadius(4)
+                                        }
+                                    }
+                                    .padding(.vertical, 1)
+                                }
+                            }
+                        }
+                        .padding(.leading, 8)
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct OrderItemCard: View {
     let item: OrderHistoryItem
     
@@ -331,25 +466,61 @@ struct OrderItemCard: View {
                     Text(sizeName)
                         .font(.caption)
                         .fontWeight(.medium)
+                    
+                    // Додаємо ціну за розмір, якщо є
+                    if let sizePrice = item.effectiveSizeAdditionalPrice, sizePrice != 0 {
+                        Spacer()
+                        
+                        Text(sizePrice > 0 ? "+\(String(format: "%.0f", sizePrice)) ₴" : "\(String(format: "%.0f", sizePrice)) ₴")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(sizePrice > 0 ? Color("primary") : .red)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background((sizePrice > 0 ? Color("primary") : .red).opacity(0.1))
+                            .cornerRadius(4)
+                    }
                 }
             }
             
-            if let customization = item.customization, customization.hasCustomizations {
-                VStack(alignment: .leading, spacing: 4) {
+            if item.hasCustomizations {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Кастомізації:")
                         .font(.caption)
+                        .fontWeight(.semibold)
                         .foregroundColor(.secondary)
                     
-                    if let ingredients = customization.selectedIngredients, !ingredients.isEmpty {
-                        ForEach(Array(ingredients.keys), id: \.self) { ingredientId in
-                            if let quantity = ingredients[ingredientId], quantity > 0 {
-                                Text("• Інгредієнт: +\(quantity)")
+                    if let customizationData = item.customizationDisplayData {
+                        CustomizationDisplayView(data: customizationData)
+                    } else if let customization = item.displayCustomization {
+                        // Резервний варіант для старого формату
+                        let lines = customization.components(separatedBy: "\n")
+                        ForEach(lines.indices, id: \.self) { index in
+                            HStack(alignment: .top, spacing: 4) {
+                                Text("•")
+                                    .font(.caption2)
+                                    .foregroundColor(Color("primary"))
+                                    .padding(.top, 1)
+                                
+                                Text(lines[index])
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Color("primaryText"))
+                                    .fixedSize(horizontal: false, vertical: true)
+                                
+                                Spacer()
                             }
                         }
+                    } else {
+                        Text("Без кастомізацій")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .italic()
                     }
                 }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(Color("nidusLightBlueGray").opacity(0.08))
+                .cornerRadius(8)
             }
             
             if item.finalPrice != item.basePrice {
@@ -360,19 +531,18 @@ struct OrderItemCard: View {
                     
                     Text(String(format: "%.2f ₴", item.basePrice))
                         .font(.caption)
-                        .strikethrough()
                         .foregroundColor(.secondary)
                     
                     Spacer()
                     
-                    Text("Ціна зі знижкою:")
+                    Text("З кастомізаціями:")
                         .font(.caption)
-                        .foregroundColor(.green)
+                        .foregroundColor(Color("primary"))
                     
                     Text(item.formattedPrice)
                         .font(.caption)
                         .fontWeight(.medium)
-                        .foregroundColor(.green)
+                        .foregroundColor(Color("primary"))
                 }
             }
         }
@@ -516,6 +686,11 @@ struct OrderDetailsView_Previews: PreviewProvider {
             totalAmount: 120.0,
             coffeeShopId: "shop-1",
             coffeeShopName: "Coffee House",
+            coffeeShop: CoffeeShopInfo(
+                id: "shop-1",
+                name: "Coffee House",
+                address: "вул. Тестова, 1"
+            ),
             isPaid: true,
             createdAt: "2023-05-20T14:30:00Z",
             completedAt: "2023-05-20T15:00:00Z",
@@ -524,11 +699,36 @@ struct OrderDetailsView_Previews: PreviewProvider {
                     id: "item-1",
                     name: "Капучино",
                     price: 100.0,
-                    basePrice: 100.0,
+                    basePrice: 80.0,
                     finalPrice: 120.0,
                     quantity: 1,
+                    customization: OrderItemCustomization(
+                        customizationDetails: CustomizationDetails(
+                            size: CustomizationSizeDetail(name: "Дуже Великий", price: 15.0),
+                            options: [
+                                CustomizationOptionDetail(
+                                    name: "Додаткова порція еспресо",
+                                    price: 20.0,
+                                    totalPrice: 20.0,
+                                    quantity: 1
+                                )
+                            ]
+                        ),
+                        customizationSummary: "Розмір: Дуже Великий (+15.00 ₴) | Інгредієнти: Еспресо : 5порція | Опції: Сироп: Карамель x6; Тип молока: Соєве"
+                    ),
+                    sizeName: "Дуже Великий",
+                    sizeAdditionalPrice: 15.0
+                ),
+                OrderHistoryItem(
+                    id: "item-2",
+                    name: "Еспресо",
+                    price: 45.0,
+                    basePrice: 50.0,
+                    finalPrice: 45.0,
+                    quantity: 1,
                     customization: nil,
-                    sizeName: "Великий"
+                    sizeName: "Малий",
+                    sizeAdditionalPrice: -5.0
                 )
             ],
             statusHistory: [

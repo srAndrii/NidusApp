@@ -312,6 +312,14 @@ class OrderDetailsViewModel: ObservableObject {
         self.orderHistoryService = orderHistoryService
         self.paymentInfo = order.payment
         
+        // Витягуємо назви з існуючих даних замовлення
+        CustomizationNameService.shared.extractNamesFromOrder(order)
+        
+        // Завантажуємо додаткові назви з API
+        Task {
+            await CustomizationNameService.shared.loadNamesFromCoffeeShop(order.coffeeShopId)
+        }
+        
         if paymentInfo == nil {
             loadPaymentInfo()
         }
@@ -348,6 +356,48 @@ class OrderDetailsViewModel: ObservableObject {
     
     func refreshPaymentInfo() {
         loadPaymentInfo()
+    }
+    
+    func refreshCustomizationNames() {
+        // Витягуємо назви з існуючих даних замовлення
+        CustomizationNameService.shared.extractNamesFromOrder(order)
+        
+        // Завантажуємо додаткові назви з API
+        Task {
+            await CustomizationNameService.shared.loadNamesFromCoffeeShop(order.coffeeShopId)
+            
+            // Також завантажуємо інформацію про кав'ярню, якщо її немає
+            if order.coffeeShopName == nil && order.coffeeShop == nil {
+                await loadCoffeeShopInfo()
+            }
+            
+            // Оновлюємо UI після завантаження
+            await MainActor.run {
+                self.objectWillChange.send()
+            }
+        }
+    }
+    
+    private func loadCoffeeShopInfo() async {
+        do {
+            print("🏪 OrderDetailsViewModel: Завантажуємо інформацію про кав'ярню \(order.coffeeShopId)")
+            
+            struct CoffeeShopInfo: Codable {
+                let id: String
+                let name: String
+                let address: String?
+            }
+            
+            let networkService = NetworkService.shared
+            let coffeeShop: CoffeeShopInfo = try await networkService.fetch(endpoint: "/coffee-shops/\(order.coffeeShopId)")
+            print("✅ OrderDetailsViewModel: Завантажено кав'ярню: \(coffeeShop.name)")
+            
+            // Зберігаємо інформацію в кеші
+            CoffeeShopCache.shared.setCoffeeShop(coffeeShop.id, name: coffeeShop.name, address: coffeeShop.address)
+            
+        } catch {
+            print("❌ OrderDetailsViewModel: Помилка завантаження кав'ярні \(order.coffeeShopId): \(error)")
+        }
     }
     
     // MARK: - Computed Properties

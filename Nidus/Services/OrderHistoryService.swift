@@ -78,6 +78,19 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
                     let result: [OrderHistory] = try await self.networkService.fetch(endpoint: endpoint)
                     
                     print("✅ OrderHistoryService: Отримано \(result.count) замовлень")
+                    
+                    // Витягуємо назви з отриманих замовлень та завантажуємо інформацію про кав'ярні
+                    for order in result {
+                        CustomizationNameService.shared.extractNamesFromOrder(order)
+                        
+                        // Якщо назва кав'ярні відсутня, спробуємо завантажити її
+                        if order.coffeeShopName == nil && order.coffeeShop == nil {
+                            Task {
+                                await self.loadCoffeeShopInfo(for: order.coffeeShopId)
+                            }
+                        }
+                    }
+                    
                     print("📋 OrderHistoryService: Детальна інформація про відповідь:")
                     
                     if result.isEmpty {
@@ -96,6 +109,42 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
                             print("   - Сума: \(order.totalAmount) ₴")
                             print("   - Дата створення: \(order.formattedCreatedDate)")
                             print("   - Оплачено: \(order.isPaid ? "Так" : "Ні")")
+                            print("   - Кав'ярня (назва): \(order.coffeeShopName ?? "немає")")
+                            print("   - Кав'ярня (об'єкт): \(order.coffeeShop?.name ?? "немає")")
+                            print("   - Товарів: \(order.items.count)")
+                            
+                            for (itemIndex, item) in order.items.enumerated() {
+                                print("     📋 Товар \(itemIndex + 1): \(item.name)")
+                                print("        - Базова ціна: \(item.basePrice) ₴")
+                                print("        - Фінальна ціна: \(item.finalPrice) ₴")
+                                print("        - Кількість: \(item.quantity)")
+                                print("        - Розмір: \(item.sizeName ?? "не вказано")")
+                                
+                                print("        - Кастомізації на рівні item:")
+                                print("          - item.customizationSummary: \(item.customizationSummary ?? "немає")")
+                                print("          - item.customizationDetails: \(item.customizationDetails != nil ? "є" : "немає")")
+                                
+                                if let customization = item.customization {
+                                    print("        - Кастомізації в customization об'єкті:")
+                                    print("          - customization.customizationSummary: \(customization.customizationSummary ?? "немає")")
+                                    print("          - customization.customizationDetails: \(customization.customizationDetails != nil ? "є" : "немає")")
+                                    print("          - customization.selectedIngredients: \(customization.selectedIngredients ?? [:])")
+                                    print("          - customization.selectedOptions: \(customization.selectedOptions?.keys.joined(separator: ", ") ?? "немає")")
+                                    
+                                    if let details = customization.customizationDetails {
+                                        if let size = details.size {
+                                            print("            - Розмір: \(size.name) (+\(size.price) ₴)")
+                                        }
+                                        if let options = details.options, !options.isEmpty {
+                                            for option in options {
+                                                print("            - Опція: \(option.name) (+\(option.price) ₴)")
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    print("        - customization об'єкт: немає")
+                                }
+                            }
                         }
                     }
                     
@@ -200,6 +249,29 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
             }
             }
             .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Допоміжні методи
+    
+    private func loadCoffeeShopInfo(for coffeeShopId: String) async {
+        do {
+            print("🏪 OrderHistoryService: Завантажуємо інформацію про кав'ярню \(coffeeShopId)")
+            
+            struct CoffeeShopInfo: Codable {
+                let id: String
+                let name: String
+                let address: String?
+            }
+            
+            let coffeeShop: CoffeeShopInfo = try await networkService.fetch(endpoint: "/coffee-shops/\(coffeeShopId)")
+            print("✅ OrderHistoryService: Завантажено кав'ярню: \(coffeeShop.name)")
+            
+            // Зберігаємо інформацію в кеші для майбутнього використання
+            CoffeeShopCache.shared.setCoffeeShop(coffeeShop.id, name: coffeeShop.name, address: coffeeShop.address)
+            
+        } catch {
+            print("❌ OrderHistoryService: Помилка завантаження кав'ярні \(coffeeShopId): \(error)")
+        }
     }
     
     // MARK: - Методи для діагностики
@@ -432,9 +504,14 @@ class MockOrderHistoryService: OrderHistoryServiceProtocol {
                 id: "order-1",
                 orderNumber: "CAF-\(Date().timeIntervalSince1970)",
                 status: OrderStatus.completed,
-                totalAmount: 120.50,
+                totalAmount: 195.0,
                 coffeeShopId: "shop-1",
                 coffeeShopName: "Coffee House Central",
+                coffeeShop: CoffeeShopInfo(
+                    id: "shop-1",
+                    name: "Coffee House Central",
+                    address: "вул. Хрещатик, 1"
+                ),
                 isPaid: true,
                 createdAt: "2023-12-01T10:30:00Z",
                 completedAt: "2023-12-01T11:00:00Z",
@@ -442,11 +519,39 @@ class MockOrderHistoryService: OrderHistoryServiceProtocol {
                     OrderHistoryItem(
                         id: "item-1",
                         name: "Капучино",
-                        price: 80.0,
-                        basePrice: 80.0,
-                        finalPrice: 80.0,
+                        price: 95.0,
+                        basePrice: 70.0,
+                        finalPrice: 95.0,
                         quantity: 1,
-                        customization: nil,
+                        customization: OrderItemCustomization(
+                            selectedIngredients: nil,
+                            selectedOptions: nil,
+                            selectedSizeData: nil,
+                            customizationDetails: CustomizationDetails(
+                                size: CustomizationSizeDetail(name: "Великий", price: 10.0),
+                                options: [
+                                    CustomizationOptionDetail(
+                                        name: "Ванільний сироп",
+                                        price: 15.0,
+                                        totalPrice: 15.0,
+                                        quantity: 1
+                                    )
+                                ]
+                            ),
+                            customizationSummary: "Розмір: Великий (+10.00 ₴) | Ванільний сироп (+15.00 ₴)"
+                        ),
+                        sizeName: "Великий"
+                    ),
+                    OrderHistoryItem(
+                        id: "item-2",
+                        name: "Американо",
+                        price: 50.0,
+                        basePrice: 50.0,
+                        finalPrice: 50.0,
+                        quantity: 2,
+                        customization: OrderItemCustomization(
+                            customizationSummary: "Без кастомізацій"
+                        ),
                         sizeName: "Середній"
                     )
                 ],
@@ -469,7 +574,7 @@ class MockOrderHistoryService: OrderHistoryServiceProtocol {
                 payment: OrderPaymentInfo(
                     id: "payment-1",
                     status: .completed,
-                    amount: 120.50,
+                    amount: 195.0,
                     method: "Monobank",
                     transactionId: "TXN123456",
                     createdAt: "2023-12-01T10:31:00Z",
