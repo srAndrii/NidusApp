@@ -23,6 +23,11 @@ struct NidusApp: App {
                 if authManager.isAuthenticated {
                     MainView()
                         .environmentObject(tabBarManager)
+                        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NavigateToOrderHistory"))) { _ in
+                            // Закриваємо корзину та переходимо до історії замовлень
+                            tabBarManager.isCartSheetPresented = false
+                            tabBarManager.switchToTab(.orders)
+                        }
                 } else {
                     AuthView()
                 }

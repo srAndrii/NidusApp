@@ -463,11 +463,11 @@ struct CartView: View {
                 Text("Оплата успішна!")
                     .font(.title)
                     .fontWeight(.bold)
-                    .foregroundColor(.white)
+                    .foregroundColor(Color("primaryText"))
                 
                 Text("Ваше замовлення прийнято і буде готове найближчим часом")
                     .font(.body)
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(Color("secondaryText"))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
                 
@@ -475,8 +475,12 @@ struct CartView: View {
                 Button(action: {
                     viewModel.showPaymentSuccess = false
                     viewModel.currentOrderId = nil
+                    
+                    // Закриваємо корзину та перенаправляємо на історію замовлень
+                    tabBarManager.isCartSheetPresented = false
+                    tabBarManager.switchToTab(.orders)
                 }) {
-                    Text("Продовжити")
+                    Text("Перейти до замовлень")
                         .font(.headline)
                         .padding()
                         .frame(maxWidth: .infinity)
@@ -490,10 +494,59 @@ struct CartView: View {
             .padding(.vertical, 30)
             .padding(.horizontal, 24)
             .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color("cardColor").opacity(0.95))
+                ZStack {
+                    // Основний ефект скла
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.clear)
+                        .overlay(
+                            BlurView(
+                                style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                                opacity: colorScheme == .light ? 0.95 : 0.95
+                            )
+                        )
+                        .overlay(
+                            Group {
+                                if colorScheme == .light {
+                                    // Тонування для світлої теми
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color("nidusMistyBlue").opacity(0.25),
+                                            Color("nidusCoolGray").opacity(0.1)
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                    .opacity(0.4)
+                                    
+                                    Color("nidusLightBlueGray").opacity(0.12)
+                                } else {
+                                    // Темна тема
+                                    Color.black.opacity(0.15)
+                                }
+                            }
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            colorScheme == .light
+                                                ? Color("nidusCoolGray").opacity(0.4)
+                                                : Color.black.opacity(0.35),
+                                            colorScheme == .light
+                                                ? Color("nidusLightBlueGray").opacity(0.25)
+                                                : Color.black.opacity(0.1)
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                }
             )
-            .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
+            .shadow(color: Color.black.opacity(0.08), radius: 5, x: 0, y: 2)
             .padding(.horizontal, 32)
         }
     }
