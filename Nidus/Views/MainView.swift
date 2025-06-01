@@ -5,6 +5,10 @@ struct MainView: View {
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject var tabBarManager: TabBarManager
     
+    // State для PaymentWebView
+    @State private var showPaymentWebView = false
+    @State private var paymentURL: URL?
+    
     var body: some View {
         ZStack {
             // Спочатку встановлюємо базовий колір фону
@@ -214,6 +218,31 @@ struct MainView: View {
                 NavigationView {
                     CartView()
                         .environmentObject(tabBarManager)
+                }
+            }
+            
+            // Sheet для PaymentWebView
+            .sheet(isPresented: $showPaymentWebView) {
+                if let url = paymentURL {
+                    PaymentWebView(url: url)
+                }
+            }
+            
+            // Обробник notification для відкриття PaymentWebView
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenPaymentWebView"))) { notification in
+                print("🔔 MainView: Отримано notification OpenPaymentWebView")
+                
+                if let userInfo = notification.userInfo,
+                   let urlString = userInfo["url"] as? String,
+                   let url = URL(string: urlString) {
+                    print("🌐 MainView: Відкриваємо PaymentWebView з URL: \(urlString)")
+                    
+                    DispatchQueue.main.async {
+                        self.paymentURL = url
+                        self.showPaymentWebView = true
+                    }
+                } else {
+                    print("❌ MainView: Не вдалося витягти URL з notification")
                 }
             }
         }

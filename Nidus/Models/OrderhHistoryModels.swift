@@ -858,6 +858,7 @@ struct OrderPaymentInfo: Codable, Identifiable {
     let transactionId: String?
     let createdAt: String
     let completedAt: String?
+    let paymentUrl: String?
 }
 
 // MARK: - Extensions for OrderPaymentInfo

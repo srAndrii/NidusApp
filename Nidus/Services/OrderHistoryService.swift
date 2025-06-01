@@ -239,7 +239,8 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
                     method: nil,
                     transactionId: nil,
                     createdAt: "",
-                    completedAt: nil
+                    completedAt: nil,
+                    paymentUrl: nil
                 )
                     
                     promise(.success(paymentInfo))
@@ -492,7 +493,8 @@ class MockOrderHistoryService: OrderHistoryServiceProtocol {
             method: "card",
             transactionId: "txn-123",
             createdAt: "2023-05-20T14:30:00Z",
-            completedAt: "2023-05-20T14:32:00Z"
+            completedAt: "2023-05-20T14:32:00Z",
+            paymentUrl: nil
         )
         
         return Just(mockPayment)
@@ -580,7 +582,8 @@ class MockOrderHistoryService: OrderHistoryServiceProtocol {
                     method: "Monobank",
                     transactionId: "TXN123456",
                     createdAt: "2023-12-01T10:31:00Z",
-                    completedAt: "2023-12-01T10:32:00Z"
+                    completedAt: "2023-12-01T10:32:00Z",
+                    paymentUrl: nil
                 )
             )
         ]

@@ -293,7 +293,13 @@ struct OrderDetailsView: View {
                 )
                 .cornerRadius(12)
             } else if let payment = viewModel.paymentInfo {
-                PaymentInfoCard(payment: payment, orderAmount: viewModel.order.totalAmount)
+                PaymentInfoCard(
+                    payment: payment, 
+                    orderAmount: viewModel.order.totalAmount,
+                    onRetryPayment: {
+                        viewModel.retryPayment()
+                    }
+                )
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -308,6 +314,28 @@ struct OrderDetailsView: View {
                     Text("Сума: \(viewModel.formattedTotalAmount)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
+                    
+                    // Додаємо кнопку "Оплатити" для неоплачених замовлень
+                    if !viewModel.order.isPaid {
+                        Button(action: {
+                            viewModel.retryPayment()
+                        }) {
+                            HStack {
+                                Image(systemName: "creditcard")
+                                    .font(.headline)
+                                Text("Оплатити")
+                                    .font(.headline)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color("primary"))
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.top, 8)
+                    }
                 }
                 .padding()
                 .background(
@@ -594,7 +622,14 @@ struct OrderItemCard: View {
 struct PaymentInfoCard: View {
     let payment: OrderPaymentInfo
     let orderAmount: Double
+    let onRetryPayment: (() -> Void)?
     @Environment(\.colorScheme) private var colorScheme
+    
+    init(payment: OrderPaymentInfo, orderAmount: Double, onRetryPayment: (() -> Void)? = nil) {
+        self.payment = payment
+        self.orderAmount = orderAmount
+        self.onRetryPayment = onRetryPayment
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -643,6 +678,25 @@ struct PaymentInfoCard: View {
                     
                     PaymentDetailRow(label: "Дата оплати", value: formattedDate)
                 }
+            }
+            
+            // Додаємо кнопку "Оплатити" для статусу "очікує оплати"
+            if payment.status == .pending, let onRetryPayment = onRetryPayment {
+                Button(action: onRetryPayment) {
+                    HStack {
+                        Image(systemName: "creditcard")
+                            .font(.headline)
+                        Text("Оплатити")
+                            .font(.headline)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color("primary"))
+                    .cornerRadius(8)
+                }
+                .buttonStyle(PlainButtonStyle())
             }
         }
         .padding()

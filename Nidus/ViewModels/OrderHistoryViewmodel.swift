@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import UIKit
 
 @MainActor
 class OrderHistoryViewModel: ObservableObject {
@@ -329,6 +330,14 @@ class OrderDetailsViewModel: ObservableObject {
         if paymentInfo == nil {
             loadPaymentInfo()
         }
+        
+        // Підписуємося на повідомлення про успішну оплату
+        NotificationCenter.default.publisher(for: .paymentSuccessful)
+            .sink { [weak self] _ in
+                print("🔔 OrderDetailsViewModel: Отримано повідомлення про успішну оплату")
+                self?.refreshPaymentInfo()
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Public Methods
@@ -381,6 +390,66 @@ class OrderDetailsViewModel: ObservableObject {
             await MainActor.run {
                 self.objectWillChange.send()
             }
+        }
+    }
+    
+    func retryPayment() {
+        print("🔄 OrderDetailsViewModel.retryPayment() викликано")
+        print("   - order.isPaid: \(order.isPaid)")
+        print("   - paymentInfo: \(paymentInfo?.status.rawValue ?? "nil")")
+        
+        // Якщо замовлення вже оплачене, не дозволяємо повторну оплату
+        if order.isPaid {
+            print("❌ OrderDetailsViewModel: Замовлення вже оплачене")
+            error = "Замовлення вже оплачене"
+            return
+        }
+        
+        // Якщо є paymentInfo і paymentUrl, відкриваємо його
+        if let paymentInfo = paymentInfo, 
+           let paymentUrl = paymentInfo.paymentUrl,
+           !paymentUrl.isEmpty {
+            print("✅ OrderDetailsViewModel: Використовуємо існуючий paymentUrl: \(paymentUrl)")
+            openPaymentURL(paymentUrl)
+        } else {
+            // Інакше викликаємо retry-payment endpoint
+            print("🔄 OrderDetailsViewModel: Викликаємо retry-payment endpoint")
+            Task {
+                await performRetryPayment()
+            }
+        }
+    }
+    
+    private func performRetryPayment() async {
+        do {
+            let paymentService = PaymentService.shared
+            let result = try await paymentService.retryPayment(orderId: order.id)
+            
+            await MainActor.run {
+                self.openPaymentURL(result.paymentUrl)
+            }
+        } catch {
+            await MainActor.run {
+                self.error = "Не вдалося створити нове посилання для оплати"
+            }
+        }
+    }
+    
+    private func openPaymentURL(_ urlString: String) {
+        guard let url = URL(string: urlString) else {
+            error = "Неправильне посилання для оплати"
+            return
+        }
+        
+        print("🌐 OrderDetailsViewModel: Відкриваємо payment URL: \(urlString)")
+        
+        // Відправляємо notification для відкриття WebView з MainView
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: Notification.Name("OpenPaymentWebView"),
+                object: nil,
+                userInfo: ["url": urlString, "orderId": self.order.id]
+            )
         }
     }
     
