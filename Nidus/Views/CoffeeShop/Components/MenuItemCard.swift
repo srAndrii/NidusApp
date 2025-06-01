@@ -16,56 +16,48 @@ struct MenuItemCard: View {
     let coffeeShopName: String
     @State private var navigateToDetails = false
     @Environment(\.colorScheme) private var colorScheme
-    @State private var showToast = false
+    @State private var showCheckmarkAnimation = false
     
     // MARK: - View
     var body: some View {
-        ZStack {
-            if #available(iOS 16.0, *) {
-                // Новий стиль для iOS 16+
-                NavigationLink(value: item) {
-                    CardContentView(
-                        item: item,
-                        addAction: {
-                            // Додавання товару до корзини при натисканні на кнопку +
-                            addToCart()
-                        }
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
-            } else {
-                // Старий стиль для iOS 15 і раніше
-                NavigationLink(
-                    destination: MenuItemDetailView(menuItem: item, coffeeShopId: coffeeShopId)
-                ) {
-                    CardContentView(
-                        item: item,
-                        addAction: {
-                            // Додавання товару до корзини при натисканні на кнопку +
-                            addToCart()
-                        }
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
+        navigationLinkView
+            .overlay(
+                // Checkmark анімація по центру картки
+                SuccessCheckmarkAnimation(
+                    isShowing: $showCheckmarkAnimation
+                )
+            )
+    }
+    
+    @ViewBuilder
+    private var navigationLinkView: some View {
+        if #available(iOS 16.0, *) {
+            // Новий стиль для iOS 16+
+            NavigationLink(value: item) {
+                cardContent
             }
-            
-            // Toast повідомлення
-            if showToast {
-                VStack {
-                    Spacer()
-                    Text("Додано до корзини")
-                        .padding()
-                        .background(Color("primary").opacity(0.9))
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .padding(.bottom, 20)
-                        .transition(.move(edge: .bottom))
-                }
-                .zIndex(1)
-                .transition(.opacity)
+            .buttonStyle(PlainButtonStyle())
+        } else {
+            // Старий стиль для iOS 15 і раніше
+            NavigationLink(
+                destination: MenuItemDetailView(menuItem: item, coffeeShopId: coffeeShopId)
+            ) {
+                cardContent
             }
+            .buttonStyle(PlainButtonStyle())
         }
     }
+    
+    private var cardContent: some View {
+        CardContentView(
+            item: item,
+            addAction: {
+                // Додавання товару до корзини при натисканні на кнопку +
+                addToCart()
+            }
+        )
+    }
+    
     
     // MARK: - Функція додавання товару до корзини
     private func addToCart() {
@@ -85,21 +77,21 @@ struct MenuItemCard: View {
         let success = CartService.shared.addItem(cartItem)
         
         if success {
-            // Показуємо повідомлення про успішне додавання
-            withAnimation {
-                showToast = true
-            }
-            
-            // Приховуємо повідомлення через 2 секунди
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                withAnimation {
-                    showToast = false
-                }
-            }
+            // Показуємо checkmark анімацію
+            showCheckmarkAnimation = true
         } else {
             // Якщо додавання не успішне (конфлікт кав'ярень), перенаправляємо на детальний екран
             navigateToDetails = true
         }
+    }
+    
+    // MARK: - Форматування ціни
+    private func formatPrice(_ price: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        
+        return formatter.string(from: NSDecimalNumber(decimal: price)) ?? "\(price)"
     }
 }
 
@@ -205,77 +197,12 @@ struct CardContentView: View {
         // Стилі всієї картки - оновлений зі скляним ефектом
         .padding(4)
         .frame(width: 135, height: 232)
-        .background(
-            ZStack {
-                // Скляний фон
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(Color.clear)
-                    .overlay(
-                        BlurView(
-                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
-                            opacity: colorScheme == .light ? 0.95 : 0.95
-                        )
-                    )
-                    .overlay(
-                        Group {
-                            if colorScheme == .light {
-                                // Тонування для світлої теми
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color("nidusMistyBlue").opacity(0.25),
-                                        Color("nidusCoolGray").opacity(0.1)
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                                .opacity(0.4)
-                                
-                                Color("nidusLightBlueGray").opacity(0.12)
-                            } else {
-                                // Темна тема
-                                Color.black.opacity(0.15)
-                            }
-                        }
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 25))
-            }
-        )
+        .background(cardBackground)
         .cornerRadius(25)
-        .overlay(
-            RoundedRectangle(cornerRadius: 25)
-                .stroke(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            colorScheme == .light 
-                                ? Color("nidusCoolGray").opacity(0.4)
-                                : Color.black.opacity(0.35),
-                            colorScheme == .light
-                                ? Color("nidusLightBlueGray").opacity(0.25)
-                                : Color.black.opacity(0.1)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
+        .overlay(cardBorder)
         .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
         .opacity(item.isAvailable ? 1.0 : 0.5)
-        // Показуємо "Недоступно" для недоступних товарів
-        .overlay(
-            Group {
-                if !item.isAvailable {
-                    Text("Недоступно")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(4)
-                }
-            }
-        )
+        .overlay(unavailableOverlay)
     }
     
     /// Заглушка для зображення
@@ -305,6 +232,88 @@ struct CardContentView: View {
         
         return formatter.string(from: NSDecimalNumber(decimal: price)) ?? "\(price)"
     }
+    
+    /// Фонове оформлення картки
+    private var cardBackground: some View {
+        ZStack {
+            // Скляний фон
+            RoundedRectangle(cornerRadius: 25)
+                .fill(Color.clear)
+                .overlay(blurEffectView)
+                .overlay(colorTintOverlay)
+                .clipShape(RoundedRectangle(cornerRadius: 25))
+        }
+    }
+    
+    /// Ефект розмиття
+    private var blurEffectView: some View {
+        BlurView(
+            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+            opacity: 0.95
+        )
+    }
+    
+    /// Кольорове тонування
+    @ViewBuilder
+    private var colorTintOverlay: some View {
+        if colorScheme == .light {
+            // Тонування для світлої теми
+            ZStack {
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color("nidusMistyBlue").opacity(0.25),
+                        Color("nidusCoolGray").opacity(0.1)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .opacity(0.4)
+                
+                Color("nidusLightBlueGray").opacity(0.12)
+            }
+        } else {
+            // Темна тема
+            Color.black.opacity(0.15)
+        }
+    }
+    
+    /// Обводка картки
+    private var cardBorder: some View {
+        RoundedRectangle(cornerRadius: 25)
+            .stroke(borderGradient, lineWidth: 1)
+    }
+    
+    /// Градієнт для обводки
+    private var borderGradient: LinearGradient {
+        LinearGradient(
+            gradient: Gradient(colors: [
+                colorScheme == .light 
+                    ? Color("nidusCoolGray").opacity(0.4)
+                    : Color.black.opacity(0.35),
+                colorScheme == .light
+                    ? Color("nidusLightBlueGray").opacity(0.25)
+                    : Color.black.opacity(0.1)
+            ]),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
+    /// Оверлей для недоступних товарів
+    @ViewBuilder
+    private var unavailableOverlay: some View {
+        if !item.isAvailable {
+            Text("Недоступно")
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.black.opacity(0.7))
+                .cornerRadius(4)
+        }
+    }
 }
+
 
 
