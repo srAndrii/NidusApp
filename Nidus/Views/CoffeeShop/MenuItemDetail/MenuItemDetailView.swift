@@ -15,12 +15,11 @@ struct MenuItemDetailView: View {
     @StateObject private var viewModel: MenuItemDetailViewModel
     @Environment(\.presentationMode) var presentationMode
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject var tabBarManager: TabBarManager
     
     // MARK: - Стани екрану
     @State private var selectedSize: String = "" // Порожній рядок для автоматичного вибору розміру за замовчуванням
     @State private var quantity: Int = 1
-    @State private var showToast = false
-    @State private var toastMessage = ""
     
     // MARK: - Конструктор
     init(menuItem: MenuItem, coffeeShopId: String) {
@@ -119,10 +118,6 @@ struct MenuItemDetailView: View {
 
                 .padding(.leading, 12)
             
-            // Toast повідомлення
-            if showToast {
-                Toast(message: toastMessage, isShowing: $showToast)
-            }
         }
         .navigationBarHidden(true)
         .ignoresSafeArea(edges: .top)
@@ -537,8 +532,9 @@ struct MenuItemDetailView: View {
                 
                 // Тут буде логіка додавання до кошика
                 viewModel.addToCart(quantity: quantity)
-                toastMessage = "Додано до кошика: \(menuItem.name) x\(quantity)"
-                showToast = true
+                
+                // Тригерим анімацію кошика
+                tabBarManager.triggerCartAnimation()
                 
                 // Діагностичне повідомлення після виклику методу
                 print("✅ MenuItemDetailView: Виклик методу addToCart завершено")
@@ -590,6 +586,7 @@ struct MenuItemDetailView_Previews: PreviewProvider {
     static var previews: some View {
         // Приклад з базовими даними
         MenuItemDetailView(menuItem: MockData.mockCappuccino, coffeeShopId: "shop-1")
+            .environmentObject(TabBarManager())
             .previewDisplayName("Basic Item")
         
         // Приклад з кастомізацією
@@ -630,6 +627,7 @@ struct MenuItemDetailView_Previews: PreviewProvider {
         )
         
         MenuItemDetailView(menuItem: customizedItem, coffeeShopId: "shop-1")
+            .environmentObject(TabBarManager())
             .previewDisplayName("With Customization")
     }
 }

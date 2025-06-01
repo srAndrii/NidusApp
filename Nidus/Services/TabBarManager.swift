@@ -30,6 +30,9 @@ class TabBarManager: ObservableObject {
     // Властивість для керування відображенням корзини як sheet
     @Published var isCartSheetPresented: Bool = false
     
+    // Властивість для анімації пульсації корзини
+    @Published var shouldAnimateCart: Bool = false
+    
     // Метод для переключення на іншу вкладку
     func switchToTab(_ tab: TabSelection) {
         selectedTab = tab
@@ -52,6 +55,23 @@ class TabBarManager: ObservableObject {
     func updateCartItemsCount(_ count: Int) {
         DispatchQueue.main.async {
             self.cartItemsCount = count
+        }
+    }
+    
+    // Метод для тригеру анімації корзини
+    func triggerCartAnimation() {
+        DispatchQueue.main.async {
+            // Haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            
+            // Тригер анімації
+            self.shouldAnimateCart = true
+            
+            // Автоматично скидаємо через деякий час
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.shouldAnimateCart = false
+            }
         }
     }
 }

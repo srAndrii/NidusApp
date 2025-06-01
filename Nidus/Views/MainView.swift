@@ -135,43 +135,62 @@ struct MainView: View {
                             Button(action: {
                                 tabBarManager.isCartSheetPresented = true
                             }) {
-                                Image(systemName: "cart.fill")
-                                    .font(.system(size: 22))
-                                    .foregroundColor(Color("primary"))
-                                    .frame(width: 60, height: 50)
-                                    .background(
+                                ZStack {
+                                    // Анімаційні кільця пульсації (як круги на воді)
+                                    ForEach(0..<3, id: \.self) { index in
                                         Circle()
-                                            .fill(Color.clear)
-                                            .overlay(
-                                                BlurView(
-                                                    style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
-                                                    opacity: colorScheme == .light ? 0.95 : 0.95
+                                            .stroke(Color("primary"), lineWidth: 3)
+                                            .frame(width: 60, height: 60)
+                                            .scaleEffect(tabBarManager.shouldAnimateCart ? 2.0 + CGFloat(index) * 0.5 : 1.0)
+                                            .opacity(tabBarManager.shouldAnimateCart ? 0.0 : 0.6)
+                                            .animation(
+                                                .easeOut(duration: 1.0)
+                                                .delay(Double(index) * 0.15), 
+                                                value: tabBarManager.shouldAnimateCart
+                                            )
+                                    }
+                                    
+                                    // Основна іконка кошика
+                                    Image(systemName: "cart.fill")
+                                        .font(.system(size: 22))
+                                        .foregroundColor(Color("primary"))
+                                        .frame(width: 60, height: 50)
+                                        .background(
+                                            Circle()
+                                                .fill(Color.clear)
+                                                .overlay(
+                                                    BlurView(
+                                                        style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                                                        opacity: colorScheme == .light ? 0.95 : 0.95
+                                                    )
                                                 )
-                                            )
-                                            .overlay(
-                                                Group {
-                                                    if colorScheme == .light {
-                                                        // Тонування для світлої теми
-                                                        LinearGradient(
-                                                            gradient: Gradient(colors: [
-                                                                Color("nidusMistyBlue").opacity(0.25),
-                                                                Color("nidusCoolGray").opacity(0.1)
-                                                            ]),
-                                                            startPoint: .topLeading,
-                                                            endPoint: .bottomTrailing
-                                                        )
-                                                        .opacity(0.4)
-                                                        
-                                                        Color("nidusLightBlueGray").opacity(0.12)
-                                                    } else {
-                                                        // Темна тема
-                                                        Color.black.opacity(0.15)
+                                                .overlay(
+                                                    Group {
+                                                        if colorScheme == .light {
+                                                            // Тонування для світлої теми
+                                                            LinearGradient(
+                                                                gradient: Gradient(colors: [
+                                                                    Color("nidusMistyBlue").opacity(0.25),
+                                                                    Color("nidusCoolGray").opacity(0.1)
+                                                                ]),
+                                                                startPoint: .topLeading,
+                                                                endPoint: .bottomTrailing
+                                                            )
+                                                            .opacity(0.4)
+                                                            
+                                                            Color("nidusLightBlueGray").opacity(0.12)
+                                                        } else {
+                                                            // Темна тема
+                                                            Color.black.opacity(0.15)
+                                                        }
                                                     }
-                                                }
-                                            )
-                                            .clipShape(Circle())
-                                            .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
-                                    )
+                                                )
+                                                .clipShape(Circle())
+                                                .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+                                        )
+                                        .scaleEffect(tabBarManager.shouldAnimateCart ? 1.15 : 1.0)
+                                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: tabBarManager.shouldAnimateCart)
+                                }
                             }
                             
                             // Бейдж для кількості товарів
