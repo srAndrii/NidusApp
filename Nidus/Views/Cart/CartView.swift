@@ -141,15 +141,6 @@ struct CartView: View {
                                     viewModel.showPaymentWebView = false
                                 }
                             }
-                            
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button("Готово") {
-                                    // Вручну тригеримо успішну оплату
-                                    viewModel.showPaymentWebView = false
-                                    NotificationCenter.default.post(name: .paymentSuccessful, object: nil)
-                                }
-                                .foregroundColor(.green)
-                            }
                         }
                 }
             }
