@@ -156,7 +156,57 @@ class NetworkService {
             if (200...299).contains(httpResponse.statusCode) {
                 do {
                     let decoder = JSONDecoder()
-                    decoder.dateDecodingStrategy = .iso8601
+                    decoder.dateDecodingStrategy = .custom { decoder in
+                        let container = try decoder.singleValueContainer()
+                        let dateStr = try container.decode(String.self)
+                        
+                        print("🕐 [PATCH] Намагаємося декодувати дату: '\(dateStr)'")
+                        
+                        // Спочатку пробуємо ISO8601DateFormatter з підтримкою мілісекунд
+                        let iso8601Formatter = ISO8601DateFormatter()
+                        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                        
+                        if let date = iso8601Formatter.date(from: dateStr) {
+                            print("✅ [PATCH] Успішно декодовано з ISO8601 (з мілісекундами): \(date)")
+                            return date
+                        }
+                        
+                        // Якщо не спрацювало, пробуємо без мілісекунд
+                        iso8601Formatter.formatOptions = [.withInternetDateTime]
+                        
+                        if let date = iso8601Formatter.date(from: dateStr) {
+                            print("✅ [PATCH] Успішно декодовано з ISO8601 (без мілісекунд): \(date)")
+                            return date
+                        }
+                        
+                        // Спробуємо кілька форматів дати вручну
+                        let formatters = [
+                            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+                            "yyyy-MM-dd'T'HH:mm:ssZ",
+                            "yyyy-MM-dd'T'HH:mm:ss"
+                        ].map { format -> DateFormatter in
+                            let formatter = DateFormatter()
+                            formatter.dateFormat = format
+                            formatter.locale = Locale(identifier: "en_US_POSIX")
+                            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+                            return formatter
+                        }
+                        
+                        for (index, formatter) in formatters.enumerated() {
+                            if let date = formatter.date(from: dateStr) {
+                                print("✅ [PATCH] Успішно декодовано з формату #\(index): \(date)")
+                                return date
+                            }
+                        }
+                        
+                        print("❌ [PATCH] Не вдалося декодувати дату: '\(dateStr)'")
+                        throw DecodingError.dataCorruptedError(
+                            in: container,
+                            debugDescription: "Expected date string to be ISO8601-formatted."
+                        )
+                    }
                     
                     return try decoder.decode(U.self, from: data)
                 } catch {
@@ -273,8 +323,29 @@ class NetworkService {
                     let container = try decoder.singleValueContainer()
                     let dateStr = try container.decode(String.self)
                     
-                    // Спробуємо кілька форматів дати
+                    print("🕐 Намагаємося декодувати дату: '\(dateStr)'")
+                    
+                    // Спочатку пробуємо ISO8601DateFormatter з підтримкою мілісекунд
+                    let iso8601Formatter = ISO8601DateFormatter()
+                    iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                    
+                    if let date = iso8601Formatter.date(from: dateStr) {
+                        print("✅ Успішно декодовано з ISO8601 (з мілісекундами): \(date)")
+                        return date
+                    }
+                    
+                    // Якщо не спрацювало, пробуємо без мілісекунд
+                    iso8601Formatter.formatOptions = [.withInternetDateTime]
+                    
+                    if let date = iso8601Formatter.date(from: dateStr) {
+                        print("✅ Успішно декодовано з ISO8601 (без мілісекунд): \(date)")
+                        return date
+                    }
+                    
+                    // Спробуємо кілька форматів дати вручну
                     let formatters = [
+                        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                        "yyyy-MM-dd'T'HH:mm:ss'Z'",
                         "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
                         "yyyy-MM-dd'T'HH:mm:ssZ",
                         "yyyy-MM-dd'T'HH:mm:ss"
@@ -282,18 +353,21 @@ class NetworkService {
                         let formatter = DateFormatter()
                         formatter.dateFormat = format
                         formatter.locale = Locale(identifier: "en_US_POSIX")
+                        formatter.timeZone = TimeZone(secondsFromGMT: 0)
                         return formatter
                     }
                     
-                    for formatter in formatters {
+                    for (index, formatter) in formatters.enumerated() {
                         if let date = formatter.date(from: dateStr) {
+                            print("✅ Успішно декодовано з формату #\(index): \(date)")
                             return date
                         }
                     }
                     
+                    print("❌ Не вдалося декодувати дату: '\(dateStr)'")
                     throw DecodingError.dataCorruptedError(
                         in: container,
-                        debugDescription: "Не вдається розпізнати дату: \(dateStr)"
+                        debugDescription: "Expected date string to be ISO8601-formatted."
                     )
                 }
                 

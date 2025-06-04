@@ -420,6 +420,55 @@ class OrderDetailsViewModel: ObservableObject {
         }
     }
     
+    func cancelOrder() async {
+        print("🚫 OrderDetailsViewModel.cancelOrder() викликано")
+        print("   - order.status: \(order.status.rawValue)")
+        print("   - order.isPaid: \(order.isPaid)")
+        
+        // Перевіряємо, чи можна скасувати замовлення
+        // Дозволяємо скасування тільки для статусу 'created'
+        guard order.status == .created else {
+            await MainActor.run {
+                self.error = "Замовлення можна скасувати тільки зі статусом 'Створено'"
+            }
+            return
+        }
+        
+        do {
+            let paymentService = PaymentService.shared
+            let canceledOrder = try await paymentService.cancelOrder(orderId: order.id)
+            
+            await MainActor.run {
+                // Оновлюємо локальні дані замовлення
+                self.order = OrderHistory(
+                    id: canceledOrder.id,
+                    orderNumber: self.order.orderNumber, // Використовуємо існуючий orderNumber
+                    status: canceledOrder.status,
+                    totalAmount: Double(truncating: canceledOrder.totalAmount as NSDecimalNumber),
+                    coffeeShopId: self.order.coffeeShopId,
+                    coffeeShopName: self.order.coffeeShopName,
+                    coffeeShop: self.order.coffeeShop,
+                    isPaid: canceledOrder.isPaid,
+                    createdAt: self.order.createdAt, // Зберігаємо оригінальну дату створення
+                    completedAt: self.order.completedAt, // Зберігаємо існуюче значення
+                    items: self.order.items,
+                    statusHistory: self.order.statusHistory,
+                    payment: self.order.payment
+                )
+                
+                // Відправляємо повідомлення про оновлення статусу
+                NotificationCenter.default.post(name: Notification.Name("OrderStatusUpdated"), object: nil)
+                
+                print("✅ OrderDetailsViewModel: Замовлення успішно скасовано")
+            }
+        } catch {
+            await MainActor.run {
+                self.error = "Не вдалося скасувати замовлення: \(error.localizedDescription)"
+                print("❌ OrderDetailsViewModel: Помилка скасування: \(error)")
+            }
+        }
+    }
+    
     private func performRetryPayment() async {
         do {
             let paymentService = PaymentService.shared
@@ -436,7 +485,7 @@ class OrderDetailsViewModel: ObservableObject {
     }
     
     private func openPaymentURL(_ urlString: String) {
-        guard let url = URL(string: urlString) else {
+        guard URL(string: urlString) != nil else {
             error = "Неправильне посилання для оплати"
             return
         }

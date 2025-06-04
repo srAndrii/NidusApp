@@ -305,8 +305,27 @@ class CartViewModel: ObservableObject {
         self.isLoading = true
         
         do {
-            _ = try await paymentService.cancelOrder(orderId: orderId)
-            self.currentOrderId = nil
+            let canceledOrder = try await paymentService.cancelOrder(orderId: orderId)
+            
+            // Перевіряємо статус скасованого замовлення
+            if canceledOrder.status == .cancelled {
+                // Очищаємо ID поточного замовлення
+                self.currentOrderId = nil
+                
+                // Очищаємо корзину після успішного скасування
+                cartService.clearCart()
+                
+                // Повідомляємо про оновлення статусу замовлення
+                NotificationCenter.default.post(name: Notification.Name("OrderStatusUpdated"), object: nil)
+                
+                print("✅ CartViewModel: Замовлення успішно скасовано, корзина очищена")
+            } else {
+                self.error = "Не вдалося скасувати замовлення"
+            }
+            
+            self.isLoading = false
+        } catch let error as APIError {
+            await handleAPIError(error)
             self.isLoading = false
         } catch {
             self.error = "Помилка скасування замовлення: \(error.localizedDescription)"

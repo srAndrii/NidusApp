@@ -17,8 +17,25 @@ extension JSONDecoder {
             let container = try decoder.singleValueContainer()
             let dateStr = try container.decode(String.self)
             
-            // Випробовуємо різні формати дати
+            // Спробуємо спочатку ISO8601DateFormatter для стандартних форматів
+            let iso8601Formatter = ISO8601DateFormatter()
+            iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            
+            if let date = iso8601Formatter.date(from: dateStr) {
+                return date
+            }
+            
+            // Якщо ISO8601 не спрацював, спробуємо без мілісекунд
+            iso8601Formatter.formatOptions = [.withInternetDateTime]
+            
+            if let date = iso8601Formatter.date(from: dateStr) {
+                return date
+            }
+            
+            // Випробовуємо інші формати дати
             let formatters = [
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
                 "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
                 "yyyy-MM-dd'T'HH:mm:ssZ",
                 "yyyy-MM-dd'T'HH:mm:ss",

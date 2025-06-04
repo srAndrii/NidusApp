@@ -4,6 +4,7 @@ struct OrderDetailsView: View {
     @StateObject private var viewModel: OrderDetailsViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @State private var showCancelConfirmation = false
     
     init(order: OrderHistory) {
         _viewModel = StateObject(wrappedValue: OrderDetailsViewModel(order: order))
@@ -121,6 +122,16 @@ struct OrderDetailsView: View {
                 if let error = viewModel.error {
                     Text(error)
                 }
+            }
+            .alert("Скасувати замовлення?", isPresented: $showCancelConfirmation) {
+                Button("Скасувати", role: .destructive) {
+                    Task {
+                        await viewModel.cancelOrder()
+                    }
+                }
+                Button("Ні", role: .cancel) {}
+            } message: {
+                Text("Ви впевнені, що хочете скасувати це замовлення?")
             }
         }
     }
@@ -296,8 +307,12 @@ struct OrderDetailsView: View {
                 PaymentInfoCard(
                     payment: payment, 
                     orderAmount: viewModel.order.totalAmount,
+                    orderStatus: viewModel.order.status,
                     onRetryPayment: {
                         viewModel.retryPayment()
+                    },
+                    onCancelOrder: {
+                        await viewModel.cancelOrder()
                     }
                 )
             } else {
@@ -315,25 +330,49 @@ struct OrderDetailsView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    // Додаємо кнопку "Оплатити" для неоплачених замовлень
-                    if !viewModel.order.isPaid {
-                        Button(action: {
-                            viewModel.retryPayment()
-                        }) {
-                            HStack {
-                                Image(systemName: "creditcard")
-                                    .font(.headline)
-                                Text("Оплатити")
-                                    .font(.headline)
-                                    .fontWeight(.medium)
+                    // Додаємо кнопки для неоплачених замовлень, але не для скасованих
+                    if !viewModel.order.isPaid && viewModel.order.status != .cancelled {
+                        HStack(spacing: 12) {
+                            // Кнопка "Оплатити"
+                            Button(action: {
+                                viewModel.retryPayment()
+                            }) {
+                                HStack {
+                                    Image(systemName: "creditcard")
+                                        .font(.headline)
+                                    Text("Оплатити")
+                                        .font(.headline)
+                                        .fontWeight(.medium)
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color("primary"))
+                                .cornerRadius(8)
                             }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Color("primary"))
-                            .cornerRadius(8)
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            // Кнопка "Скасувати" тільки для статусу "created"
+                            if viewModel.order.status == .created {
+                                Button(action: {
+                                    showCancelConfirmation = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "xmark.circle")
+                                            .font(.headline)
+                                        Text("Скасувати")
+                                            .font(.headline)
+                                            .fontWeight(.medium)
+                                    }
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(Color.red.opacity(0.8))
+                                    .cornerRadius(8)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
                         }
-                        .buttonStyle(PlainButtonStyle())
                         .padding(.top, 8)
                     }
                 }
@@ -623,12 +662,16 @@ struct PaymentInfoCard: View {
     let payment: OrderPaymentInfo
     let orderAmount: Double
     let onRetryPayment: (() -> Void)?
+    let onCancelOrder: (() async -> Void)?
+    let orderStatus: OrderStatus
     @Environment(\.colorScheme) private var colorScheme
     
-    init(payment: OrderPaymentInfo, orderAmount: Double, onRetryPayment: (() -> Void)? = nil) {
+    init(payment: OrderPaymentInfo, orderAmount: Double, orderStatus: OrderStatus, onRetryPayment: (() -> Void)? = nil, onCancelOrder: (() async -> Void)? = nil) {
         self.payment = payment
         self.orderAmount = orderAmount
+        self.orderStatus = orderStatus
         self.onRetryPayment = onRetryPayment
+        self.onCancelOrder = onCancelOrder
     }
     
     var body: some View {
@@ -680,23 +723,51 @@ struct PaymentInfoCard: View {
                 }
             }
             
-            // Додаємо кнопку "Оплатити" для статусу "очікує оплати"
-            if payment.status == .pending, let onRetryPayment = onRetryPayment {
-                Button(action: onRetryPayment) {
-                    HStack {
-                        Image(systemName: "creditcard")
-                            .font(.headline)
-                        Text("Оплатити")
-                            .font(.headline)
-                            .fontWeight(.medium)
+            // Додаємо кнопки для статусу "очікує оплати", але не для скасованих замовлень
+            if payment.status == .pending && orderStatus != .cancelled {
+                HStack(spacing: 12) {
+                    // Кнопка "Оплатити"
+                    if let onRetryPayment = onRetryPayment {
+                        Button(action: onRetryPayment) {
+                            HStack {
+                                Image(systemName: "creditcard")
+                                    .font(.headline)
+                                Text("Оплатити")
+                                    .font(.headline)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color("primary"))
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color("primary"))
-                    .cornerRadius(8)
+                    
+                    // Кнопка "Скасувати" тільки для статусу "created"
+                    if orderStatus == .created, let onCancelOrder = onCancelOrder {
+                        Button(action: {
+                            Task {
+                                await onCancelOrder()
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "xmark.circle")
+                                    .font(.headline)
+                                Text("Скасувати")
+                                    .font(.headline)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.red.opacity(0.8))
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
                 }
-                .buttonStyle(PlainButtonStyle())
             }
         }
         .padding()

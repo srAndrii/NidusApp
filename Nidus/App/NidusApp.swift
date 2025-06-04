@@ -9,7 +9,7 @@ import SwiftUI
 
 // Розширення для Notification.Name
 extension Notification.Name {
-    static let paymentSuccessful = Notification.Name("paymentSuccessful")
+    static let paymentSuccessful = Notification.Name(rawValue: "paymentSuccessful")
 }
 
 @main
