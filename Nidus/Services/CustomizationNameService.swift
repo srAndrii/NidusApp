@@ -28,7 +28,7 @@ class CustomizationNameService {
     // Завантажуємо назви з кав'ярні (виправлений метод)
     func loadNamesFromCoffeeShop(_ coffeeShopId: String) async {
         do {
-            print("🔍 CustomizationNameService: Завантажуємо меню кав'ярні \(coffeeShopId)")
+            // Логування завантаження видалено для production
             
             // API повертає масив категорій з повною інформацією про товари
             struct MenuCategory: Codable {
@@ -92,7 +92,7 @@ class CustomizationNameService {
             
             let categories: [MenuCategory] = try await networkService.fetch(endpoint: "/coffee-shops/\(coffeeShopId)/menu")
             
-            print("✅ CustomizationNameService: Отримано \(categories.count) категорій меню")
+            // Логування успішного завантаження видалено для production
             
             // Обробляємо всі товари з усіх категорій
             queue.async(flags: .barrier) { [weak self] in
@@ -102,7 +102,7 @@ class CustomizationNameService {
                 var optionCount = 0
                 
                 for category in categories {
-                    print("📂 Обробляємо категорію: \(category.name) (\(category.menuItems.count) товарів)")
+                    // Логування обробки категорій видалено для production
                     
                     for item in category.menuItems {
                         // Зберігаємо назви інгредієнтів
@@ -110,7 +110,7 @@ class CustomizationNameService {
                             for ingredient in ingredients {
                                 self.ingredientNames[ingredient.id] = ingredient.name
                                 ingredientCount += 1
-                                print("📝 Збережено інгредієнт: \(ingredient.id) -> \(ingredient.name)")
+                                // Логування збереження видалено для production
                             }
                         }
                         
@@ -120,7 +120,7 @@ class CustomizationNameService {
                                 for choice in group.choices {
                                     self.optionNames[choice.id] = choice.name
                                     optionCount += 1
-                                    print("📝 Збережено опцію: \(choice.id) -> \(choice.name)")
+                                    // Логування збереження видалено для production
                                 }
                             }
                         }
@@ -130,13 +130,13 @@ class CustomizationNameService {
                             for size in sizes {
                                 self.optionNames[size.id] = size.name
                                 optionCount += 1
-                                print("📝 Збережено розмір: \(size.id) -> \(size.name)")
+                                // Логування збереження видалено для production
                             }
                         }
                     }
                 }
                 
-                print("✅ CustomizationNameService: Завантажено \(ingredientCount) інгредієнтів та \(optionCount) опцій")
+                // Логування підсумку видалено для production
             }
             
         } catch {
@@ -169,7 +169,7 @@ class CustomizationNameService {
                                 if let name = choice.name {
                                     self.optionNames[choice.id] = name
                                     extractedOptions += 1
-                                    print("📝 Витягнуто назву опції з замовлення: \(choice.id) -> \(name)")
+                                    // Логування видалено для production
                                 }
                             }
                         }
@@ -179,12 +179,12 @@ class CustomizationNameService {
                     if let details = customization.customizationDetails {
                         if let size = details.size {
                             // Розмір зберігаємо як опцію
-                            print("📝 Витягнуто назву розміру з замовлення: \(size.name)")
+                            // Логування видалено для production
                         }
                         
                         if let options = details.options {
                             for option in options {
-                                print("📝 Витягнуто назву опції з деталей: \(option.name)")
+                                // Логування видалено для production
                             }
                         }
                     }
@@ -193,20 +193,18 @@ class CustomizationNameService {
                 // Витягуємо назви з item.customizationDetails
                 if let details = item.customizationDetails {
                     if let size = details.size {
-                        print("📝 Витягнуто назву розміру з item: \(size.name)")
+                        // Логування видалено для production
                     }
                     
                     if let options = details.options {
                         for option in options {
-                            print("📝 Витягнуто назву опції з item: \(option.name)")
+                            // Логування видалено для production
                         }
                     }
                 }
             }
             
-            if extractedIngredients > 0 || extractedOptions > 0 {
-                print("✅ CustomizationNameService: Витягнуто з замовлення \(extractedIngredients) інгредієнтів та \(extractedOptions) опцій")
-            }
+            // Логування витягнутих даних видалено для production
         }
     }
 } 

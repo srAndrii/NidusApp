@@ -19,7 +19,7 @@ class CoffeeShopCache {
         queue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }
             self.cache[id] = CoffeeShopCacheItem(id: id, name: name, address: address)
-            print("💾 CoffeeShopCache: Збережено кав'ярню \(id) -> \(name)")
+            // Логування видалено для production
         }
     }
     

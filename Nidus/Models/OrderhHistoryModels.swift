@@ -75,10 +75,8 @@ struct OrderHistory: Codable, Identifiable {
         // Обробляємо totalAmount як рядок або число
         if let totalAmountString = try? container.decode(String.self, forKey: .totalAmount) {
             totalAmount = Double(totalAmountString) ?? 0.0
-            print("🔧 OrderHistory: Декодовано totalAmount з рядка '\(totalAmountString)' -> \(totalAmount)")
         } else {
             totalAmount = try container.decode(Double.self, forKey: .totalAmount)
-            print("🔧 OrderHistory: Декодовано totalAmount як число -> \(totalAmount)")
         }
     }
 }

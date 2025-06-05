@@ -91,62 +91,7 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
                         }
                     }
                     
-                    print("📋 OrderHistoryService: Детальна інформація про відповідь:")
-                    
-                    if result.isEmpty {
-                        print("⚠️ OrderHistoryService: ПОРОЖНЯ ВІДПОВІДЬ!")
-                        print("   Можливі причини:")
-                        print("   1. Користувач не має замовлень")
-                        print("   2. Неправильна роль користувача (coffee_shop_owner замість customer)")
-                        print("   3. Замовлення створені під іншим користувачем")
-                        print("   4. API фільтрує замовлення за статусом або датою")
-                    } else {
-                        for (index, order) in result.enumerated() {
-                            print("📦 Замовлення \(index + 1):")
-                            print("   - ID: \(order.id)")
-                            print("   - Номер: \(order.orderNumber)")
-                            print("   - Статус: \(order.status.rawValue)")
-                            print("   - Сума: \(order.totalAmount) ₴")
-                            print("   - Дата створення: \(order.formattedCreatedDate)")
-                            print("   - Оплачено: \(order.isPaid ? "Так" : "Ні")")
-                            print("   - Кав'ярня (назва): \(order.coffeeShopName ?? "немає")")
-                            print("   - Кав'ярня (об'єкт): \(order.coffeeShop?.name ?? "немає")")
-                            print("   - Товарів: \(order.items.count)")
-                            
-                            for (itemIndex, item) in order.items.enumerated() {
-                                print("     📋 Товар \(itemIndex + 1): \(item.name)")
-                                print("        - Базова ціна: \(item.basePrice) ₴")
-                                print("        - Фінальна ціна: \(item.finalPrice) ₴")
-                                print("        - Кількість: \(item.quantity)")
-                                print("        - Розмір: \(item.sizeName ?? "не вказано")")
-                                
-                                print("        - Кастомізації на рівні item:")
-                                print("          - item.customizationSummary: \(item.customizationSummary ?? "немає")")
-                                print("          - item.customizationDetails: \(item.customizationDetails != nil ? "є" : "немає")")
-                                
-                                if let customization = item.customization {
-                                    print("        - Кастомізації в customization об'єкті:")
-                                    print("          - customization.customizationSummary: \(customization.customizationSummary ?? "немає")")
-                                    print("          - customization.customizationDetails: \(customization.customizationDetails != nil ? "є" : "немає")")
-                                    print("          - customization.selectedIngredients: \(customization.selectedIngredients ?? [:])")
-                                    print("          - customization.selectedOptions: \(customization.selectedOptions?.keys.joined(separator: ", ") ?? "немає")")
-                                    
-                                    if let details = customization.customizationDetails {
-                                        if let size = details.size {
-                                            print("            - Розмір: \(size.name) (+\(size.price) ₴)")
-                                        }
-                                        if let options = details.options, !options.isEmpty {
-                                            for option in options {
-                                                print("            - Опція: \(option.name) (+\(option.price) ₴)")
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    print("        - customization об'єкт: немає")
-                                }
-                            }
-                        }
-                    }
+                    // Детальне логування замовлень видалено для production
                     
                     promise(.success(result))
                 } catch {
@@ -193,14 +138,7 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
                     
                     let result: [OrderHistory] = try await self.networkService.fetch(endpoint: endpoint)
                     
-                    print("✅ OrderHistoryService: Отримано \(result.count) активних замовлень")
-                    if result.isEmpty {
-                        print("⚠️ OrderHistoryService: ПОРОЖНЯ ВІДПОВІДЬ для активних замовлень!")
-                    } else {
-                        for order in result {
-                            print("📦 Активне замовлення: \(order.orderNumber) | Статус: \(order.status.rawValue) | Сума: \(order.totalAmount) ₴")
-                        }
-                    }
+                    // Логування активних замовлень видалено для production
                     
                     promise(.success(result))
                 } catch {
@@ -256,8 +194,6 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
     
     private func loadCoffeeShopInfo(for coffeeShopId: String) async {
         do {
-            print("🏪 OrderHistoryService: Завантажуємо інформацію про кав'ярню \(coffeeShopId)")
-            
             struct CoffeeShopInfo: Codable {
                 let id: String
                 let name: String
@@ -265,7 +201,6 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
             }
             
             let coffeeShop: CoffeeShopInfo = try await networkService.fetch(endpoint: "/coffee-shops/\(coffeeShopId)")
-            print("✅ OrderHistoryService: Завантажено кав'ярню: \(coffeeShop.name)")
             
             // Зберігаємо інформацію в кеші для майбутнього використання безпечно
             DispatchQueue.main.async {

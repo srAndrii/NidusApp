@@ -305,10 +305,7 @@ class NetworkService {
         switch httpResponse.statusCode {
         case 200...299:
             do {
-                // Для відладки: виведемо текст JSON-відповіді
-                if let jsonString = String(data: data, encoding: .utf8) {
-                    print("JSON відповідь: \(jsonString)")
-                }
+                // JSON логування видалено для production
                 
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
