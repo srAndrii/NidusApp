@@ -29,7 +29,7 @@ enum OrderStatus: String, Codable, CaseIterable {
         case .ready:
             return "Готове до видачі"
         case .completed:
-            return "Виконано"
+            return "Видано"
         case .cancelled:
             return "Скасовано"
         }
