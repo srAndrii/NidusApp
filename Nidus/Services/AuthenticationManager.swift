@@ -27,6 +27,10 @@ class AuthenticationManager: ObservableObject {
             // Завантажуємо дані користувача
             Task {
                 await loadCurrentUser()
+                // Підключаємо WebSocket з userId після завантаження користувача
+                if let userId = currentUser?.id {
+                    OrderWebSocketManager.shared.connect(userId: userId)
+                }
             }
         }
     }
@@ -45,6 +49,10 @@ class AuthenticationManager: ObservableObject {
                 isAuthenticated = true
                 // Завантажуємо дані користувача
                 await loadCurrentUser()
+                // Підключаємо WebSocket з userId
+                if let userId = currentUser?.id {
+                    OrderWebSocketManager.shared.connect(userId: userId)
+                }
             } else {
                 error = "Не вдалося авторизуватися. Спробуйте ще раз."
             }
@@ -110,6 +118,9 @@ class AuthenticationManager: ObservableObject {
         currentUser = nil
         isAuthenticated = false
         isLoading = false
+        
+        // Відключаємо WebSocket
+        OrderWebSocketManager.shared.disconnect()
     }
     
     @MainActor
@@ -130,7 +141,11 @@ class AuthenticationManager: ObservableObject {
         
         do {
             // Пробуємо оновити токени
-            let (_, _) = try await authRepository.refreshToken(refreshToken: refreshToken)
+            let (newAccessToken, _) = try await authRepository.refreshToken(refreshToken: refreshToken)
+            // Переконектимо WebSocket з userId (якщо є поточний користувач)
+            if let userId = currentUser?.id {
+                OrderWebSocketManager.shared.connect(userId: userId)
+            }
             return true
         } catch {
             print("Token refresh failed: \(error)")

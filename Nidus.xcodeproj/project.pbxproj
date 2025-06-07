@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B41944742DF2F99900D86E02 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = B41944732DF2F99900D86E02 /* SocketIO */; };
 		B477F7B52D98981F00595037 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = B477F7B42D98981F00595037 /* Kingfisher */; };
 /* End PBXBuildFile section */
 
@@ -41,6 +42,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B477F7B52D98981F00595037 /* Kingfisher in Frameworks */,
+				B41944742DF2F99900D86E02 /* SocketIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,6 +87,7 @@
 			name = Nidus;
 			packageProductDependencies = (
 				B477F7B42D98981F00595037 /* Kingfisher */,
+				B41944732DF2F99900D86E02 /* SocketIO */,
 			);
 			productName = Nidus;
 			productReference = B477F7982D98942800595037 /* Nidus.app */;
@@ -116,6 +119,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				B477F7B32D98981F00595037 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				B41944722DF2F99900D86E02 /* XCRemoteSwiftPackageReference "socket" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B477F7992D98942800595037 /* Products */;
@@ -372,6 +376,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		B41944722DF2F99900D86E02 /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		B477F7B32D98981F00595037 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
@@ -383,6 +395,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		B41944732DF2F99900D86E02 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B41944722DF2F99900D86E02 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
 		B477F7B42D98981F00595037 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = B477F7B32D98981F00595037 /* XCRemoteSwiftPackageReference "Kingfisher" */;

@@ -25,10 +25,12 @@ class OrderHistoryViewModel: ObservableObject {
     private var currentPage = 1
     private var hasMoreData = true
     private let pageSize = 20
+    private var webSocketCancellable: AnyCancellable?
     
     init() {
         setupSearchDebounce()
         setupOrderCreationListener()
+        setupWebSocketListener()
         loadOrderHistory()
     }
     
@@ -294,6 +296,72 @@ class OrderHistoryViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
+    
+    private func setupWebSocketListener() {
+        // Підписуємося на оновлення статусів через WebSocket
+        webSocketCancellable = OrderWebSocketManager.shared.orderStatusUpdatePublisher
+            .sink { [weak self] updateData in
+                print("🔄 OrderHistoryViewModel: Отримано WebSocket оновлення для замовлення \(updateData.orderId)")
+                print("   Новий статус: \(updateData.newStatus.rawValue)")
+                
+                // Оновлюємо локальне замовлення
+                self?.updateOrderStatus(
+                    orderId: updateData.orderId,
+                    newStatus: updateData.newStatus,
+                    comment: updateData.comment
+                )
+            }
+    }
+    
+    private func updateOrderStatus(orderId: String, newStatus: OrderStatus, comment: String?) {
+        // Знаходимо замовлення в списку
+        if let index = orders.firstIndex(where: { $0.id == orderId }) {
+            let oldOrder = orders[index]
+            
+            // Створюємо новий запис історії статусів
+            var updatedStatusHistory = oldOrder.statusHistory
+            if comment != nil || oldOrder.statusHistory.last?.status != newStatus {
+                let newStatusHistoryItem = OrderStatusHistoryItem(
+                    id: UUID().uuidString,
+                    status: newStatus,
+                    comment: comment,
+                    createdAt: ISO8601DateFormatter().string(from: Date()),
+                    createdBy: "system"
+                )
+                updatedStatusHistory.append(newStatusHistoryItem)
+            }
+            
+            // Створюємо нове замовлення з оновленим статусом
+            let updatedOrder = OrderHistory(
+                id: oldOrder.id,
+                orderNumber: oldOrder.orderNumber,
+                status: newStatus,
+                totalAmount: oldOrder.totalAmount,
+                coffeeShopId: oldOrder.coffeeShopId,
+                coffeeShopName: oldOrder.coffeeShopName,
+                coffeeShop: oldOrder.coffeeShop,
+                isPaid: oldOrder.isPaid,
+                createdAt: oldOrder.createdAt,
+                completedAt: oldOrder.completedAt,
+                items: oldOrder.items,
+                statusHistory: updatedStatusHistory,
+                payment: oldOrder.payment
+            )
+            
+            // Оновлюємо замовлення в списку
+            orders[index] = updatedOrder
+            
+            print("✅ OrderHistoryViewModel: Оновлено статус замовлення \(orderId) на \(newStatus.rawValue)")
+            
+            // Якщо це поточне вибране замовлення, оновлюємо його теж
+            if selectedOrder?.id == orderId {
+                selectedOrder = updatedOrder
+            }
+        } else {
+            print("⚠️ OrderHistoryViewModel: Замовлення \(orderId) не знайдено в списку, оновлюємо весь список")
+            refreshOrders()
+        }
+    }
 }
 
 // MARK: - Order Details ViewModel
@@ -307,6 +375,7 @@ class OrderDetailsViewModel: ObservableObject {
     
     private let orderHistoryService: OrderHistoryServiceProtocol
     private var cancellables = Set<AnyCancellable>()
+    private var webSocketCancellable: AnyCancellable?
     
     init(order: OrderHistory, orderHistoryService: OrderHistoryServiceProtocol = OrderHistoryService()) {
         self.order = order
@@ -338,6 +407,9 @@ class OrderDetailsViewModel: ObservableObject {
                 self?.refreshPaymentInfo()
             }
             .store(in: &cancellables)
+        
+        // Підписуємося на WebSocket оновлення для цього замовлення
+        setupWebSocketListener()
     }
     
     // MARK: - Public Methods
@@ -595,5 +667,63 @@ class OrderDetailsViewModel: ObservableObject {
         default:
             error = "Не вдалося завантажити інформацію про оплату"
         }
+    }
+    
+    private func setupWebSocketListener() {
+        // Підписуємося на оновлення статусів через WebSocket для цього конкретного замовлення
+        webSocketCancellable = OrderWebSocketManager.shared.orderStatusUpdatePublisher
+            .filter { [weak self] updateData in
+                updateData.orderId == self?.order.id
+            }
+            .sink { [weak self] updateData in
+                print("🔄 OrderDetailsViewModel: Отримано WebSocket оновлення для замовлення")
+                print("   Новий статус: \(updateData.newStatus.rawValue)")
+                
+                self?.updateOrderStatus(
+                    newStatus: updateData.newStatus,
+                    comment: updateData.comment
+                )
+            }
+    }
+    
+    private func updateOrderStatus(newStatus: OrderStatus, comment: String?) {
+        // Створюємо новий запис історії статусів
+        var updatedStatusHistory = order.statusHistory
+        if comment != nil || order.statusHistory.last?.status != newStatus {
+            let newStatusHistoryItem = OrderStatusHistoryItem(
+                id: UUID().uuidString,
+                status: newStatus,
+                comment: comment,
+                createdAt: ISO8601DateFormatter().string(from: Date()),
+                createdBy: "system"
+            )
+            updatedStatusHistory.append(newStatusHistoryItem)
+        }
+        
+        // Створюємо нове замовлення з оновленим статусом
+        order = OrderHistory(
+            id: order.id,
+            orderNumber: order.orderNumber,
+            status: newStatus,
+            totalAmount: order.totalAmount,
+            coffeeShopId: order.coffeeShopId,
+            coffeeShopName: order.coffeeShopName,
+            coffeeShop: order.coffeeShop,
+            isPaid: order.isPaid,
+            createdAt: order.createdAt,
+            completedAt: order.completedAt,
+            items: order.items,
+            statusHistory: updatedStatusHistory,
+            payment: order.payment
+        )
+        
+        print("✅ OrderDetailsViewModel: Оновлено статус замовлення на \(newStatus.rawValue)")
+        
+        // Оновлюємо UI
+        objectWillChange.send()
+    }
+    
+    deinit {
+        webSocketCancellable?.cancel()
     }
 }
