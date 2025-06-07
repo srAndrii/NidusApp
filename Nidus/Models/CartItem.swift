@@ -68,6 +68,8 @@ struct CartItem: Identifiable, Codable, Equatable {
                     if let optionName = option["name"] as? String,
                        let choices = option["choices"] as? [[String: Any]] {
                         print("     - Опція \(optionName): вибрано варіантів \(choices.count)")
+                        
+                        // ✅ ВАЖЛИВО: Обробляємо ВСІ варіанти вибору (множинні сиропи)
                         for choice in choices {
                             if let choiceName = choice["name"] as? String,
                                let choicePrice = choice["price"] as? Decimal,
@@ -85,6 +87,8 @@ struct CartItem: Identifiable, Codable, Equatable {
                                     finalPrice += totalChoicePrice
                                     print("       - \(choiceName): ціна=\(choicePrice), к-сть=\(quantity), всього=+\(totalChoicePrice)")
                                 }
+                            } else {
+                                print("       - ⚠️ Неповні дані для варіанту: \(choice)")
                             }
                         }
                     }
@@ -137,6 +141,7 @@ struct CartItem: Identifiable, Codable, Equatable {
             if let options = customization["options"] as? [[String: Any]] {
                 for option in options {
                     if let choices = option["choices"] as? [[String: Any]] {
+                        // ✅ ВАЖЛИВО: Обробляємо ВСІ варіанти вибору (множинні сиропи)
                         for choice in choices {
                             if let choicePrice = choice["price"] as? Decimal,
                                let quantity = choice["quantity"] as? Int {
@@ -147,7 +152,7 @@ struct CartItem: Identifiable, Codable, Equatable {
                                     let additionalUnits = quantity - defaultQuantity
                                     finalPrice += choicePrice + (pricePerAdditionalUnit * Decimal(additionalUnits))
                                 } else {
-                                finalPrice += choicePrice * Decimal(quantity)
+                                    finalPrice += choicePrice * Decimal(quantity)
                                 }
                             }
                         }
@@ -194,19 +199,26 @@ struct CartItem: Identifiable, Codable, Equatable {
                    !choices.isEmpty {
                     var choiceTexts: [String] = []
                     
+                    print("     - Обробляємо опцію '\(name)' з \(choices.count) варіантами")
+                    
+                    // ✅ ВИПРАВЛЕННЯ: Обробляємо ВСІ варіанти вибору для опції
                     for choice in choices {
                         if let choiceName = choice["name"] as? String {
                             // Додаємо кількість, якщо вона більше 1
                             if let quantity = choice["quantity"] as? Int, quantity > 1 {
-                                choiceTexts.append("\(choiceName) (\(quantity))")
+                                choiceTexts.append("\(choiceName) x\(quantity)")
+                                print("       - Додано: \(choiceName) x\(quantity)")
                             } else {
                                 choiceTexts.append(choiceName)
+                                print("       - Додано: \(choiceName)")
                             }
                         }
                     }
                     
+                    // ✅ Тепер choiceTexts містить ВСІ вибрані сиропи
                     let choiceText = choiceTexts.joined(separator: ", ")
                     summaryParts.append("\(name): \(choiceText)")
+                    print("     ✅ Фінальний текст для '\(name)': \(choiceText)")
                 }
             }
         }

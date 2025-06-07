@@ -435,6 +435,16 @@ struct CustomizationDisplayView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // ✅ Додаємо логування для відстеження
+            let _ = print("🎨 CustomizationDisplayView: Відображаємо кастомізації")
+            let _ = print("   - Інгредієнтів: \(data.ingredients.count)")
+            let _ = print("   - Груп опцій: \(data.optionGroups.count)")
+            let _ = data.optionGroups.forEach { groupName, options in
+                print("     - '\(groupName)': \(options.count) опцій")
+                options.forEach { option in
+                    print("       - \(option.name) x\(option.quantity) (+\(option.additionalPrice)₴)")
+                }
+            }
             // Інгредієнти
             if !data.ingredients.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {

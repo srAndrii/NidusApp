@@ -225,6 +225,9 @@ class MenuItemDetailViewModel: ObservableObject {
     private func createCustomizationData() -> [String: Any] {
         var customizationData: [String: Any] = [:]
         
+        print("📝 MenuItemDetailViewModel.createCustomizationData: Створення даних кастомізації")
+        print("   - Вибрані опції: \(optionSelections)")
+        
         // Додаємо інформацію про розмір
         if let size = selectedSize {
             customizationData["size"] = [
@@ -275,6 +278,9 @@ class MenuItemDetailViewModel: ObservableObject {
                 if let option = menuItem.customizationOptions?.first(where: { $0.id == optionId }) {
                     var choices: [[String: Any]] = []
                     
+                    print("     - Опція '\(option.name)': вибрано варіантів \(selections.count)")
+                    
+                    // ✅ ВИПРАВЛЕННЯ: Обробляємо ВСІХ вибраних варіантів для опції (множинні сиропи)
                     for (choiceId, quantity) in selections {
                         // Знаходимо вибір для отримання назви
                         if let choice = option.choices.first(where: { $0.id == choiceId }) {
@@ -285,6 +291,8 @@ class MenuItemDetailViewModel: ObservableObject {
                                 "price": choice.price as Any
                             ]
                             
+                            print("       - Варіант '\(choice.name)': кількість=\(quantity), ціна=\(choice.price ?? 0)")
+                            
                             // Додаємо додаткову інформацію для опцій з кількостями
                             if let defaultQuantity = choice.defaultQuantity {
                                 choiceData["defaultQuantity"] = defaultQuantity
@@ -294,23 +302,33 @@ class MenuItemDetailViewModel: ObservableObject {
                                 choiceData["pricePerAdditionalUnit"] = pricePerAdditionalUnit
                             }
                             
+                            // ✅ ВАЖЛИВО: Додаємо КОЖЕН вибраний варіант окремо
                             choices.append(choiceData)
+                        } else {
+                            print("       - ⚠️ Не знайдено варіант з ID: \(choiceId)")
                         }
                     }
                     
-                    options.append([
-                        "id": option.id,
-                        "name": option.name,
-                        "choices": choices
-                    ])
+                    // ✅ Додаємо опцію тільки якщо є вибрані варіанти
+                    if !choices.isEmpty {
+                        let optionData: [String: Any] = [
+                            "id": option.id,
+                            "name": option.name,
+                            "choices": choices  // ✅ Масив містить ВСІ вибрані варіанти
+                        ]
+                        options.append(optionData)
+                        print("     - Додано опцію '\(option.name)' з \(choices.count) варіантами")
+                    }
                 }
             }
             
             if !options.isEmpty {
                 customizationData["options"] = options
+                print("   ✅ Всього додано \(options.count) опцій кастомізації")
             }
         }
         
+        print("   📝 Фінальні дані кастомізації: \(customizationData)")
         return customizationData
     }
     

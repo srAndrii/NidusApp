@@ -310,9 +310,14 @@ extension OrderHistoryItem {
         var ingredients: [IngredientDisplayItem] = []
         var optionGroups: [String: [OptionDisplayItem]] = [:]
         
+        print("🔍 formatCustomizationDetailsToDisplayData: Обробляємо деталі кастомізації")
+        
         // НЕ обробляємо розмір, оскільки він вже показаний вище
         
         if let options = details.options, !options.isEmpty {
+            print("   - Знайдено \(options.count) опцій в деталях")
+            
+            // ✅ ВИПРАВЛЕННЯ: Правильно групуємо опції за їх типом
             for option in options {
                 let optionItem = OptionDisplayItem(
                     name: option.name,
@@ -320,19 +325,50 @@ extension OrderHistoryItem {
                     additionalPrice: option.totalPrice
                 )
                 
-                // Групуємо опції за типом (припускаємо, що це загальні опції)
-                if optionGroups["Додаткові опції"] == nil {
-                    optionGroups["Додаткові опції"] = []
+                print("     - Опція: \(option.name), кількість: \(option.quantity ?? 1), ціна: \(option.totalPrice)")
+                
+                // ✅ Намагаємося визначити тип опції за назвою
+                let groupName = determineOptionGroupName(for: option.name)
+                
+                if optionGroups[groupName] == nil {
+                    optionGroups[groupName] = []
                 }
-                optionGroups["Додаткові опції"]?.append(optionItem)
+                optionGroups[groupName]?.append(optionItem)
+                print("     - Додано до групи '\(groupName)'")
             }
         }
+        
+        print("   ✅ Сформовано груп опцій: \(optionGroups.keys.joined(separator: ", "))")
         
         return CustomizationDisplayData(
             sizeInfo: nil, // НЕ включаємо розмір
             ingredients: ingredients,
             optionGroups: optionGroups
         )
+    }
+    
+    private func determineOptionGroupName(for optionName: String) -> String {
+        // ✅ Визначаємо групу опції за її назвою
+        let lowercaseName = optionName.lowercased()
+        
+        if lowercaseName.contains("сироп") || lowercaseName.contains("syrup") ||
+           lowercaseName.contains("карамел") || lowercaseName.contains("ваніл") ||
+           lowercaseName.contains("мед") || lowercaseName.contains("шоколад") {
+            return "Сироп"
+        }
+        
+        if lowercaseName.contains("молок") || lowercaseName.contains("milk") ||
+           lowercaseName.contains("соєв") || lowercaseName.contains("мигдал") ||
+           lowercaseName.contains("вівся") || lowercaseName.contains("кокос") {
+            return "Тип молока"
+        }
+        
+        if lowercaseName.contains("топінг") || lowercaseName.contains("topping") {
+            return "Топінги"
+        }
+        
+        // За замовчуванням
+        return "Додаткові опції"
     }
     
     private func formatCustomizationSummary(_ summary: String) -> CustomizationDisplayData {
@@ -362,11 +398,13 @@ extension OrderHistoryItem {
                 let optionItems = optionsPart.components(separatedBy: "; ")
                 
                 for item in optionItems {
-                    if let (groupName, option) = parseOptionItem(item) {
+                    // ✅ ВИПРАВЛЕННЯ: Обробляємо масив опцій замість однієї
+                    if let (groupName, options) = parseOptionItem(item) {
                         if optionGroups[groupName] == nil {
                             optionGroups[groupName] = []
                         }
-                        optionGroups[groupName]?.append(option)
+                        // ✅ Додаємо ВСІ опції з групи (множинні сиропи)
+                        optionGroups[groupName]?.append(contentsOf: options)
                     }
                 }
             }
@@ -428,40 +466,55 @@ extension OrderHistoryItem {
         return pricePerUnit * Double(paidQuantity)
     }
     
-    private func parseOptionItem(_ item: String) -> (String, OptionDisplayItem)? {
-        // Парсимо рядок типу "Тип молока: Соєве" або "Сироп: Карамель x6"
+    private func parseOptionItem(_ item: String) -> (String, [OptionDisplayItem])? {
+        // ✅ ВИПРАВЛЕННЯ: Парсимо рядки з множинними опціями типу "Сироп: Карамель x6, Ванільний x2, Мед x1"
         let components = item.components(separatedBy: ": ")
         guard components.count >= 2 else { return nil }
         
         let groupName = components[0].trimmingCharacters(in: .whitespaces)
-        let optionInfo = components[1].trimmingCharacters(in: .whitespaces)
+        let optionsInfo = components[1].trimmingCharacters(in: .whitespaces)
         
-        // Парсимо назву опції та кількість
-        var optionName = optionInfo
+        print("🔍 parseOptionItem: Парсимо опцію '\(groupName)' з варіантами: '\(optionsInfo)'")
+        
+        // ✅ Розділяємо кілька опцій за комами: "Карамель x6, Ванільний x2"
+        let optionItems = optionsInfo.components(separatedBy: ", ")
+        var options: [OptionDisplayItem] = []
+        
+        for optionItem in optionItems {
+            if let option = parseSingleOptionItem(optionItem.trimmingCharacters(in: .whitespaces), groupName: groupName) {
+                options.append(option)
+                print("   ✅ Додано опцію: \(option.name) x\(option.quantity) (+\(option.additionalPrice)₴)")
+            }
+        }
+        
+        return options.isEmpty ? nil : (groupName, options)
+    }
+    
+    private func parseSingleOptionItem(_ optionItem: String, groupName: String) -> OptionDisplayItem? {
+        // Парсимо одну опцію типу "Карамель x6" або "Ванільний"
+        var optionName = optionItem
         var quantity = 1
         
         // Витягуємо кількість (x6, x3 тощо)
         let quantityPattern = "x(\\d+)"
-        if let quantityMatch = optionInfo.range(of: quantityPattern, options: .regularExpression) {
-            let quantityString = String(optionInfo[quantityMatch])
+        if let quantityMatch = optionItem.range(of: quantityPattern, options: .regularExpression) {
+            let quantityString = String(optionItem[quantityMatch])
             let numberPattern = "\\d+"
             let numberMatch = quantityString.range(of: numberPattern, options: .regularExpression)
             if let numberRange = numberMatch {
                 quantity = Int(String(quantityString[numberRange])) ?? 1
             }
-            optionName = String(optionInfo[..<quantityMatch.lowerBound]).trimmingCharacters(in: .whitespaces)
+            optionName = String(optionItem[..<quantityMatch.lowerBound]).trimmingCharacters(in: .whitespaces)
         }
         
         // Обчислюємо додаткову вартість на основі типу опції та кількості
         let additionalPrice = calculateOptionPrice(groupName: groupName, optionName: optionName, quantity: quantity)
         
-        let option = OptionDisplayItem(
+        return OptionDisplayItem(
             name: optionName,
             quantity: quantity,
             additionalPrice: additionalPrice
         )
-        
-        return (groupName, option)
     }
     
     private func calculateOptionPrice(groupName: String, optionName: String, quantity: Int) -> Double {
