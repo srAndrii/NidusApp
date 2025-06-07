@@ -85,6 +85,10 @@ class AuthenticationManager: ObservableObject {
             // Якщо реєстрація успішна, встановлюємо поточного користувача
             currentUser = user
             isAuthenticated = true
+            
+            // Підключаємо WebSocket з userId нового користувача
+            print("🔗 AuthManager: Connecting WebSocket for new user: \(user.id)")
+            OrderWebSocketManager.shared.connect(userId: user.id)
         } catch let apiError as APIError {
             switch apiError {
             case .serverError(_, let message):
@@ -141,7 +145,7 @@ class AuthenticationManager: ObservableObject {
         
         do {
             // Пробуємо оновити токени
-            let (newAccessToken, _) = try await authRepository.refreshToken(refreshToken: refreshToken)
+            let (_, _) = try await authRepository.refreshToken(refreshToken: refreshToken)
             // Переконектимо WebSocket з userId (якщо є поточний користувач)
             if let userId = currentUser?.id {
                 OrderWebSocketManager.shared.connect(userId: userId)
