@@ -1,5 +1,22 @@
 import Foundation
 
+// MARK: - Helper for backward compatibility
+
+struct AnyCodingKey: CodingKey {
+    var stringValue: String
+    var intValue: Int?
+    
+    init(stringValue: String) {
+        self.stringValue = stringValue
+        self.intValue = nil
+    }
+    
+    init(intValue: Int) {
+        self.stringValue = "\(intValue)"
+        self.intValue = intValue
+    }
+}
+
 // MARK: - Order History Models
 
 // Основна модель замовлення для історії
@@ -122,12 +139,8 @@ extension OrderHistory {
             return name
         }
         // Якщо і це немає, пробуємо кеш безпечно
-        do {
-            if let cachedName = CoffeeShopCache.shared.getCoffeeShopName(for: coffeeShopId) {
-                return cachedName
-            }
-        } catch {
-            print("⚠️ OrderHistory: Помилка доступу до кешу кав'ярень: \(error)")
+        if let cachedName = CoffeeShopCache.shared.getCoffeeShopName(for: coffeeShopId) {
+            return cachedName
         }
         return "Невідома кав'ярня"
     }
@@ -249,7 +262,7 @@ extension OrderHistoryItem {
         // Якщо немає, пробуємо витягти з customizationDetails
         if let details = customizationDetails,
            let size = details.size {
-            return size.price
+            return size.additionalPrice
         }
         
         return nil
@@ -312,29 +325,62 @@ extension OrderHistoryItem {
         
         print("🔍 formatCustomizationDetailsToDisplayData: Обробляємо деталі кастомізації")
         
-        // НЕ обробляємо розмір, оскільки він вже показаний вище
+        // Handle ingredients from new API format
+        if let newIngredients = details.ingredients, !newIngredients.isEmpty {
+            print("   - Знайдено \(newIngredients.count) інгредієнтів в новому форматі")
+            for ingredient in newIngredients {
+                let displayItem = IngredientDisplayItem(
+                    name: ingredient.name,
+                    quantity: ingredient.amount,
+                    unit: ingredient.unit ?? "шт",
+                    additionalPrice: ingredient.pricing?.totalPrice ?? 0.0
+                )
+                ingredients.append(displayItem)
+                print("     - Інгредієнт: \(ingredient.name), кількість: \(ingredient.amount), ціна: \(ingredient.pricing?.totalPrice ?? 0.0)")
+            }
+        }
         
         if let options = details.options, !options.isEmpty {
             print("   - Знайдено \(options.count) опцій в деталях")
             
-            // ✅ ВИПРАВЛЕННЯ: Правильно групуємо опції за їх типом
             for option in options {
-                let optionItem = OptionDisplayItem(
-                    name: option.name,
-                    quantity: option.quantity ?? 1,
-                    additionalPrice: option.totalPrice
-                )
-                
-                print("     - Опція: \(option.name), кількість: \(option.quantity ?? 1), ціна: \(option.totalPrice)")
-                
-                // ✅ Намагаємося визначити тип опції за назвою
-                let groupName = determineOptionGroupName(for: option.name)
-                
-                if optionGroups[groupName] == nil {
-                    optionGroups[groupName] = []
+                // Handle new API format with grouped options
+                if let choices = option.choices, !choices.isEmpty {
+                    let groupName = option.optionGroupName ?? "Додаткові опції"
+                    print("     - Група опцій: \(groupName)")
+                    
+                    for choice in choices {
+                        let optionItem = OptionDisplayItem(
+                            name: choice.name,
+                            quantity: choice.quantity ?? 1,
+                            additionalPrice: choice.pricing?.totalPrice ?? 0.0
+                        )
+                        
+                        print("       - Вибір: \(choice.name), кількість: \(choice.quantity ?? 1), ціна: \(choice.pricing?.totalPrice ?? 0.0)")
+                        
+                        if optionGroups[groupName] == nil {
+                            optionGroups[groupName] = []
+                        }
+                        optionGroups[groupName]?.append(optionItem)
+                    }
+                } else if let optionName = option.name {
+                    // Handle legacy API format
+                    let optionItem = OptionDisplayItem(
+                        name: optionName,
+                        quantity: option.quantity ?? 1,
+                        additionalPrice: option.totalPrice ?? 0.0
+                    )
+                    
+                    print("     - Опція (legacy): \(optionName), кількість: \(option.quantity ?? 1), ціна: \(option.totalPrice ?? 0.0)")
+                    
+                    let groupName = determineOptionGroupName(for: optionName)
+                    
+                    if optionGroups[groupName] == nil {
+                        optionGroups[groupName] = []
+                    }
+                    optionGroups[groupName]?.append(optionItem)
+                    print("     - Додано до групи '\(groupName)'")
                 }
-                optionGroups[groupName]?.append(optionItem)
-                print("     - Додано до групи '\(groupName)'")
             }
         }
         
@@ -694,8 +740,8 @@ extension OrderItemCustomization {
             
             // Додаємо інформацію про розмір
             if let size = details.size {
-                if size.price > 0 {
-                    components.append("Розмір: \(size.name) (+\(String(format: "%.2f", size.price)) ₴)")
+                if size.additionalPrice > 0 {
+                    components.append("Розмір: \(size.name) (+\(String(format: "%.2f", size.additionalPrice)) ₴)")
                 } else {
                     components.append("Розмір: \(size.name)")
                 }
@@ -705,12 +751,32 @@ extension OrderItemCustomization {
             if let options = details.options, !options.isEmpty {
                 var optionStrings: [String] = []
                 for option in options {
-                    if let quantity = option.quantity, quantity > 1 {
-                        optionStrings.append("\(option.name) x\(quantity) (+\(String(format: "%.2f", option.totalPrice)) ₴)")
-                    } else if option.price > 0 {
-                        optionStrings.append("\(option.name) (+\(String(format: "%.2f", option.price)) ₴)")
-                    } else {
-                        optionStrings.append(option.name)
+                    // Handle new API format with grouped options
+                    if let choices = option.choices, !choices.isEmpty {
+                        for choice in choices {
+                            let quantity = choice.quantity ?? 1
+                            let totalPrice = choice.pricing?.totalPrice ?? 0.0
+                            if quantity > 1 {
+                                optionStrings.append("\(choice.name) x\(quantity) (+\(String(format: "%.2f", totalPrice)) ₴)")
+                            } else if totalPrice > 0 {
+                                optionStrings.append("\(choice.name) (+\(String(format: "%.2f", totalPrice)) ₴)")
+                            } else {
+                                optionStrings.append(choice.name)
+                            }
+                        }
+                    } else if let optionName = option.name {
+                        // Handle legacy API format
+                        let quantity = option.quantity ?? 1
+                        let totalPrice = option.totalPrice ?? 0.0
+                        let price = option.price ?? 0.0
+                        
+                        if quantity > 1 {
+                            optionStrings.append("\(optionName) x\(quantity) (+\(String(format: "%.2f", totalPrice)) ₴)")
+                        } else if price > 0 {
+                            optionStrings.append("\(optionName) (+\(String(format: "%.2f", price)) ₴)")
+                        } else {
+                            optionStrings.append(optionName)
+                        }
                     }
                 }
                 if !optionStrings.isEmpty {
@@ -783,7 +849,7 @@ extension OrderItemCustomization {
         
         // Обробляємо опції
         if let options = selectedOptions, !options.isEmpty {
-            for (optionId, choices) in options where !choices.isEmpty {
+            for (_, choices) in options where !choices.isEmpty {
                 for choice in choices {
                     if let name = choice.name {
                         if let quantity = choice.quantity, quantity > 1 {
@@ -998,31 +1064,265 @@ enum OrderHistoryFilter: String, CaseIterable {
 // MARK: - Customization Details
 
 struct CustomizationDetails: Codable {
+    let menuItem: CustomizationMenuItemDetail?
     let size: CustomizationSizeDetail?
     let options: [CustomizationOptionDetail]?
+    let ingredients: [CustomizationIngredientDetail]?
+    let priceSummary: CustomizationPriceSummaryDetail?
+    
+    // Regular initializer for programmatic creation
+    init(
+        menuItem: CustomizationMenuItemDetail? = nil,
+        size: CustomizationSizeDetail? = nil,
+        options: [CustomizationOptionDetail]? = nil,
+        ingredients: [CustomizationIngredientDetail]? = nil,
+        priceSummary: CustomizationPriceSummaryDetail? = nil
+    ) {
+        self.menuItem = menuItem
+        self.size = size
+        self.options = options
+        self.ingredients = ingredients
+        self.priceSummary = priceSummary
+    }
     
     enum CodingKeys: String, CodingKey {
-        case size, options
+        case menuItem, size, options, ingredients, priceSummary
+    }
+}
+
+struct CustomizationMenuItemDetail: Codable {
+    let id: String
+    let name: String
+    let basePrice: Double
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, basePrice
+    }
+}
+
+struct CustomizationIngredientDetail: Codable {
+    let id: String
+    let name: String
+    let amount: Int
+    let unit: String?
+    let pricing: IngredientPricingDetail?
+    let constraints: IngredientConstraintsDetail?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, amount, unit, pricing, constraints
+    }
+}
+
+struct IngredientPricingDetail: Codable {
+    let pricePerUnit: Double?
+    let freeAmount: Int?
+    let chargedAmount: Int?
+    let totalPrice: Double
+    
+    enum CodingKeys: String, CodingKey {
+        case pricePerUnit, freeAmount, chargedAmount, totalPrice
+    }
+}
+
+struct IngredientConstraintsDetail: Codable {
+    let minAmount: Int?
+    let maxAmount: Int?
+    let isCustomizable: Bool?
+    
+    enum CodingKeys: String, CodingKey {
+        case minAmount, maxAmount, isCustomizable
+    }
+}
+
+struct CustomizationPriceSummaryDetail: Codable {
+    let basePrice: Double
+    let sizeAdjustment: Double?
+    let optionsTotal: Double?
+    let ingredientsTotal: Double?
+    let finalPrice: Double
+    
+    enum CodingKeys: String, CodingKey {
+        case basePrice, sizeAdjustment, optionsTotal, ingredientsTotal, finalPrice
     }
 }
 
 struct CustomizationSizeDetail: Codable {
+    let id: String?
     let name: String
-    let price: Double
+    let abbreviation: String?
+    let additionalPrice: Double
+    let isDefault: Bool?
+    let order: Int?
+    
+    // For backward compatibility
+    var price: Double {
+        return additionalPrice
+    }
+    
+    // Regular initializer for programmatic creation
+    init(
+        id: String? = nil,
+        name: String,
+        abbreviation: String? = nil,
+        additionalPrice: Double,
+        isDefault: Bool? = nil,
+        order: Int? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.abbreviation = abbreviation
+        self.additionalPrice = additionalPrice
+        self.isDefault = isDefault
+        self.order = order
+    }
+    
+    // Convenience initializer for backward compatibility with old "price" parameter
+    init(name: String, price: Double) {
+        self.id = nil
+        self.name = name
+        self.abbreviation = nil
+        self.additionalPrice = price
+        self.isDefault = nil
+        self.order = nil
+    }
     
     enum CodingKeys: String, CodingKey {
-        case name, price
+        case id, name, abbreviation, additionalPrice, isDefault, order
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        abbreviation = try container.decodeIfPresent(String.self, forKey: .abbreviation)
+        isDefault = try container.decodeIfPresent(Bool.self, forKey: .isDefault)
+        order = try container.decodeIfPresent(Int.self, forKey: .order)
+        
+        // Handle price field changes from old to new API format
+        if let newPrice = try? container.decode(Double.self, forKey: .additionalPrice) {
+            additionalPrice = newPrice
+        } else {
+            // Try to decode the old "price" field for backward compatibility
+            let legacyContainer = try decoder.container(keyedBy: AnyCodingKey.self)
+            if let oldPrice = try? legacyContainer.decode(Double.self, forKey: AnyCodingKey(stringValue: "price")) {
+                additionalPrice = oldPrice
+            } else {
+                additionalPrice = 0.0
+            }
+        }
     }
 }
 
 struct CustomizationOptionDetail: Codable {
-    let name: String
-    let price: Double
-    let totalPrice: Double
+    let optionGroupId: String?
+    let optionGroupName: String?
+    let required: Bool?
+    let choices: [CustomizationChoiceDetail]?
+    
+    // Legacy fields for backward compatibility
+    let name: String?
+    let price: Double?
+    let totalPrice: Double?
     let quantity: Int?
     
+    // Regular initializer for programmatic creation
+    init(
+        optionGroupId: String? = nil,
+        optionGroupName: String? = nil,
+        required: Bool? = nil,
+        choices: [CustomizationChoiceDetail]? = nil,
+        name: String? = nil,
+        price: Double? = nil,
+        totalPrice: Double? = nil,
+        quantity: Int? = nil
+    ) {
+        self.optionGroupId = optionGroupId
+        self.optionGroupName = optionGroupName
+        self.required = required
+        self.choices = choices
+        self.name = name
+        self.price = price
+        self.totalPrice = totalPrice
+        self.quantity = quantity
+    }
+    
+    // Convenience initializer for backward compatibility
+    init(name: String, price: Double, totalPrice: Double, quantity: Int? = nil) {
+        self.optionGroupId = nil
+        self.optionGroupName = nil
+        self.required = nil
+        self.choices = nil
+        self.name = name
+        self.price = price
+        self.totalPrice = totalPrice
+        self.quantity = quantity
+    }
+    
     enum CodingKeys: String, CodingKey {
+        case optionGroupId, optionGroupName, required, choices
         case name, price, totalPrice, quantity
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // New API format
+        optionGroupId = try container.decodeIfPresent(String.self, forKey: .optionGroupId)
+        optionGroupName = try container.decodeIfPresent(String.self, forKey: .optionGroupName)
+        required = try container.decodeIfPresent(Bool.self, forKey: .required)
+        choices = try container.decodeIfPresent([CustomizationChoiceDetail].self, forKey: .choices)
+        
+        // Legacy format for backward compatibility
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        quantity = try container.decodeIfPresent(Int.self, forKey: .quantity)
+        
+        // Handle price fields for backward compatibility
+        if let legacyPrice = try? container.decode(Double.self, forKey: .price) {
+            price = legacyPrice
+        } else {
+            price = nil
+        }
+        
+        if let legacyTotalPrice = try? container.decode(Double.self, forKey: .totalPrice) {
+            totalPrice = legacyTotalPrice
+        } else {
+            totalPrice = nil
+        }
+    }
+}
+
+struct CustomizationChoiceDetail: Codable {
+    let id: String
+    let name: String
+    let quantity: Int?
+    let pricing: ChoicePricingDetail?
+    let constraints: ChoiceConstraintsDetail?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, quantity, pricing, constraints
+    }
+}
+
+struct ChoicePricingDetail: Codable {
+    let basePrice: Double?
+    let freeQuantity: Int?
+    let pricePerAdditionalUnit: Double?
+    let chargedQuantity: Int?
+    let totalPrice: Double
+    
+    enum CodingKeys: String, CodingKey {
+        case basePrice, freeQuantity, pricePerAdditionalUnit, chargedQuantity, totalPrice
+    }
+}
+
+struct ChoiceConstraintsDetail: Codable {
+    let minQuantity: Int?
+    let maxQuantity: Int?
+    let defaultQuantity: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case minQuantity, maxQuantity, defaultQuantity
     }
 }
 
