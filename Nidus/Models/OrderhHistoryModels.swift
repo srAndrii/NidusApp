@@ -283,16 +283,16 @@ extension OrderHistoryItem {
     }
     
     var customizationDisplayData: CustomizationDisplayData? {
-        // Спочатку пробуємо використати customizationSummary на рівні item
-        if let summary = customizationSummary, !summary.isEmpty {
-            print("🔍 OrderHistoryItem: Використовуємо item.customizationSummary: \(summary)")
-            return formatCustomizationSummary(summary)
+        // Спочатку пробуємо використати customizationDetails з точними цінами з API
+        if let details = customizationDetails {
+            print("🔍 OrderHistoryItem: Формуємо з item.customizationDetails (новий API)")
+            return formatCustomizationDetailsToDisplayData(details)
         }
         
-        // Потім пробуємо customizationDetails на рівні item
-        if let details = customizationDetails {
-            print("🔍 OrderHistoryItem: Формуємо з item.customizationDetails")
-            return formatCustomizationDetailsToDisplayData(details)
+        // Резервний варіант - customizationSummary для старих замовлень
+        if let summary = customizationSummary, !summary.isEmpty {
+            print("🔍 OrderHistoryItem: Використовуємо item.customizationSummary (legacy): \(summary)")
+            return formatCustomizationSummary(summary)
         }
         
         return nil
