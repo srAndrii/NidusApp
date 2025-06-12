@@ -670,23 +670,172 @@ class OrderDetailsViewModel: ObservableObject {
     }
     
     private func setupWebSocketListener() {
-        // Підписуємося на оновлення статусів через WebSocket для цього конкретного замовлення
-        webSocketCancellable = OrderWebSocketManager.shared.orderStatusUpdatePublisher
+        // Зберігаємо cancellables для proper cleanup
+        var cancellables = Set<AnyCancellable>()
+        
+        // 1. Підписуємося на оновлення статусів через WebSocket для цього конкретного замовлення
+        OrderWebSocketManager.shared.orderStatusUpdatePublisher
             .filter { [weak self] updateData in
                 updateData.orderId == self?.order.id
             }
             .sink { [weak self] updateData in
-                print("🔄 OrderDetailsViewModel: Отримано WebSocket оновлення для замовлення")
+                print("🔄 OrderDetailsViewModel: Отримано WebSocket orderStatusUpdated")
                 print("   Новий статус: \(updateData.newStatus.rawValue)")
+                print("   Comment: \(updateData.comment ?? "nil")")
+                print("   CancelledBy: \(updateData.cancelledBy ?? "nil")")
+                print("   CancellationActor: \(updateData.cancellationActor ?? "nil")")
+                print("   CancellationReason: \(updateData.cancellationReason ?? "nil")")
+                print("   NEW - isPaid: \(updateData.isPaid?.description ?? "nil")")
+                print("   NEW - isReady: \(updateData.isReady?.description ?? "nil")")
+                print("   NEW - estimatedReadyTime: \(updateData.estimatedReadyTime?.description ?? "nil")")
+                print("   NEW - staffComment: \(updateData.staffComment ?? "nil")")
+                print("   NEW - refundStatus: \(updateData.refundStatus ?? "nil")")
+                print("   NEW - refundAmount: \(updateData.refundAmount?.description ?? "nil")")
                 
-                self?.updateOrderStatus(
-                    newStatus: updateData.newStatus,
-                    comment: updateData.comment
-                )
+                // Оновлюємо замовлення з розширеними даними
+                self?.updateOrderFromWebSocket(updateData)
             }
+            .store(in: &cancellables)
+        
+        // 2. NEW: Підписуємося на спеціалізовану подію orderCancelled
+        OrderWebSocketManager.shared.orderCancellationPublisher
+            .filter { [weak self] cancellationData in
+                cancellationData.orderId == self?.order.id
+            }
+            .sink { [weak self] cancellationData in
+                print("🚫 OrderDetailsViewModel: Отримано WebSocket orderCancelled")
+                print("   Order ID: \(cancellationData.orderId)")
+                print("   Order Number: \(cancellationData.orderNumber)")
+                print("   Cancelled By: \(cancellationData.cancelledBy)")
+                print("   Cancellation Actor: \(cancellationData.cancellationActor)")
+                print("   Cancellation Reason: \(cancellationData.cancellationReason ?? "nil")")
+                print("   Comment: \(cancellationData.comment ?? "nil")")
+                print("   Refund Status: \(cancellationData.refundStatus ?? "nil")")
+                print("   Refund Amount: \(cancellationData.refundAmount?.description ?? "nil")")
+                
+                // Обробляємо скасування з повними даними
+                self?.handleOrderCancellation(cancellationData)
+            }
+            .store(in: &cancellables)
+        
+        // Зберігаємо cancellables
+        self.cancellables.formUnion(cancellables)
     }
     
-    private func updateOrderStatus(newStatus: OrderStatus, comment: String?) {
+    // NEW: Оновлення замовлення з розширеними WebSocket даними
+    private func updateOrderFromWebSocket(_ updateData: OrderWebSocketManager.OrderStatusUpdateData) {
+        print("🔧 OrderDetailsViewModel: updateOrderFromWebSocket викликано")
+        print("   newStatus: \(updateData.newStatus.rawValue)")
+        print("   isPaid: \(updateData.isPaid?.description ?? "nil")")
+        print("   isReady: \(updateData.isReady?.description ?? "nil")")
+        print("   estimatedReadyTime: \(updateData.estimatedReadyTime?.description ?? "nil")")
+        print("   staffComment: \(updateData.staffComment ?? "nil")")
+        print("   refundStatus: \(updateData.refundStatus ?? "nil")")
+        print("   refundAmount: \(updateData.refundAmount?.description ?? "nil")")
+        
+        // Якщо замовлення скасовано, завантажуємо повні дані з сервера
+        if updateData.newStatus == .cancelled {
+            print("🔄 OrderDetailsViewModel: Замовлення скасовано - завантажуємо повні дані з API")
+            Task {
+                await self.refreshOrderDetails()
+            }
+            return
+        }
+        
+        // Створюємо новий запис історії статусів
+        var updatedStatusHistory = order.statusHistory
+        if updateData.comment != nil || order.statusHistory.last?.status != updateData.newStatus {
+            let newStatusHistoryItem = OrderStatusHistoryItem(
+                id: UUID().uuidString,
+                status: updateData.newStatus,
+                comment: updateData.staffComment ?? updateData.comment,
+                createdAt: ISO8601DateFormatter().string(from: Date()),
+                createdBy: updateData.changedBy ?? "system"
+            )
+            updatedStatusHistory.append(newStatusHistoryItem)
+        }
+        
+        // Оновлюємо замовлення з новими даними
+        order = OrderHistory(
+            id: order.id,
+            orderNumber: order.orderNumber,
+            status: updateData.newStatus,
+            totalAmount: order.totalAmount,
+            coffeeShopId: order.coffeeShopId,
+            coffeeShopName: order.coffeeShopName,
+            coffeeShop: order.coffeeShop,
+            isPaid: updateData.isPaid ?? order.isPaid,
+            createdAt: order.createdAt,
+            completedAt: order.completedAt,
+            items: order.items,
+            statusHistory: updatedStatusHistory,
+            payment: order.payment,
+            cancelledBy: updateData.cancelledBy ?? order.cancelledBy,
+            cancellationActor: updateData.cancellationActor ?? order.cancellationActor,
+            cancellationReason: updateData.cancellationReason ?? order.cancellationReason,
+            comment: updateData.comment ?? order.comment
+        )
+        
+        print("✅ OrderDetailsViewModel: Оновлено замовлення з WebSocket даними")
+        print("   NEW isPaid: \(order.isPaid)")
+        print("   NEW status: \(order.status.rawValue)")
+        
+        // Оновлюємо UI
+        objectWillChange.send()
+    }
+    
+    // NEW: Обробка спеціалізованої події orderCancelled
+    private func handleOrderCancellation(_ cancellationData: OrderWebSocketManager.OrderCancellationData) {
+        print("🚫 OrderDetailsViewModel: handleOrderCancellation викликано")
+        print("   cancellationReason: \(cancellationData.cancellationReason ?? "nil")")
+        print("   comment: \(cancellationData.comment ?? "nil")")
+        print("   refundStatus: \(cancellationData.refundStatus ?? "nil")")
+        print("   refundAmount: \(cancellationData.refundAmount?.description ?? "nil")")
+        
+        // Використовуємо новий API для отримання правильного коментаря
+        let cancellationMessage = order.getCancellationMessage(from: cancellationData)
+        print("   📝 Фінальний коментар: \(cancellationMessage ?? "nil")")
+        
+        // Завантажуємо повні дані з API для найбільш актуальної інформації
+        Task {
+            await self.refreshOrderDetails()
+        }
+        
+        // Оновлюємо UI негайно з даними від WebSocket
+        order = OrderHistory(
+            id: order.id,
+            orderNumber: order.orderNumber,
+            status: .cancelled,
+            totalAmount: order.totalAmount,
+            coffeeShopId: order.coffeeShopId,
+            coffeeShopName: order.coffeeShopName,
+            coffeeShop: order.coffeeShop,
+            isPaid: order.isPaid,
+            createdAt: order.createdAt,
+            completedAt: order.completedAt,
+            items: order.items,
+            statusHistory: order.statusHistory,
+            payment: order.payment,
+            cancelledBy: cancellationData.cancelledBy,
+            cancellationActor: cancellationData.cancellationActor,
+            cancellationReason: cancellationData.cancellationReason,
+            comment: cancellationData.comment ?? order.comment
+        )
+        
+        print("✅ OrderDetailsViewModel: Оновлено замовлення з cancellation даними")
+        
+        // Оновлюємо UI
+        objectWillChange.send()
+    }
+    
+    private func updateOrderStatus(newStatus: OrderStatus, comment: String?, cancelledBy: String? = nil, cancellationActor: String? = nil, cancellationReason: String? = nil) {
+        print("🔧 OrderDetailsViewModel: updateOrderStatus викликано")
+        print("   newStatus: \(newStatus.rawValue)")
+        print("   comment: \(comment ?? "nil")")
+        print("   cancelledBy: \(cancelledBy ?? "nil")")
+        print("   cancellationActor: \(cancellationActor ?? "nil")")
+        print("   cancellationReason: \(cancellationReason ?? "nil")")
+        
         // Створюємо новий запис історії статусів
         var updatedStatusHistory = order.statusHistory
         if comment != nil || order.statusHistory.last?.status != newStatus {
@@ -714,13 +863,46 @@ class OrderDetailsViewModel: ObservableObject {
             completedAt: order.completedAt,
             items: order.items,
             statusHistory: updatedStatusHistory,
-            payment: order.payment
+            payment: order.payment,
+            cancelledBy: cancelledBy ?? order.cancelledBy,
+            cancellationActor: cancellationActor ?? order.cancellationActor,
+            cancellationReason: cancellationReason ?? order.cancellationReason,
+            comment: comment ?? order.comment
         )
         
         print("✅ OrderDetailsViewModel: Оновлено статус замовлення на \(newStatus.rawValue)")
+        print("🔍 Нове замовлення після оновлення:")
+        print("   order.cancelledBy: \(order.cancelledBy ?? "nil")")
+        print("   order.cancellationActor: \(order.cancellationActor ?? "nil")")
+        print("   order.cancellationReason: \(order.cancellationReason ?? "nil")")
+        print("   order.comment: \(order.comment ?? "nil")")
+        print("   order.cancellationDisplayText: \(order.cancellationDisplayText ?? "nil")")
+        print("   order.cancellationComment: \(order.cancellationComment ?? "nil")")
         
         // Оновлюємо UI
         objectWillChange.send()
+    }
+    
+    private func refreshOrderDetails() async {
+        print("🔄 OrderDetailsViewModel: Завантажуємо повні дані замовлення \(order.id)")
+        
+        do {
+            // Завантажуємо повні дані замовлення з сервера
+            let fullOrderData = try await orderHistoryService.getOrderDetails(orderId: order.id)
+            
+            DispatchQueue.main.async {
+                print("✅ OrderDetailsViewModel: Отримано повні дані замовлення")
+                print("   cancellationActor: \(fullOrderData.cancellationActor ?? "nil")")
+                print("   cancellationReason: \(fullOrderData.cancellationReason ?? "nil")")
+                print("   comment: \(fullOrderData.comment ?? "nil")")
+                
+                // Оновлюємо замовлення з повними даними
+                self.order = fullOrderData
+                self.objectWillChange.send()
+            }
+        } catch {
+            print("❌ OrderDetailsViewModel: Помилка завантаження повних даних: \(error)")
+        }
     }
     
     deinit {

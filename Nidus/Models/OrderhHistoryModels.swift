@@ -34,6 +34,10 @@ struct OrderHistory: Codable, Identifiable {
     let items: [OrderHistoryItem]
     let statusHistory: [OrderStatusHistoryItem]
     let payment: OrderPaymentInfo?
+    let cancelledBy: String?
+    let cancellationActor: String?
+    let cancellationReason: String?
+    let comment: String?
     
     // MARK: - Initializers
     
@@ -51,7 +55,11 @@ struct OrderHistory: Codable, Identifiable {
         completedAt: String?,
         items: [OrderHistoryItem],
         statusHistory: [OrderStatusHistoryItem],
-        payment: OrderPaymentInfo?
+        payment: OrderPaymentInfo?,
+        cancelledBy: String? = nil,
+        cancellationActor: String? = nil,
+        cancellationReason: String? = nil,
+        comment: String? = nil
     ) {
         self.id = id
         self.orderNumber = orderNumber
@@ -66,11 +74,15 @@ struct OrderHistory: Codable, Identifiable {
         self.items = items
         self.statusHistory = statusHistory
         self.payment = payment
+        self.cancelledBy = cancelledBy
+        self.cancellationActor = cancellationActor
+        self.cancellationReason = cancellationReason
+        self.comment = comment
     }
     
     // MARK: - Custom Decoding
     enum CodingKeys: String, CodingKey {
-        case id, orderNumber, status, totalAmount, coffeeShopId, coffeeShopName, coffeeShop, isPaid, createdAt, completedAt, items, statusHistory, payment
+        case id, orderNumber, status, totalAmount, coffeeShopId, coffeeShopName, coffeeShop, isPaid, createdAt, completedAt, items, statusHistory, payment, cancelledBy, cancellationActor, cancellationReason, comment
     }
     
     init(from decoder: Decoder) throws {
@@ -88,6 +100,10 @@ struct OrderHistory: Codable, Identifiable {
         items = try container.decode([OrderHistoryItem].self, forKey: .items)
         statusHistory = try container.decode([OrderStatusHistoryItem].self, forKey: .statusHistory)
         payment = try container.decodeIfPresent(OrderPaymentInfo.self, forKey: .payment)
+        cancelledBy = try container.decodeIfPresent(String.self, forKey: .cancelledBy)
+        cancellationActor = try container.decodeIfPresent(String.self, forKey: .cancellationActor)
+        cancellationReason = try container.decodeIfPresent(String.self, forKey: .cancellationReason)
+        comment = try container.decodeIfPresent(String.self, forKey: .comment)
         
         // Обробляємо totalAmount як рядок або число
         if let totalAmountString = try? container.decode(String.self, forKey: .totalAmount) {
@@ -143,6 +159,157 @@ extension OrderHistory {
             return cachedName
         }
         return "Невідома кав'ярня"
+    }
+    
+    var cancellationDisplayText: String? {
+        print("🔍 cancellationDisplayText викликано:")
+        print("   status: \(status.rawValue)")
+        print("   cancellationActor: \(cancellationActor ?? "nil")")
+        
+        guard status == .cancelled else { 
+            print("   ❌ status не є cancelled")
+            return nil 
+        }
+        
+        if let actor = cancellationActor {
+            print("   ✅ cancellationActor знайдено: \(actor)")
+            switch actor {
+            case "customer":
+                let result = "Замовлення скасовано Клієнтом"
+                print("   📝 Результат: \(result)")
+                return result
+            case "coffee_shop":
+                let result = "Замовлення скасовано Закладом"
+                print("   📝 Результат: \(result)")
+                return result
+            case "admin":
+                let result = "Замовлення скасовано Адміністратором"
+                print("   📝 Результат: \(result)")
+                return result
+            default:
+                let result = "Замовлення скасовано"
+                print("   📝 Результат (default): \(result)")
+                return result
+            }
+        }
+        
+        print("   ❌ cancellationActor не знайдено")
+        return nil
+    }
+    
+    var cancellationComment: String? {
+        print("🔍 cancellationComment викликано:")
+        print("   status: \(status.rawValue)")
+        print("   cancellationReason: \(cancellationReason ?? "nil")")
+        print("   comment: \(comment ?? "nil")")
+        
+        guard status == .cancelled else { 
+            print("   ❌ status не є cancelled")
+            return nil 
+        }
+        
+        // NEW: Пріоритет згідно з новою документацією бекенду
+        // 1. ПРІОРИТЕТ: cancellationReason (якщо є)
+        if let reason = cancellationReason, !reason.isEmpty {
+            // Виключаємо стандартні системні повідомлення
+            let standardMessages = [
+                "Замовлення скасовано користувачем",
+                "Замовлення скасовано кав'ярнею",
+                "Замовлення скасовано клієнтом",
+                "Замовлення скасовано закладом",
+                "Замовлення скасовано адміністратором"
+            ]
+            
+            if !standardMessages.contains(reason) {
+                print("   ✅ ПРІОРИТЕТ: Знайдено користувацький cancellationReason: \(reason)")
+                return reason
+            } else {
+                print("   ⚠️ cancellationReason є стандартним повідомленням: \(reason)")
+            }
+        }
+        
+        // 2. ЗАПАСНИЙ ВАРІАНТ: comment поле (для сумісності)
+        if let webSocketComment = comment, !webSocketComment.isEmpty {
+            // Виключаємо стандартні системні повідомлення
+            let standardMessages = [
+                "Замовлення скасовано користувачем",
+                "Замовлення скасовано кав'ярнею",
+                "Замовлення скасовано клієнтом",
+                "Замовлення скасовано закладом",
+                "Замовлення скасовано адміністратором"
+            ]
+            
+            if !standardMessages.contains(webSocketComment) {
+                print("   ✅ ЗАПАСНИЙ: Знайдено користувацький comment: \(webSocketComment)")
+                return webSocketComment
+            } else {
+                print("   ⚠️ comment є стандартним повідомленням: \(webSocketComment)")
+            }
+        }
+        
+        // 3. ІСТОРІЯ СТАТУСІВ: Якщо не знайдено, шукаємо в останньому записі історії статусів
+        if let lastCancelledItem = statusHistory.last(where: { $0.status == .cancelled }),
+           let historyComment = lastCancelledItem.comment,
+           !historyComment.isEmpty {
+            // Також виключаємо стандартні повідомлення з історії
+            let standardHistoryMessages = [
+                "Замовлення скасовано клієнтом",
+                "Замовлення скасовано кав'ярнею", 
+                "Замовлення скасовано закладом",
+                "Замовлення скасовано адміністратором"
+            ]
+            
+            if !standardHistoryMessages.contains(historyComment) {
+                print("   ✅ ІСТОРІЯ: Знайдено користувацький коментар в історії: \(historyComment)")
+                return historyComment
+            } else {
+                print("   ⚠️ Коментар в історії є стандартним: \(historyComment)")
+            }
+        } else {
+            print("   ⚠️ Не знайдено записів cancelled в statusHistory")
+        }
+        
+        print("   ❌ cancellationComment повертає nil")
+        return nil
+    }
+    
+    // NEW: Helper функція для отримання коментаря скасування згідно з новою документацією
+    func getCancellationMessage(from webSocketData: Any? = nil) -> String? {
+        guard status == .cancelled else { return nil }
+        
+        // Якщо є дані з WebSocket orderCancelled події
+        if let cancellationData = webSocketData as? OrderWebSocketManager.OrderCancellationData {
+            // 1. Пріоритет: cancellationReason
+            if let reason = cancellationData.cancellationReason, !reason.isEmpty {
+                return reason
+            }
+            
+            // 2. Запасний варіант: comment
+            if let comment = cancellationData.comment, !comment.isEmpty {
+                return comment
+            }
+        }
+        
+        // Якщо є дані з WebSocket orderStatusUpdated події
+        if let statusData = webSocketData as? OrderWebSocketManager.OrderStatusUpdateData {
+            // 1. Пріоритет: cancellationReason
+            if let reason = statusData.cancellationReason, !reason.isEmpty {
+                return reason
+            }
+            
+            // 2. staffComment (тільки від персоналу)
+            if let staffComment = statusData.staffComment, !staffComment.isEmpty {
+                return staffComment
+            }
+            
+            // 3. Загальний коментар
+            if let comment = statusData.comment, !comment.isEmpty {
+                return comment
+            }
+        }
+        
+        // Fallback до існуючої логіки
+        return cancellationComment
     }
 }
 

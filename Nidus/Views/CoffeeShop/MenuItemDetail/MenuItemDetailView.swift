@@ -109,6 +109,7 @@ struct MenuItemDetailView: View {
                     }
                     .padding(.top, 20)
                     .padding(.horizontal, 16)
+                    .padding(.bottom, 70) // Додаємо відступ знизу для кнопки кошика
                 }
             }
             
@@ -564,7 +565,6 @@ struct MenuItemDetailView: View {
             }
             .disabled(!menuItem.isAvailable)
             .opacity(menuItem.isAvailable ? 1.0 : 0.5)
-            .padding(.bottom, 20)
         }
     }
     

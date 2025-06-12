@@ -25,6 +25,7 @@ protocol OrderHistoryServiceProtocol {
     
     func fetchOrderDetails(orderId: String) -> AnyPublisher<OrderHistory, NetworkError>
     func fetchOrderPaymentStatus(orderId: String) -> AnyPublisher<OrderPaymentInfo, NetworkError>
+    func getOrderDetails(orderId: String) async throws -> OrderHistory
 }
 
 class OrderHistoryService: OrderHistoryServiceProtocol {
@@ -362,6 +363,45 @@ class OrderHistoryService: OrderHistoryServiceProtocol {
             print("❌ Помилка отримання історії: \(error)")
         }
     }
+    
+    // MARK: - Async/Await методи
+    
+    func getOrderDetails(orderId: String) async throws -> OrderHistory {
+        print("🔍 OrderHistoryService: Запит деталей замовлення \(orderId)")
+        
+        let endpoint = "/orders/\(orderId)"
+        
+        print("📊 OrderHistoryService: Деталі запиту:")
+        print("   - Повний URL: \(self.networkService.getBaseURL())\(endpoint)")
+        print("   - Order ID: \(orderId)")
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            fetchOrderDetails(orderId: orderId)
+                .sink(
+                    receiveCompletion: { completion in
+                        switch completion {
+                        case .finished:
+                            break
+                        case .failure(let error):
+                            print("❌ OrderHistoryService: Помилка отримання деталей замовлення \(orderId): \(error)")
+                            continuation.resume(throwing: error)
+                        }
+                    },
+                    receiveValue: { orderDetails in
+                        print("✅ OrderHistoryService: Отримано деталі замовлення \(orderId)")
+                        print("   - Status: \(orderDetails.status.rawValue)")
+                        print("   - CancellationActor: \(orderDetails.cancellationActor ?? "nil")")
+                        print("   - CancellationReason: \(orderDetails.cancellationReason ?? "nil")")
+                        print("   - Comment: \(orderDetails.comment ?? "nil")")
+                        
+                        continuation.resume(returning: orderDetails)
+                    }
+                )
+                .store(in: &cancellables)
+        }
+    }
+    
+    private var cancellables = Set<AnyCancellable>()
 }
 
 // MARK: - Supporting Types
@@ -522,5 +562,10 @@ class MockOrderHistoryService: OrderHistoryServiceProtocol {
                 )
             )
         ]
+    }
+    
+    func getOrderDetails(orderId: String) async throws -> OrderHistory {
+        let mockOrder = createMockOrderHistory().first!
+        return mockOrder
     }
 }

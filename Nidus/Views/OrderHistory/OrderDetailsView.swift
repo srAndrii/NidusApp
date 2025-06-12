@@ -70,6 +70,14 @@ struct OrderDetailsView: View {
                     // Order Header
                     orderHeaderSection
                     
+                    // NEW: Additional Order Info (ready time, staff comments, etc.)
+                    additionalOrderInfoSection
+                    
+                    // Cancellation Comment (if exists)
+                    if let cancellationComment = viewModel.order.cancellationComment {
+                        cancellationCommentSection(comment: cancellationComment)
+                    }
+                    
                     // Coffee Shop Info
                     coffeeShopSection
                     
@@ -137,6 +145,259 @@ struct OrderDetailsView: View {
     }
     
     // MARK: - Sections
+    
+    // NEW: Додаткова інформація про замовлення
+    @ViewBuilder
+    private var additionalOrderInfoSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Показуємо тільки якщо є додаткова інформація
+            let hasAdditionalInfo = hasEstimatedReadyTime || hasStaffComment || hasRefundInfo
+            
+            if hasAdditionalInfo {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Час готовності замовлення
+                    if hasEstimatedReadyTime {
+                        estimatedReadyTimeSection
+                    }
+                    
+                    // Коментар від персоналу
+                    if hasStaffComment {
+                        staffCommentSection
+                    }
+                    
+                    // Інформація про рефанд
+                    if hasRefundInfo {
+                        refundInfoSection
+                    }
+                }
+            }
+        }
+    }
+    
+    private var hasEstimatedReadyTime: Bool {
+        // TODO: Додати поле estimatedReadyTime до OrderHistory моделі
+        return false
+    }
+    
+    private var hasStaffComment: Bool {
+        // TODO: Додати поле staffComment до OrderHistory моделі
+        return false
+    }
+    
+    private var hasRefundInfo: Bool {
+        // TODO: Додати поля refundStatus/refundAmount до OrderHistory моделі
+        return false
+    }
+    
+    private var estimatedReadyTimeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "clock.fill")
+                    .foregroundColor(Color("primary"))
+                
+                Text("Час готовності")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color("primaryText"))
+            }
+            
+            // TODO: Додати actual estimated ready time
+            Text("Буде готове о 14:30")
+                .font(.subheadline)
+                .foregroundColor(Color("primaryText"))
+                .padding()
+                .background(
+                    ZStack {
+                        BlurView(
+                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                            opacity: 0.95
+                        )
+                        if colorScheme == .light {
+                            Color("primary").opacity(0.05)
+                        }
+                    }
+                )
+                .cornerRadius(8)
+        }
+        .padding()
+        .background(
+            ZStack {
+                BlurView(
+                    style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                    opacity: 0.95
+                )
+                if colorScheme == .light {
+                    Color("primary").opacity(0.08)
+                }
+            }
+        )
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color("primary").opacity(0.3), lineWidth: 1)
+        )
+    }
+    
+    private var staffCommentSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "message.fill")
+                    .foregroundColor(.blue)
+                
+                Text("Коментар персоналу")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color("primaryText"))
+            }
+            
+            // TODO: Додати actual staff comment
+            Text("Ваше замовлення готується, буде готове за 10 хвилин")
+                .font(.subheadline)
+                .foregroundColor(Color("primaryText"))
+                .padding()
+                .background(
+                    ZStack {
+                        BlurView(
+                            style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                            opacity: 0.95
+                        )
+                        if colorScheme == .light {
+                            Color.blue.opacity(0.05)
+                        }
+                    }
+                )
+                .cornerRadius(8)
+        }
+        .padding()
+        .background(
+            ZStack {
+                BlurView(
+                    style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                    opacity: 0.95
+                )
+                if colorScheme == .light {
+                    Color.blue.opacity(0.08)
+                }
+            }
+        )
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+        )
+    }
+    
+    private var refundInfoSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "creditcard.fill")
+                    .foregroundColor(.green)
+                
+                Text("Повернення коштів")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color("primaryText"))
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Статус:")
+                        .font(.subheadline)
+                        .foregroundColor(Color("secondaryText"))
+                    
+                    Spacer()
+                    
+                    // TODO: Додати actual refund status
+                    Text("Оброблено")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.green)
+                }
+                
+                HStack {
+                    Text("Сума:")
+                        .font(.subheadline)
+                        .foregroundColor(Color("secondaryText"))
+                    
+                    Spacer()
+                    
+                    // TODO: Додати actual refund amount
+                    Text("120.50 ₴")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color("primaryText"))
+                }
+            }
+            .padding()
+            .background(
+                ZStack {
+                    BlurView(
+                        style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                        opacity: 0.95
+                    )
+                    if colorScheme == .light {
+                        Color.green.opacity(0.05)
+                    }
+                }
+            )
+            .cornerRadius(8)
+        }
+        .padding()
+        .background(
+            ZStack {
+                BlurView(
+                    style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                    opacity: 0.95
+                )
+                if colorScheme == .light {
+                    Color.green.opacity(0.08)
+                }
+            }
+        )
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.green.opacity(0.3), lineWidth: 1)
+        )
+    }
+    
+    private func cancellationCommentSection(comment: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Коментар до скасування")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(Color("primaryText"))
+            
+            // Карточка з коментарем (як в інших секціях)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    
+                    Text(comment)
+                        .font(.subheadline)
+                        .foregroundColor(Color("primaryText"))
+                        .fixedSize(horizontal: false, vertical: true)
+                    
+                    Spacer()
+                }
+            }
+            .padding()
+            .background(
+                ZStack {
+                    BlurView(
+                        style: colorScheme == .light ? .systemThinMaterial : .systemMaterialDark,
+                        opacity: colorScheme == .light ? 0.95 : 0.95
+                    )
+                    if colorScheme == .light {
+                        Color.red.opacity(0.08)
+                    }
+                }
+            )
+            .cornerRadius(8)
+            .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+        }
+    }
     
     private var orderHeaderSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -420,7 +681,7 @@ struct OrderDetailsView: View {
             } else {
                 LazyVStack(spacing: 8) {
                     ForEach(viewModel.order.statusHistory.sorted(by: { $0.createdAt > $1.createdAt })) { historyItem in
-                        StatusHistoryCard(historyItem: historyItem)
+                        StatusHistoryCard(historyItem: historyItem, order: viewModel.order)
                     }
                 }
             }
@@ -818,6 +1079,7 @@ struct PaymentDetailRow: View {
 
 struct StatusHistoryCard: View {
     let historyItem: OrderStatusHistoryItem
+    let order: OrderHistory
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
@@ -840,7 +1102,13 @@ struct StatusHistoryCard: View {
                         .foregroundColor(.secondary)
                 }
                 
-                if let comment = historyItem.comment, !comment.isEmpty {
+                // Show cancellation information if this is a cancelled status, otherwise show comment
+                if historyItem.status == .cancelled, let cancellationText = order.cancellationDisplayText {
+                    Text(cancellationText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fontWeight(.medium)
+                } else if let comment = historyItem.comment, !comment.isEmpty {
                     Text(comment)
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -935,7 +1203,11 @@ struct OrderDetailsView_Previews: PreviewProvider {
                     createdBy: String?.none
                 )
             ],
-            payment: OrderPaymentInfo?.none
+            payment: OrderPaymentInfo?.none,
+            cancelledBy: nil,
+            cancellationActor: nil,
+            cancellationReason: nil,
+            comment: nil
         )
         
         OrderDetailsView(order: mockOrder)
