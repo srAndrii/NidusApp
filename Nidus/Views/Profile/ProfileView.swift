@@ -179,7 +179,9 @@ struct ProfileView: View {
                 
                     // Список налаштувань зі скляним ефектом
                 VStack(spacing: 0) {
-                    ProfileMenuRow(icon: "person.fill", title: "Особисті дані")
+                    NavigationLink(destination: PersonalInfoView()) {
+                        ProfileMenuRow(icon: "person.fill", title: "Особисті дані", isNavigationRow: true)
+                    }
                         
                         Divider()
                             .background(Color("secondaryText").opacity(0.2))

@@ -124,9 +124,6 @@ class NetworkService {
     func patch<T: Encodable, U: Decodable>(endpoint: String, body: T, requiresAuth: Bool = true) async throws -> U {
         var urlRequest = try createRequest(for: endpoint, method: "PATCH", requiresAuth: requiresAuth)
         
-        // Додаємо відладковий вивід
-        print("PATCH запит на: \(endpoint)")
-        
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         
@@ -134,24 +131,12 @@ class NetworkService {
             let requestData = try encoder.encode(body)
             urlRequest.httpBody = requestData
             
-            // Виводимо тіло запиту для відладки
-            if let requestString = String(data: requestData, encoding: .utf8) {
-                print("Тіло запиту: \(requestString)")
-            }
-            
             let (data, response) = try await URLSession.shared.data(for: urlRequest)
-            
-            // Виводимо відповідь для відладки
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("Відповідь сервера: \(responseString)")
-            }
             
             // Перевіряємо код відповіді
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.invalidResponse
             }
-            
-            print("Код відповіді: \(httpResponse.statusCode)")
             
             if (200...299).contains(httpResponse.statusCode) {
                 do {
@@ -194,14 +179,11 @@ class NetworkService {
                             return formatter
                         }
                         
-                        for (index, formatter) in formatters.enumerated() {
+                        for formatter in formatters {
                             if let date = formatter.date(from: dateStr) {
-                                print("✅ [PATCH] Успішно декодовано з формату #\(index): \(date)")
                                 return date
                             }
                         }
-                        
-                        print("❌ [PATCH] Не вдалося декодувати дату: '\(dateStr)'")
                         throw DecodingError.dataCorruptedError(
                             in: container,
                             debugDescription: "Expected date string to be ISO8601-formatted."
@@ -210,24 +192,6 @@ class NetworkService {
                     
                     return try decoder.decode(U.self, from: data)
                 } catch {
-                    print("Помилка декодування: \(error)")
-                    
-                    // Додаткова інформація про помилку декодування
-                    if let decodingError = error as? DecodingError {
-                        switch decodingError {
-                        case .keyNotFound(let key, let context):
-                            print("Ключ не знайдено: \(key), шлях: \(context.codingPath), \(context.debugDescription)")
-                        case .valueNotFound(let type, let context):
-                            print("Значення не знайдено: \(type), шлях: \(context.codingPath), \(context.debugDescription)")
-                        case .typeMismatch(let type, let context):
-                            print("Невідповідність типу: \(type), шлях: \(context.codingPath), \(context.debugDescription)")
-                        case .dataCorrupted(let context):
-                            print("Дані пошкоджені: \(context.debugDescription), шлях: \(context.codingPath)")
-                        @unknown default:
-                            print("Невідома помилка декодування")
-                        }
-                    }
-                    
                     throw APIError.decodingFailed(error)
                 }
             } else {
@@ -244,6 +208,12 @@ class NetworkService {
         } catch {
             throw APIError.requestFailed(error)
         }
+    }
+    
+    // DELETE method for deleting resources
+    func delete<T: Decodable>(endpoint: String, requiresAuth: Bool = true) async throws -> T {
+        var urlRequest = try createRequest(for: endpoint, method: "DELETE", requiresAuth: requiresAuth)
+        return try await performRequest(urlRequest)
     }
     
     // MARK: - Helper Methods
