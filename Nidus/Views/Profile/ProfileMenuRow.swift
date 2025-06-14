@@ -11,40 +11,54 @@ struct ProfileMenuRow: View {
     let icon: String
     let title: String
     let action: (() -> Void)?
+    let isNavigationRow: Bool
     
-    init(icon: String, title: String, action: (() -> Void)? = nil) {
+    init(icon: String, title: String, action: (() -> Void)? = nil, isNavigationRow: Bool = false) {
         self.icon = icon
         self.title = title
         self.action = action
+        self.isNavigationRow = isNavigationRow
     }
     
     var body: some View {
-        Button(action: {
-            if let action = action {
-                action()
+        Group {
+            if isNavigationRow {
+                // Для NavigationLink не використовуємо Button
+                rowContent
+            } else {
+                // Для звичайних action використовуємо Button
+                Button(action: {
+                    if let action = action {
+                        action()
+                    }
+                }) {
+                    rowContent
+                }
             }
-        }) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundColor(Color("primary"))
-                    .frame(width: 24, height: 24)
-                
-                Text(title)
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .foregroundColor(Color("secondaryText"))
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
-                    .foregroundColor(Color("secondary"))
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .background(Color.clear)
         }
+    }
+    
+    private var rowContent: some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(Color("primary"))
+                .frame(width: 24, height: 24)
+            
+            Text(title)
+                .font(.body)
+                .fontWeight(.medium)
+                .foregroundColor(Color("secondaryText"))
+            
+            Spacer()
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14))
+                .foregroundColor(Color("secondary"))
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(Color.clear)
     }
 }
 

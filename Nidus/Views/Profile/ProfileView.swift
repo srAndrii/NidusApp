@@ -197,7 +197,10 @@ struct ProfileView: View {
                             .background(Color("secondaryText").opacity(0.2))
                             .padding(.leading, 56)
                         
-                    ProfileMenuRow(icon: "questionmark.circle.fill", title: "Підтримка")
+                    NavigationLink(destination: SupportView()) {
+                        ProfileMenuRow(icon: "questionmark.circle.fill", title: "Підтримка", isNavigationRow: true)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                         
                         Divider()
                             .background(Color("secondaryText").opacity(0.2))

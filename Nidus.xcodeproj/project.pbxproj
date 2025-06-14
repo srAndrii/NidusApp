@@ -140,7 +140,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-
 /* Begin PBXSourcesBuildPhase section */
 		B477F7942D98942800595037 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
