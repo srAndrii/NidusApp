@@ -114,6 +114,13 @@ struct IngredientCustomizationView: View {
                         }
                     }
                 }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            updateValueFromGesture(gesture, width: geometry.size.width)
+                        }
+                )
             }
             .frame(height: 18) // Збільшена висота для GeometryReader, щоб помістити текст
             
@@ -244,6 +251,41 @@ struct IngredientCustomizationView: View {
     private func calculateStep() -> Double {
         // Завжди крок 1 для будь-якого типу інгредієнтів
         return 1.0
+    }
+    
+    /// Оновлення значення на основі жесту перетягування
+    private func updateValueFromGesture(_ gesture: DragGesture.Value, width: CGFloat) {
+        // Отримуємо мінімальне та максимальне значення
+        let minValue = ingredient.minAmount ?? 0
+        let maxValue = ingredient.maxAmount ?? (ingredient.amount * 2)
+        let range = maxValue - minValue
+        
+        // Якщо діапазон недійсний, нічого не робимо
+        guard range > 0, width > 0 else { return }
+        
+        // Обчислюємо відсоток на основі позиції жесту
+        let percentage = max(0, min(1, gesture.location.x / width))
+        
+        // Конвертуємо відсоток у значення
+        let rawValue = minValue + (percentage * range)
+        
+        // Округлюємо до найближчого кроку
+        let step = calculateStep()
+        let roundedValue = round(rawValue / step) * step
+        
+        // Обмежуємо значення мінімумом та максимумом
+        let newValue = max(minValue, min(maxValue, roundedValue))
+        
+        // Оновлюємо значення тільки при зміні для уникнення надмірних оновлень
+        if abs(value - newValue) >= step * 0.1 {
+            withAnimation(.easeOut(duration: 0.1)) {
+                value = newValue
+            }
+            
+            // Додаємо тактильний відгук
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+        }
     }
 }
 
