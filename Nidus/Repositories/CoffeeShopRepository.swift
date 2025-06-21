@@ -19,20 +19,20 @@ class CoffeeShopRepository: CoffeeShopRepositoryProtocol {
     // MARK: - Користувацький інтерфейс
     
     func getAllCoffeeShops() async throws -> [CoffeeShop] {
-        return try await networkService.fetch(endpoint: "/coffee-shops/find-all")
+        return try await networkService.fetch(endpoint: "/coffee-shops/find-all", requiresAuth: false)
     }
     
     func getCoffeeShopById(id: String) async throws -> CoffeeShop {
-        return try await networkService.fetch(endpoint: "/coffee-shops/\(id)")
+        return try await networkService.fetch(endpoint: "/coffee-shops/\(id)", requiresAuth: false)
     }
     
     func getCoffeeShopMenu(id: String) async throws -> [MenuGroup] {
-        return try await networkService.fetch(endpoint: "/coffee-shops/\(id)/menu")
+        return try await networkService.fetch(endpoint: "/coffee-shops/\(id)/menu", requiresAuth: false)
     }
     
     func searchCoffeeShops(address: String) async throws -> [CoffeeShop] {
         let encodedAddress = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        return try await networkService.fetch(endpoint: "/coffee-shops/search?address=\(encodedAddress)")
+        return try await networkService.fetch(endpoint: "/coffee-shops/search?address=\(encodedAddress)", requiresAuth: false)
     }
 }
 

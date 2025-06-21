@@ -23,11 +23,11 @@ class MenuGroupRepository: MenuGroupRepositoryProtocol {
     
     /// Отримання груп меню для певної кав'ярні
     func getMenuGroups(coffeeShopId: String) async throws -> [MenuGroup] {
-        return try await networkService.fetch(endpoint: "/coffee-shops/\(coffeeShopId)/menu-groups")
+        return try await networkService.fetch(endpoint: "/coffee-shops/\(coffeeShopId)/menu-groups", requiresAuth: false)
     }
     
     /// Отримання групи меню з її пунктами
     func getMenuGroupWithItems(coffeeShopId: String, groupId: String) async throws -> MenuGroup {
-        return try await networkService.fetch(endpoint: "/coffee-shops/\(coffeeShopId)/menu-groups/\(groupId)")
+        return try await networkService.fetch(endpoint: "/coffee-shops/\(coffeeShopId)/menu-groups/\(groupId)", requiresAuth: false)
     }
 }

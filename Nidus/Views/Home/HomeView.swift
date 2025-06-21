@@ -80,7 +80,7 @@ struct HomeView: View {
                 ScrollView {
                     VStack(spacing: 12) { // Збільшуємо відступи між карточками
                         if viewModel.isLoading {
-                            ProgressView()
+                            ProgressView("Завантаження кав'ярень...")
                                 .frame(maxWidth: .infinity, minHeight: 100)
                                 .padding()
                         } else if !viewModel.coffeeShops.isEmpty {
@@ -88,12 +88,60 @@ struct HomeView: View {
                                 CoffeeShopRow(coffeeShop: coffeeShop)
                                     .padding(.horizontal)
                             }
-                        } else {
-                            // Показуємо мокові дані тільки якщо немає реальних даних
-                            ForEach(mockCoffeeShops, id: \.id) { coffeeShop in
-                                CoffeeShopRow(coffeeShop: coffeeShop)
+                        } else if let error = viewModel.error {
+                            VStack(spacing: 16) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.orange)
+                                
+                                Text("Помилка завантаження")
+                                    .font(.headline)
+                                    .foregroundColor(Color("primaryText"))
+                                
+                                Text(error.localizedDescription)
+                                    .font(.subheadline)
+                                    .foregroundColor(Color("secondaryText"))
+                                    .multilineTextAlignment(.center)
                                     .padding(.horizontal)
+                                
+                                Button("Спробувати знову") {
+                                    Task {
+                                        await viewModel.loadCoffeeShops()
+                                    }
+                                }
+                                .padding()
+                                .background(Color("primary"))
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
                             }
+                            .frame(maxWidth: .infinity, minHeight: 200)
+                            .padding()
+                        } else {
+                            VStack(spacing: 16) {
+                                Image(systemName: "cup.and.saucer")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(Color("secondaryText"))
+                                
+                                Text("Кав'ярні не знайдено")
+                                    .font(.headline)
+                                    .foregroundColor(Color("primaryText"))
+                                
+                                Text("Спробуйте пізніше")
+                                    .font(.subheadline)
+                                    .foregroundColor(Color("secondaryText"))
+                                
+                                Button("Оновити") {
+                                    Task {
+                                        await viewModel.loadCoffeeShops()
+                                    }
+                                }
+                                .padding()
+                                .background(Color("primary"))
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 200)
+                            .padding()
                         }
                     }
                     .padding(.vertical, 10)
@@ -108,122 +156,6 @@ struct HomeView: View {
             }
         }
     }
-    
-    // Демо-дані для відображення, коли сервер ще не доступний
-    private var mockCoffeeShops: [CoffeeShop] = [
-        CoffeeShop(
-            id: "mock-1",
-            name: "Bean Haven",
-            address: "вул. Хрещатик 15, Київ",
-            logoUrl: nil,
-            ownerId: nil,
-            allowScheduledOrders: true,
-            minPreorderTimeMinutes: 15,
-            maxPreorderTimeMinutes: 120,
-            workingHours: ["1": WorkingHoursPeriod(open: "08:00", close: "22:00", isClosed: false)],
-            createdAt: Date(),
-            updatedAt: Date(),
-            distance: 350
-        ),
-        CoffeeShop(
-            id: "mock-2",
-            name: "Coffee Bloom",
-            address: "вул. Льва Толстого 9, Київ",
-            logoUrl: nil,
-            ownerId: nil,
-            allowScheduledOrders: true,
-            minPreorderTimeMinutes: 15,
-            maxPreorderTimeMinutes: 120,
-            workingHours: ["1": WorkingHoursPeriod(open: "09:00", close: "21:00", isClosed: false)],
-            createdAt: Date(),
-            updatedAt: Date(),
-            distance: 750
-        ),
-        CoffeeShop(
-            id: "mock-3",
-            name: "Morning Brew",
-            address: "вул. Саксаганського 22, Київ",
-            logoUrl: nil,
-            ownerId: nil,
-            allowScheduledOrders: true,
-            minPreorderTimeMinutes: 15,
-            maxPreorderTimeMinutes: 120,
-            workingHours: ["1": WorkingHoursPeriod(open: "07:30", close: "20:00", isClosed: false)],
-            createdAt: Date(),
-            updatedAt: Date(),
-            distance: 1200
-        ),
-        CoffeeShop(
-            id: "mock-4",
-            name: "Espresso Lane",
-            address: "вул. Велика Васильківська 45, Київ",
-            logoUrl: nil,
-            ownerId: nil,
-            allowScheduledOrders: true,
-            minPreorderTimeMinutes: 15,
-            maxPreorderTimeMinutes: 120,
-            workingHours: ["1": WorkingHoursPeriod(open: "08:30", close: "22:30", isClosed: false)],
-            createdAt: Date(),
-            updatedAt: Date(),
-            distance: 2500
-        ),
-        CoffeeShop(
-            id: "mock-5",
-            name: "Caffeine Corner",
-            address: "вул. Хрещатик 15, Київ",
-            logoUrl: nil,
-            ownerId: nil,
-            allowScheduledOrders: true,
-            minPreorderTimeMinutes: 15,
-            maxPreorderTimeMinutes: 120,
-            workingHours: ["1": WorkingHoursPeriod(open: "08:00", close: "22:00", isClosed: false)],
-            createdAt: Date(),
-            updatedAt: Date(),
-            distance: 350
-        ),
-        CoffeeShop(
-            id: "mock-6",
-            name: "Aroma Cafe",
-            address: "вул. Льва Толстого 9, Київ",
-            logoUrl: nil,
-            ownerId: nil,
-            allowScheduledOrders: true,
-            minPreorderTimeMinutes: 15,
-            maxPreorderTimeMinutes: 120,
-            workingHours: ["1": WorkingHoursPeriod(open: "09:00", close: "21:00", isClosed: false)],
-            createdAt: Date(),
-            updatedAt: Date(),
-            distance: 750
-        ),
-        CoffeeShop(
-            id: "mock-7",
-            name: "Daily Grind",
-            address: "вул. Хрещатик 15, Київ",
-            logoUrl: nil,
-            ownerId: nil,
-            allowScheduledOrders: true,
-            minPreorderTimeMinutes: 15,
-            maxPreorderTimeMinutes: 120,
-            workingHours: ["1": WorkingHoursPeriod(open: "08:00", close: "22:00", isClosed: false)],
-            createdAt: Date(),
-            updatedAt: Date(),
-            distance: 350
-        ),
-        CoffeeShop(
-            id: "mock-8",
-            name: "Urban Beans",
-            address: "вул. Льва Толстого 9, Київ",
-            logoUrl: nil,
-            ownerId: nil,
-            allowScheduledOrders: true,
-            minPreorderTimeMinutes: 15,
-            maxPreorderTimeMinutes: 120,
-            workingHours: ["1": WorkingHoursPeriod(open: "09:00", close: "21:00", isClosed: false)],
-            createdAt: Date(),
-            updatedAt: Date(),
-            distance: 750
-        ),
-    ]
 }
 
 struct HomeView_Previews: PreviewProvider {

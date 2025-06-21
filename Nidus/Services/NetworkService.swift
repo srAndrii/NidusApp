@@ -111,8 +111,18 @@ class NetworkService {
     }
     
     func fetch<T: Decodable>(endpoint: String, requiresAuth: Bool = true) async throws -> T {
+        print("🌐 [NetworkService] Starting fetch request")
+        print("📍 [NetworkService] Endpoint: \(endpoint)")
+        print("🔑 [NetworkService] Requires auth: \(requiresAuth)")
+        print("🌍 [NetworkService] Full URL: \(baseURL)\(endpoint)")
+        
         var urlRequest = try createRequest(for: endpoint, method: "GET", requiresAuth: requiresAuth)
-        return try await performRequest(urlRequest)
+        
+        print("📡 [NetworkService] Request headers: \(urlRequest.allHTTPHeaderFields ?? [:])")
+        
+        let result: T = try await performRequest(urlRequest)
+        print("✅ [NetworkService] Successfully fetched data for endpoint: \(endpoint)")
+        return result
     }
     
     func post<T: Encodable, U: Decodable>(endpoint: String, body: T, requiresAuth: Bool = true) async throws -> U {

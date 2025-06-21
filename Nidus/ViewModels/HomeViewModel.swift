@@ -31,7 +31,9 @@ class HomeViewModel: ObservableObject {
         error = nil
         
         do {
+            print("🏪 HomeViewModel: Starting to load coffee shops...")
             coffeeShops = try await coffeeShopRepository.getAllCoffeeShops()
+            print("🏪 HomeViewModel: Successfully loaded \(coffeeShops.count) coffee shops")
             
             // Обчислюємо відстань до кав'ярень, якщо відомо поточне місцезнаходження
             if let userLocation = currentLocation {
@@ -52,7 +54,19 @@ class HomeViewModel: ObservableObject {
             
         } catch {
             self.error = error
-            print("Error loading coffee shops: \(error)")
+            print("❌ HomeViewModel: Error loading coffee shops: \(error)")
+            if let apiError = error as? APIError {
+                switch apiError {
+                case .unauthorized:
+                    print("❌ HomeViewModel: Unauthorized - check if authentication is required")
+                case .serverError(let statusCode, let message):
+                    print("❌ HomeViewModel: Server error \(statusCode): \(message ?? "Unknown")")
+                case .requestFailed(let underlyingError):
+                    print("❌ HomeViewModel: Request failed: \(underlyingError)")
+                default:
+                    print("❌ HomeViewModel: Other API error: \(apiError.localizedDescription)")
+                }
+            }
         }
         
         isLoading = false

@@ -23,11 +23,11 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
     // MARK: - Користувацький інтерфейс
     
     func getMenuItems(groupId: String) async throws -> [MenuItem] {
-        return try await networkService.fetch(endpoint: "/menu-groups/\(groupId)/items")
+        return try await networkService.fetch(endpoint: "/menu-groups/\(groupId)/items", requiresAuth: false)
     }
     
     func getMenuItem(groupId: String, itemId: String) async throws -> MenuItem {
-        return try await networkService.fetch(endpoint: "/menu-groups/\(groupId)/items/\(itemId)")
+        return try await networkService.fetch(endpoint: "/menu-groups/\(groupId)/items/\(itemId)", requiresAuth: false)
     }
     
     func getFilteredMenuItems(groupId: String, minPrice: Double?, maxPrice: Double?) async throws -> [MenuItem] {
@@ -46,6 +46,6 @@ class MenuItemRepository: MenuItemRepositoryProtocol {
             endpoint.removeLast()
         }
         
-        return try await networkService.fetch(endpoint: endpoint)
+        return try await networkService.fetch(endpoint: endpoint, requiresAuth: false)
     }
 }
